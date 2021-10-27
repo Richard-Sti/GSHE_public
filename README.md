@@ -6,3 +6,4 @@
 - [ ] Calculate how close that straight line passes to a target location (the impact parameter)
 - [ ] Add how tau behaves along the straight line
 - [ ] Add some solver that minimises the impact parameter
+- [ ] Document the code that does the translation from mathematica
