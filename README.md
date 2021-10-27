@@ -1,1 +1,1 @@
-# birefringence
+# Numerical gravitational spin Hall equations
