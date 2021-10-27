@@ -30,8 +30,6 @@ class TerminationConditions:
     Class to check various integration boundary conditions, such as hitting
     the event horizon or the integration limits.
 
-    TODO: how in Kerr boundary calculated
-
     The event horizon boundary is calculated as
 
     .. math::
