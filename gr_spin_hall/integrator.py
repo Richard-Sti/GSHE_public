@@ -71,7 +71,7 @@ class TerminationConditions:
         # the function's only argument must be the parameter value.
         self._termination_funcs = {"r": self.radius_termination,
                                    "tau": self.tau_termination}
-        self._termination_params = list(self._bound_funcs.keys())
+        self._termination_params = list(self._termination_funcs.keys())
 
     @property
     def r_boundary(self):
@@ -295,7 +295,7 @@ class Integrator:
             Whether to terminate.
         """
         return any(self.term[p](self.current_coord(p))
-                   for p in self.term._bound_types)
+                   for p in self.term._termination_params)
 
     def run_steps(self, N):
         """
