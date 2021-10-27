@@ -252,9 +252,9 @@ class Integrator:
             self._chain.T, names=self.params, formats=[float]*len(self.params))
 
     @property
-    def current_positions(self):
+    def current_coords(self):
         """
-        Current position of the integrator.
+        Current coordinates of the integrator corresponding to `self.params`.
 
         Returns
         -------
@@ -265,7 +265,7 @@ class Integrator:
 
     def current_coord(self, param):
         """
-        Current position of parameter `param` of the integrator.
+        Current value of parameter `param` of the integrator.
 
         Arguments
         ---------
@@ -283,6 +283,35 @@ class Integrator:
         if param == 'tau':
             return self.solver.t
         return self.solver.y[self.params.index(param)]
+
+    def selective_chain(self, params):
+        """
+        Returns a slice of the chain that only includes `params`.
+
+        Arguments
+        ---------
+        params: list (of str)
+            Parameters to be included in the slice.
+
+        Returns
+        -------
+        sliced_chain: numpy.ndarray
+            The sliced chain with shape `(Nsteps, len(params))`
+        """
+        if isinstance(params, str):
+            params = [params]
+        if not isinstance(params, (list, tuple)):
+            raise ValueError("`params` must be a list. Currently {}"
+                             .format(type(params)))
+
+        positions = [None] * len(params)
+        for i, p in enumerate(params):
+            try:
+                positions[i] = self.params.index(p)
+            except ValueError:
+                raise KeyError("`{}` not in `self.params` ({})"
+                               .format(p, self.params))
+        return self._chain[:, positions]
 
     @property
     def to_terminate(self):
