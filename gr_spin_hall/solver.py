@@ -171,33 +171,34 @@ class TerminationConditions:
         """Returns the appropriate termination function for `param`."""
         if param not in self._termination_params:
             raise KeyError("Unknown boundary type: `{}`. Allowed: `{}`"
-                           .format(bound, self._termination_params))
+                           .format(param, self._termination_params))
         return self._termination_funcs[param]
 
 
-class Solver:
+class Integrator:
     """
-    TODO:
-        - Add some comments
-        - Add Schwarzschild radius termination condition
-        - Check whether the ray is evolving linearly
-        - Check the time condition
     """
     _params = None
 
-    def __init__(self, fun, params, solver_kwargs, terminator):
-        self._solver = RK45(fun, **solver_kwargs)
+    def __init__(self, func, initial_position, rs, a, tau_min, tau_max, params,
+                 radius_tolerance=0.01, integrator_kwargs=None):
+        # Object with termination conditions
+        self.term = TerminationConditions(rs=rs, a=a, tau_max=tau_max,
+                                          radius_tolerance=radius_tolerance)
+        # Initialise the solver
+        self._solver = RK45(func, t0=tau_min, y0=initial_position,
+                            t_bound=tau_max, **integrator_kwargs)
+        # Parse the parameters
         self.params = params
-
+        # Initialise the internal chain. Stack up tau at the last position
         self._chain = numpy.hstack([self.solver.y,
                                     self.solver.t]).reshape(1, -1)
-        self.term = terminator
 
     @property
     def params(self):
         """
-        Parameters denoting the affine parameter and the differentiated
-        functions.
+        Parameters denoting the the differentiated functions and the affine
+        parameter.
 
         Returns
         -------
@@ -208,7 +209,7 @@ class Solver:
 
     @params.setter
     def params(self, params):
-        """Sets the parameters."""
+        """Sets the parameters `self.params`."""
         if len(params) != self.solver.y.size:
             raise ValueError("The number of `params` does not match the "
                              "number the vector length of the initial "
@@ -241,33 +242,86 @@ class Solver:
 
     @property
     def chain(self):
-        # Output this one as a structured numpy array
+        """
+        The integrated positions.
+
+        Returns
+        -------
+        chain: numpy.recarray
+            Chain with stepped positions.
+        """
         return numpy.core.records.fromarrays(
             self._chain.T, names=self.params, formats=[float]*len(self.params))
 
     @property
     def current_positions(self):
+        """
+        Current position of the integrator.
+
+        Returns
+        -------
+        current_position: dict
+            Dictionary with the current position.
+        """
         return {par: self._chain[-1, i] for i, par in enumerate(self.params)}
 
     def current_coord(self, param):
+        """
+        Current position of parameter `param` of the integrator.
+
+        Arguments
+        ---------
+        param: str
+            Parameter whose current position to return.
+
+        Returns
+        -------
+        value: float
+            The current value of the parameter.
+        """
+        if param not in self.params:
+            raise ValueError("Unknown parameter `{}`. Must be from `{}`"
+                             .format(param, self.params))
         if param == 'tau':
             return self.solver.t
         return self.solver.y[self.params.index(param)]
 
     @property
     def to_terminate(self):
-        return any(self.term[p](self.current_coord(p)) for p in ['r', 'tau'])
+        """
+        Whether to terminate the integrator. Checks all termination conditions.
+
+        Returns
+        -------
+        to_terminate: bool
+            Whether to terminate.
+        """
+        return any(self.term[p](self.current_coord(p))
+                   for p in self.term._bound_types)
 
     def run_steps(self, N):
+        """
+        Run the solver for `N` steps.
+
+        Arguments
+        ---------
+        N: int
+            Number of integration steps.
+        """
+        # Force an integer value
+        if not isinstance(N, int):
+            N = int(N)
+        if not N > 0:
+            raise ValueError("Required `N` > 0. Currently `N` = {}.".format(N))
         chain = numpy.full((N, self.solver.y.shape[0] + 1), numpy.nan)
-        # Check the termination conditions.
+        # Check if the solver already meets the termination conditions
         if self.to_terminate:
             warnings.warn("Solver already terminated.")
             return
-
         # Run for N steps
         for i in range(N):
             if self.to_terminate:
+                # Terminate and shorten the working chain
                 chain = chain[:i, :]
                 break
 
@@ -275,11 +329,24 @@ class Solver:
             self.solver.step()
             # Store to the chain
             chain[i, :-1] = self.solver.y
-            chain[i, -1] = self.solver.t
-
+            chain[i, -1] = self.solver.t  # tau always goes at the last pos.
+        # Stack the working chain to the big chain
         self._chain = numpy.vstack([self._chain, chain])
 
     def run_termination(self, batch_size):
+        """
+        Run the solver until termination (i.e. maximum `tau` or the radius
+        boundary is hit).
+
+        Arguments
+        ---------
+        batch_size: int
+            Number of integration steps to perform in one batch.
+        """
+        # Force an integer value
+        if not isinstance(batch_size, int):
+            batch_size = int(batch_size)
+        # Keep running until termination
         while True:
             self.run_steps(batch_size)
             if self.to_terminate:
