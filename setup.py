@@ -4,7 +4,7 @@ setup(
     name='GR_spin_hall',
     version='0.1',
     description='Numerical gravitational spin Hall equations',
-    url='https://github.com/Richard-Sti/GR_spin_hall',
+    url='https://github.com/Richard-Sti/GR-spin-hall',
     author='Richard Stiskalek',
     author_email='richard.stiskalek@protonmail.com',
     license='MIT License',
