@@ -24,6 +24,8 @@ import numpy
 from scipy.integrate import RK45
 import warnings
 
+from .chain import Chain
+
 
 class TerminationConditions:
     r"""
@@ -166,7 +168,9 @@ class TerminationConditions:
         return False
 
     def __getitem__(self, param):
-        """Returns the appropriate termination function for `param`."""
+        """
+        Returns the appropriate termination function for `param`.
+        """
         if param not in self._termination_params:
             raise KeyError("Unknown boundary type: `{}`. Allowed: `{}`"
                            .format(param, self._termination_params))
@@ -175,44 +179,46 @@ class TerminationConditions:
 
 class Integrator:
     """
-    """
-    _params = None
+    A RK45 integrator, checks for termination conditions, logs data, and
+    terminates when the geodesic becomes a straight line.
 
-    def __init__(self, func, initial_position, rs, a, tau_min, tau_max, params,
-                 radius_tolerance=0.01, integrator_kwargs=None):
+    Parameters
+    ----------
+    func: `py:func`
+        The set of first order ordinary differential equations. `func` must
+        return a list of derivatives whose order corresponds to `params`.
+    params: list (of str)
+        Parameters that are being integrated.
+    initial_positions: dict
+        A dictionary of initial positions whose keys must agree with `params`.
+    rs: float
+        The Schwarzschild radius.
+    a: float
+        The Kerr spin factor. If `func` corresponds to the Schwarzschild
+        solution instead of Kerr then it is ignored.
+    tau_min: float
+        Affine parameter lower integration limit.
+    tau_max: float
+        Affine parameter upper integration limit.
+    radius_tolerance: float, optional
+        Tolerance of the event horizon boundary.
+        See `py:class:TerminationConditions` for more details.
+    integrator_kwargs: dict
+        Additional arguments to be passed into `scipy.integrate.RK45` such
+        as the tolerance.
+    """
+
+    def __init__(self, func, params, initial_positions, rs, a, tau_min,
+                 tau_max, affine_param='tau', radius_tolerance=0.01,
+                 integrator_kwargs=None):
         # Object with termination conditions
         self.term = TerminationConditions(rs=rs, a=a, tau_max=tau_max,
                                           radius_tolerance=radius_tolerance)
+        # Initialise the chain
+        self._chain = Chain(initial_positions, tau_min, params, affine_param)
         # Initialise the solver
-        self._solver = RK45(func, t0=tau_min, y0=initial_position,
+        self._solver = RK45(func, t0=tau_min, y0=self.chain.data[0, :-1],
                             t_bound=tau_max, **integrator_kwargs)
-        # Parse the parameters
-        self.params = params
-        # Initialise the internal chain. Stack up tau at the last position
-        self._chain = numpy.hstack([self.solver.y,
-                                    self.solver.t]).reshape(1, -1)
-
-    @property
-    def params(self):
-        """
-        Parameters denoting the the differentiated functions and the affine
-        parameter.
-
-        Returns
-        -------
-        params: list (of str)
-            Parameter names.
-        """
-        return self._params
-
-    @params.setter
-    def params(self, params):
-        """Sets the parameters `self.params`."""
-        if len(params) != self.solver.y.size:
-            raise ValueError("The number of `params` does not match the "
-                             "number the vector length of the initial "
-                             "positions.")
-        self._params = [str(par) for par in params] + ['tau']
 
     @property
     def solver(self):
@@ -227,6 +233,42 @@ class Integrator:
         return self._solver
 
     @property
+    def params(self):
+        """
+        Parameters denoting the the differentiated functions and the affine
+        parameter.
+
+        Returns
+        -------
+        params: list (of str)
+            Parameter names.
+        """
+        return self.chain.params
+
+    @property
+    def affine_param(self):
+        r"""
+        The affine parameter :math:`\tau`.
+
+        Returns
+        -------
+        affine_param: str
+            The affine parameter.
+        """
+        return self.chain.affine_param
+
+    @property
+    def chain(self):
+        """
+        The chain used to log the outputs.
+
+        Returns
+        -------
+        chain: `:py:class:gr_spin_hall.Chain`.
+        """
+        return self._chain
+
+    @property
     def Nsteps(self):
         """
         The number of integration steps.
@@ -236,20 +278,7 @@ class Integrator:
         Nsteps: int
             Number of steps.
         """
-        return self._chain.shape[0] - 1
-
-    @property
-    def chain(self):
-        """
-        The integrated positions.
-
-        Returns
-        -------
-        chain: numpy.recarray
-            Chain with stepped positions.
-        """
-        return numpy.core.records.fromarrays(
-            self._chain.T, names=self.params, formats=[float]*len(self.params))
+        return self.chain.data.shape[0] - 1
 
     @property
     def current_coords(self):
@@ -261,57 +290,25 @@ class Integrator:
         current_position: dict
             Dictionary with the current position.
         """
-        return {par: self._chain[-1, i] for i, par in enumerate(self.params)}
+        out = {par: self.solver.y[i] for i, par in enumerate(self.params[:-1])}
+        out.update({self.affine_param: self.solver.t})
+        return out
 
     def current_coord(self, param):
         """
         Current value of parameter `param` of the integrator.
-
         Arguments
         ---------
         param: str
             Parameter whose current position to return.
-
         Returns
         -------
         value: float
             The current value of the parameter.
         """
-        if param not in self.params:
-            raise ValueError("Unknown parameter `{}`. Must be from `{}`"
-                             .format(param, self.params))
-        if param == 'tau':
+        if param == self.affine_param:
             return self.solver.t
         return self.solver.y[self.params.index(param)]
-
-    def selective_chain(self, params):
-        """
-        Returns a slice of the chain that only includes `params`.
-
-        Arguments
-        ---------
-        params: list (of str)
-            Parameters to be included in the slice.
-
-        Returns
-        -------
-        sliced_chain: numpy.ndarray
-            The sliced chain with shape `(Nsteps, len(params))`
-        """
-        if isinstance(params, str):
-            params = [params]
-        if not isinstance(params, (list, tuple)):
-            raise ValueError("`params` must be a list. Currently {}"
-                             .format(type(params)))
-
-        positions = [None] * len(params)
-        for i, p in enumerate(params):
-            try:
-                positions[i] = self.params.index(p)
-            except ValueError:
-                raise KeyError("`{}` not in `self.params` ({})"
-                               .format(p, self.params))
-        return self._chain[:, positions]
 
     @property
     def to_terminate(self):
@@ -334,31 +331,35 @@ class Integrator:
         ---------
         N: int
             Number of integration steps.
+
+        Returns
+        -------
+        None
         """
         # Force an integer value
         if not isinstance(N, int):
             N = int(N)
         if not N > 0:
             raise ValueError("Required `N` > 0. Currently `N` = {}.".format(N))
-        chain = numpy.full((N, self.solver.y.shape[0] + 1), numpy.nan)
+        chain = numpy.full((N, len(self.params)), numpy.nan)
         # Check if the solver already meets the termination conditions
         if self.to_terminate:
             warnings.warn("Solver already terminated.")
             return
         # Run for N steps
         for i in range(N):
-            if self.to_terminate:
-                # Terminate and shorten the working chain
-                chain = chain[:i, :]
-                break
-
             # Advance the solver
             self.solver.step()
             # Store to the chain
             chain[i, :-1] = self.solver.y
             chain[i, -1] = self.solver.t  # tau always goes at the last pos.
+
+            if self.to_terminate:
+                # Terminate and shorten the working chain
+                chain = chain[:i, :]
+                break
         # Stack the working chain to the big chain
-        self._chain = numpy.vstack([self._chain, chain])
+        self.chain.append(chain)
 
     def run_termination(self, batch_size):
         """
@@ -369,12 +370,16 @@ class Integrator:
         ---------
         batch_size: int
             Number of integration steps to perform in one batch.
+
+        Returns
+        -------
+        None
         """
         # Force an integer value
         if not isinstance(batch_size, int):
             batch_size = int(batch_size)
         # Keep running until termination
         while True:
-            self.run_steps(batch_size)
             if self.to_terminate:
                 break
+            self.run_steps(batch_size)

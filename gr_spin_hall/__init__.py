@@ -21,4 +21,6 @@
 # SOFTWARE.
 
 from .integrator import (Integrator, TerminationConditions)
+from .chain import Chain
 from .translate import (LambdifyVector, parse_mathematica_vector)
+from .utils import spherical_to_cartesian
