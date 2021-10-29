@@ -6,5 +6,5 @@
 - [ ] Calculate how close that straight line passes to a target location (the impact parameter)
 - [ ] Add support for the increase of t along the straight line
 - [ ] Add some solver that minimises the impact parameter
-- [ ] Document the code that does the translation from mathematica
+- [x] Document the code that does the translation from mathematica
 - [x] Create a chain class
