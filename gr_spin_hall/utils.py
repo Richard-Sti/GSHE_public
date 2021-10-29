@@ -24,8 +24,9 @@ import numpy
 
 
 def spherical_to_cartesian(X):
-    """
-    The usual conversion of spherical to Cartesian coordinates.
+    r"""
+    The usual conversion of spherical to Cartesian coordinates in
+    :math:`\mathbb{E}^3`.
 
     Arguments
     ---------
