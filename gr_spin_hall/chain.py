@@ -30,19 +30,20 @@ class Chain:
     ---------
     initial_positions: dict
         A dictionary of initial positions with keys matching `params`.
-    tau_min: float
-        The lower integration limit on :math:`\tau`.
     params: list (of str)
         List of parameters that are being integrated.
+    tau_min: float
+        The lower integration limit on :math:`\tau`. By default if `None`
+        :math:`\tau` will not be stored.
     affine_param: str, optional
-        The affine parameter.
+        The affine parameter. If `None` no value will be stored.
     """
     _chain = None
     _params = None
     _affine_param = None
 
-    def __init__(self, initial_positions, tau_min, params,
-                 affine_param='tau'):
+    def __init__(self, initial_positions, params, tau_min=None,
+                 affine_param=None):
         # Parse the inputs
         self.affine_param = affine_param
         self.params = params
@@ -63,6 +64,8 @@ class Chain:
     @affine_param.setter
     def affine_param(self, affine_param):
         r"""Sets the affine parameter :math:`tau`."""
+        if affine_param is None:
+            return
         if not isinstance(affine_param, str):
             raise ValueError("`affine_param` must be a `str`. Currently `{}`."
                              .format(type(affine_param)))
@@ -83,8 +86,12 @@ class Chain:
 
     @params.setter
     def params(self, params):
-        """Sets the parameters `self.params`."""
-        self._params = [str(par) for par in params] + [self.affine_param]
+        """
+        Sets the parameters `self.params`.
+        """
+        self._params = [str(par) for par in params]
+        if self.affine_param is not None:
+            self._params += [self.affine_param]
 
     def _create_chain(self, initial_positions, tau_min):
         r"""
@@ -96,7 +103,7 @@ class Chain:
         initial_positions: dict
             Dictionary of initial positions. Dictionary keys must match
             `self.params`.
-        tau_min: float
+        tau_min: float or None
             Starting value of the affine parameter :math:`\tau`
 
         Returns
@@ -104,13 +111,14 @@ class Chain:
         chain: numpy.ndarray
             The initial chain of shape `(1, len(self.params))`.
         """
-        if len(initial_positions) != len(self.params) - 1:
+        length = len(self.params) - int(self.affine_param is not None)
+        if len(initial_positions) != length:
             raise ValueError("The number of initial positions `{}` does not "
                              "match the number of parameters `{}` (excluding "
                              "the affine par.)"
-                             .format(len(initial_positions), len(self.params)))
+                             .format(len(initial_positions), length))
         # Check we have the right initial positions
-        x0 = [None] * (len(self.params) - 1)
+        x0 = [None] * length
         for i, key in enumerate(self.params):
             if key == self.affine_param:
                 continue
@@ -118,6 +126,8 @@ class Chain:
                 raise KeyError("Initial parameter `{}` not present in "
                                "`self.params: {}`".format(key, self.params))
             x0[i] = initial_positions[key]
+        if self.affine_param is None:
+            return numpy.asarray(x0).reshape(1, -1)
         return numpy.hstack([x0, tau_min]).reshape(1, -1)
 
     @property

@@ -215,7 +215,9 @@ class Integrator:
         self.term = TerminationConditions(rs=rs, a=a, tau_max=tau_max,
                                           radius_tolerance=radius_tolerance)
         # Initialise the chain
-        self._chain = Chain(initial_positions, tau_min, params, affine_param)
+        self._chain = Chain(initial_positions=initial_positions,
+                            tau_min=tau_min, params=params,
+                            affine_param=affine_param)
         # Initialise the solver
         self._solver = RK45(func, t0=tau_min, y0=self.chain.data[0, :-1],
                             t_bound=tau_max, **integrator_kwargs)
