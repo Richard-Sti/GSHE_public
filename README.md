@@ -14,7 +14,13 @@
 - [ ] Add some solver that minimises the impact parameter
 
 
-### General
+### Documentation & Debugging
 - [x] Document the code that does the translation from mathematica
 - [x] Create a chain class
 - [ ] Document the extrapolation stuff
+- [ ] Debug Kerr
+- [ ] Generalise the solver from the integrator, make it possible to switch the solvers (i.e. RK45 -> sympleptic, ...)
+
+
+### Integration
+- [ ] Add a sympleptic integrator (more suitable for integrating a Hamiltonian system)
