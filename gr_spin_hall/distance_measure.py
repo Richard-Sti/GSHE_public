@@ -20,8 +20,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .integrator import (Integrator, TerminationConditions)
-from .chain import Chain
-from .translate import (LambdifyVector, parse_mathematica_vector)
+import numpy
+# from .chain import Chain
 from .utils import spherical_to_cartesian
-from .distance_measure import minkowski_geodesic_fit, cartesian_distance
+
+
+def minkowski_geodesic_fit(integrator_linear, pars=['r', 'theta', 'phi']):
+    X = spherical_to_cartesian(integrator_linear.chain.get_data(pars))
+
+    dX = X[1:, :] - X[0, :]
+    dX /= numpy.linalg.norm(dX, axis=1).reshape(-1, 1)
+
+    v = numpy.mean(dX, axis=0)
+    std = numpy.var(dX, axis=0).mean()**0.5
+    # TODO: Check that std is less than some boundary
+    return v, std
+
+
+def cartesian_distance(integrator, integrator_linear, observer_coordinates,
+                       pars=['r', 'theta', 'phi']):
+    v, __ = minkowski_geodesic_fit(integrator_linear)
+    pars = ['r', 'theta', 'phi']
+    r_observer = spherical_to_cartesian([observer_coordinates[p]
+                                         for p in pars])
+    r0 = spherical_to_cartesian([integrator.current_coord(p) for p in pars])
+    return numpy.linalg.norm(numpy.dot(r_observer - r0, v) * v
+                             - r_observer + r0)

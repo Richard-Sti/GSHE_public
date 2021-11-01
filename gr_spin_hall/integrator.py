@@ -62,12 +62,14 @@ class TerminationConditions:
     _r_boundary = None
     _tau_max = None
     _radius_tolerance = None
+    _radius_max = None
 
-    def __init__(self, rs, a, tau_max, radius_tolerance=0.01):
+    def __init__(self, rs, a, radius_max, tau_max, radius_tolerance=0.01):
         # Parse the inputs
         self._set_radius_boundary(rs, a)
         self.tau_max = tau_max
         self.radius_tolerance = radius_tolerance
+        self.radius_max = radius_max
 
         # Termination functions. Key must be the relevant parameter and
         # the function's only argument must be the parameter value.
@@ -97,7 +99,7 @@ class TerminationConditions:
         """
         if not rs > 0:
             raise ValueError("`rs` > 0. Currently `rs` = {:.5f}.".format(rs))
-        if a > 0 and rs >= 2 * a:
+        if not (a >= 0 and rs >= 2 * a):
             raise ValueError("`rs` >= 2 * `a`. Currently ""`rs` = {:.5f}, "
                              "a = {:.5f}.".format(rs, a))
         self._r_boundary = 0.5 * (rs + (rs**2 - 4 * a**2)**0.5)
@@ -114,6 +116,21 @@ class TerminationConditions:
         than some lower limit but is not being checked.
         """
         self._tau_max = float(tau_max)
+
+    @property
+    def radius_max(self):
+        """The maximum geodesic integration radius."""
+        return self._radius_max
+
+    @radius_max.setter
+    def radius_max(self, radius_max):
+        """
+        Sets the maximum geodesic integration radius. Checks that it is higher
+        than `self.rs`.
+        """
+        if not radius_max > self.r_boundary:
+            raise ValueError("`radius_max` must be larger than `self.rs`.")
+        self._radius_max = float(radius_max)
 
     @property
     def radius_tolerance(self):
@@ -148,6 +165,11 @@ class TerminationConditions:
         if r <= (1 + self.radius_tolerance) * self.r_boundary:
             warnings.warn("Horizon hit, terminating. Current `r` = {:.5f}, "
                           "`horizon` = {:.5f}.".format(r, self.r_boundary))
+            return True
+        if r >= self.radius_max:
+            warnings.warn("Maximum `r` reached, terminating. Current "
+                          "`r` = {:.5f} `radius_max` = {:.5f}."
+                          .format(r, self.radius_max))
             return True
         return False
 
@@ -209,10 +231,11 @@ class Integrator:
     """
 
     def __init__(self, func, params, initial_positions, rs, a, tau_min,
-                 tau_max, affine_param='tau', radius_tolerance=0.01,
-                 integrator_kwargs=None):
+                 tau_max, radius_max, affine_param='tau',
+                 radius_tolerance=0.01, integrator_kwargs=None):
         # Object with termination conditions
         self.term = TerminationConditions(rs=rs, a=a, tau_max=tau_max,
+                                          radius_max=radius_max,
                                           radius_tolerance=radius_tolerance)
         # Initialise the chain
         self._chain = Chain(initial_positions=initial_positions,
@@ -358,7 +381,8 @@ class Integrator:
 
             if self.to_terminate:
                 # Terminate and shorten the working chain
-                chain = chain[:i, :]
+                warnings.warn("Termination condition met, terminating.")
+                chain = chain[:i+1, :]
                 break
         # Stack the working chain to the big chain
         self.chain.append(chain)
