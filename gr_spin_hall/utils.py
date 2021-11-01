@@ -23,26 +23,38 @@
 import numpy
 
 
-def spherical_to_cartesian(X):
+def spherical_to_cartesian(X, r_normalise=False):
     r"""
     The usual conversion of spherical to Cartesian coordinates in
     :math:`\mathbb{E}^3`.
 
     Arguments
     ---------
-    X: numpy.ndarray
+    X: numpy.ndarray or  a 3-tuple
         Array of shape `(Npoints, 3)` where the second axis is `r`, `theta`,
-        and `phi` respectively.
+        and `phi` respectively. If a tuple then it must be `r`, `theta, `phi`.
+    r_normalise: bool, optional
+        If `True` will set :math:`r = 1`. By default `False`.
 
     Returns
     -------
     out: numpy.ndarray
         Array of shape `(Npoints, 3)` where the second axis is `x`, `y`,
-        and `z` respectively.
+        and `z` respectively. If input was a tuple the shape is `(3, )`.
     """
-    stheta, ctheta = numpy.sin(X[:, 1]), numpy.cos(X[:, 1])
-    sphi, cphi = numpy.sin(X[:, 2]), numpy.cos(X[:, 2])
-    x = X[:, 0] * cphi * stheta
-    y = X[:, 0] * sphi * stheta
-    z = X[:, 0] * ctheta
+    if isinstance(X, (list, tuple)):
+        r, theta, phi = X
+    else:
+        r, theta, phi = X[:, 0], X[:, 1], X[:, 2]
+
+    if r_normalise:
+        r = 1
+
+    stheta, ctheta = numpy.sin(theta), numpy.cos(theta)
+    sphi, cphi = numpy.sin(phi), numpy.cos(phi)
+    x = r * cphi * stheta
+    y = r * sphi * stheta
+    z = r * ctheta
+    if isinstance(X, (list, tuple)):
+        return numpy.array([x, y, z])
     return numpy.vstack([x, y, z]).T
