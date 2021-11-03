@@ -4,16 +4,15 @@
 ## TODO:
 
 ### Symbolic solution
-- [ ] Make the ray parameter x^0
-- [ ] Test Kerr-Schild coordinate system
+- [ ] Clean up how the symbolic expressions are loaded in.
 
 
 ### Target hitting
-- [ ] Add HealPix solver for the initial conditions
-- [ ] For the best fit integrate until max radius to get t
+- [ ] Finds a good optimiser.
+
 
 ### Documentation & Debugging
-- [ ] Document the extrapolation stuff.
+- [ ] Go through the code and correct missing documentation
 - [ ] Generalise the solver from the integrator, make it possible to switch the solvers (i.e. RK45 -> sympleptic, ...)
 
 ### Integration
