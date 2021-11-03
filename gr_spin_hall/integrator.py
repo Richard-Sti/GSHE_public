@@ -250,9 +250,9 @@ class Integrator:
     a: float
         The Kerr spin factor. If `func` corresponds to the Schwarzschild
         solution instead of Kerr then it is ignored.
-    tau_min: float
+    tau_min: float, optional
         Affine parameter lower integration limit.
-    tau_max: float
+    tau_max: float, optional
         Affine parameter upper integration limit.
     radius_tolerance: float, optional
         Tolerance of the event horizon boundary.
@@ -280,6 +280,10 @@ class Integrator:
         # Initialise the solver
         self._solver = RK45(model, t0=tau_min, y0=self.chain.data[0, :-1],
                             t_bound=tau_max, **integrator_kwargs)
+        # Store the reset data
+        self._reset_data = {'tau_min': tau_min, 'tau_max': tau_max,
+                            'model': model,
+                            'integrator_kwargs': integrator_kwargs}
 
     @property
     def solver(self):
@@ -514,3 +518,29 @@ class Integrator:
             flag = self.run_steps(batch_size)
             if flag in [FAIL_TERM_FLAG, SUCCESS_TERM_FLAG]:
                 return flag
+
+    def clear_history(self, initial_positions):
+        """
+        Clears the integrators history.
+
+        Arguments
+        ---------
+        initial_positions: dict
+            A dictionary of initial positions whose keys must agree with
+            `params`.
+
+        Returns
+        -------
+        None
+        """
+        data = self._reset_data
+        # Clears the chain
+        self.chain._chain = self.chain._create_chain(initial_positions,
+                                                     data['tau_min'])
+        # Resets the number of steps
+        self._Nsteps = 0
+        # Reset the integrator
+        self._solver = RK45(data['model'], t0=data['tau_min'],
+                            y0=self.chain.data[0, :-1],
+                            t_bound=data['tau_max'],
+                            **data['integrator_kwargs'])
