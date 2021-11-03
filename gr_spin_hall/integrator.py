@@ -64,18 +64,23 @@ class TerminationConditions:
     radius_tolerance: float, optional
         Tolerance of the event horizon boundary. See its definition for more
         details.
+    verbosity: bool, optional
+        Warnings verbosity. By default `True`.
     """
     _r_boundary = None
     _tau_max = None
     _radius_tolerance = None
     _radius_max = None
+    _verbosity = None
 
-    def __init__(self, rs, a, tau_max, radius_max=None, radius_tolerance=0.01):
+    def __init__(self, rs, a, tau_max, radius_max=None, radius_tolerance=0.01,
+                 verbosity=None):
         # Parse the inputs
         self._set_radius_boundary(rs, a)
         self.tau_max = tau_max
         self.radius_tolerance = radius_tolerance
         self.radius_max = radius_max
+        self.verbosity = verbosity
 
         # Termination functions. Key must be the relevant parameter and
         # the function's only argument must be the parameter value.
@@ -122,6 +127,21 @@ class TerminationConditions:
         than some lower limit but is not being checked.
         """
         self._tau_max = float(tau_max)
+
+    @property
+    def verbosity(self):
+        """Warnings verbosity flag."""
+        return self._verbosity
+
+    @verbosity.setter
+    def verbosity(self, verbosity):
+        """Sets `self.verbosity`."""
+        if verbosity is None:
+            self._verbosity = True
+        if not isinstance(verbosity, bool):
+            raise ValueError("`verbosity` must be bool. Currently `{}`."
+                             .format(verbosity))
+        self._verbosity = verbosity
 
     @property
     def radius_max(self):
@@ -171,13 +191,16 @@ class TerminationConditions:
             Status flag.
         """
         if r <= (1 + self.radius_tolerance) * self.r_boundary:
-            warnings.warn("Horizon hit, terminating. Current `r` = {:.5f}, "
-                          "`horizon` = {:.5f}.".format(r, self.r_boundary))
+            if self.verbosity:
+                warnings.warn("Horizon hit, terminating. Current "
+                              "`r` = {:.5f}, `horizon` = {:.5f}."
+                              .format(r, self.r_boundary))
             return FAIL_TERM_FLAG
         if r >= self.radius_max:
-            warnings.warn("Maximum `r` reached, terminating. Current "
-                          "`r` = {:.5f} `radius_max` = {:.5f}."
-                          .format(r, self.radius_max))
+            if self.verbosity:
+                warnings.warn("Maximum `r` reached, terminating. Current "
+                              "`r` = {:.5f} `radius_max` = {:.5f}."
+                              .format(r, self.radius_max))
             return SUCCESS_TERM_FLAG
         return CONT_FLAG
 
@@ -191,9 +214,10 @@ class TerminationConditions:
             Status flag.
         """
         if tau >= self.tau_max:
-            warnings.warn("Maximum integration `tau` reached. Current "
-                          "`tau` = {:.5f}, `tau_max` = {:.5f}."
-                          .format(tau, self.tau_max))
+            if self.verbosity:
+                warnings.warn("Maximum integration `tau` reached. Current "
+                              "`tau` = {:.5f}, `tau_max` = {:.5f}."
+                              .format(tau, self.tau_max))
             return SUCCESS_TERM_FLAG
         return CONT_FLAG
 
@@ -233,6 +257,8 @@ class Integrator:
     radius_tolerance: float, optional
         Tolerance of the event horizon boundary.
         See `py:class:TerminationConditions` for more details.
+    verbosity: bool, optional
+        Warnings verbosity. By default `True`.
     integrator_kwargs: dict
         Additional arguments to be passed into `scipy.integrate.RK45` such
         as the tolerance.
@@ -240,11 +266,13 @@ class Integrator:
 
     def __init__(self, model, params, initial_positions, rs, a, tau_min=0,
                  tau_max=1000, radius_max=None, affine_param='tau',
-                 radius_tolerance=0.01, integrator_kwargs=None):
+                 radius_tolerance=0.01, verbosity=True,
+                 integrator_kwargs=None):
         # Object with termination conditions
         self.term = TerminationConditions(rs=rs, a=a, tau_max=tau_max,
                                           radius_max=radius_max,
-                                          radius_tolerance=radius_tolerance)
+                                          radius_tolerance=radius_tolerance,
+                                          verbosity=verbosity)
         # Initialise the chain
         self._chain = Chain(initial_positions=initial_positions,
                             tau_min=tau_min, params=params,
