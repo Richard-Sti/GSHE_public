@@ -22,9 +22,15 @@
 
 import numpy
 from scipy.integrate import RK45
+from scipy.optimize import minimize
 import warnings
 
 from .chain import Chain
+
+
+FAIL_TERM_FLAG = 0
+SUCCESS_TERM_FLAG = 1
+CONT_FLAG = 2
 
 
 class TerminationConditions:
@@ -64,7 +70,7 @@ class TerminationConditions:
     _radius_tolerance = None
     _radius_max = None
 
-    def __init__(self, rs, a, radius_max, tau_max, radius_tolerance=0.01):
+    def __init__(self, rs, a, tau_max, radius_max=None, radius_tolerance=0.01):
         # Parse the inputs
         self._set_radius_boundary(rs, a)
         self.tau_max = tau_max
@@ -128,6 +134,8 @@ class TerminationConditions:
         Sets the maximum geodesic integration radius. Checks that it is higher
         than `self.rs`.
         """
+        if radius_max is None:
+            self._radius_max = numpy.infty
         if not radius_max > self.r_boundary:
             raise ValueError("`radius_max` must be larger than `self.rs`.")
         self._radius_max = float(radius_max)
@@ -159,19 +167,19 @@ class TerminationConditions:
 
         Returns
         -------
-        to_terminate: bool
-            Whether the termination condition is satisfied.
+        status_flag: int
+            Status flag.
         """
         if r <= (1 + self.radius_tolerance) * self.r_boundary:
             warnings.warn("Horizon hit, terminating. Current `r` = {:.5f}, "
                           "`horizon` = {:.5f}.".format(r, self.r_boundary))
-            return True
+            return FAIL_TERM_FLAG
         if r >= self.radius_max:
             warnings.warn("Maximum `r` reached, terminating. Current "
                           "`r` = {:.5f} `radius_max` = {:.5f}."
                           .format(r, self.radius_max))
-            return True
-        return False
+            return SUCCESS_TERM_FLAG
+        return CONT_FLAG
 
     def tau_termination(self, tau):
         """
@@ -179,15 +187,15 @@ class TerminationConditions:
 
         Returns
         -------
-        to_terminate: bool
-            Whether the termination condition is satisfied.
+        status_flag: int
+            Status flag.
         """
         if tau >= self.tau_max:
             warnings.warn("Maximum integration `tau` reached. Current "
                           "`tau` = {:.5f}, `tau_max` = {:.5f}."
                           .format(tau, self.tau_max))
-            return True
-        return False
+            return SUCCESS_TERM_FLAG
+        return CONT_FLAG
 
     def __getitem__(self, param):
         """
@@ -230,8 +238,8 @@ class Integrator:
         as the tolerance.
     """
 
-    def __init__(self, func, params, initial_positions, rs, a, tau_min,
-                 tau_max, radius_max, affine_param='tau',
+    def __init__(self, model, params, initial_positions, rs, a, tau_min=0,
+                 tau_max=1000, radius_max=None, affine_param='tau',
                  radius_tolerance=0.01, integrator_kwargs=None):
         # Object with termination conditions
         self.term = TerminationConditions(rs=rs, a=a, tau_max=tau_max,
@@ -242,7 +250,7 @@ class Integrator:
                             tau_min=tau_min, params=params,
                             affine_param=affine_param)
         # Initialise the solver
-        self._solver = RK45(func, t0=tau_min, y0=self.chain.data[0, :-1],
+        self._solver = RK45(model, t0=tau_min, y0=self.chain.data[0, :-1],
                             t_bound=tau_max, **integrator_kwargs)
 
     @property
@@ -336,17 +344,77 @@ class Integrator:
         return self.solver.y[self.params.index(param)]
 
     @property
-    def to_terminate(self):
+    def termination_flag(self):
         """
-        Whether to terminate the integrator. Checks all termination conditions.
+        Checks the termination conditions and returns the termination flag.
 
         Returns
         -------
-        to_terminate: bool
-            Whether to terminate.
+        flag: int
+            Termination flag.
         """
-        return any(self.term[p](self.current_coord(p))
-                   for p in self.term._termination_params)
+        flags = [self.term[p](self.current_coord(p))
+                 for p in self.term._termination_params]
+        if FAIL_TERM_FLAG in flags:
+            return FAIL_TERM_FLAG
+        elif SUCCESS_TERM_FLAG in flags:
+            return SUCCESS_TERM_FLAG
+        else:
+            return CONT_FLAG
+
+    def coords_at_value(self, value, param, minimizer_kwargs=None):
+        """
+        Returns the `self.params` evaluated at `param = value`.
+
+        Arguments
+        ---------
+        value: float
+            Value of `param` at which to get `self.params`.
+        param: str
+            Parameter corresponding to `value`. Must be from `self.params`.
+        minimizer_kwargs: **kwargs
+            Optional kwargs passed into `scipy.optimize.minimize`.
+
+        Returns
+        -------
+        result: dict
+            Dictionary with the requested values of `self.params.`
+        """
+
+        # Check param is a valid parameter and specifically if its tau
+        if param not in self.params:
+            raise ValueError("Param `{}` not in `self.param = {}`"
+                             .format(param, self.params))
+        result = {}
+        # Interp returns x^\mu and p_i as a function of tau
+        interp = self.solver.dense_output()  # Returns a 1D arrray
+        if param == self.affine_param:
+            out = interp(value)
+            result.update({self.affine_param: value})
+        else:
+            if minimizer_kwargs is None:
+                minimizer_kwargs = {}
+
+            index = self.params.index(param)
+            squared_diff = lambda tau: (interp(tau)[index] - value)**2
+
+            # Solves at which tau the difference is minimized
+            x0 = self.current_coord(self.affine_param)  # initial tau
+            sol = minimize(squared_diff, x0, **minimizer_kwargs)
+
+            if not sol['success']:
+                print(sol)
+                raise ValueError("Minimizer did not converge. May be due to "
+                                 "strange requested value.")
+            # Check that the resulting array has size 1
+            if sol['x'].size > 1:
+                raise ValueError("Multiple solutions detected. Check inputs.")
+            tau_min = sol['x'][0]
+            result.update({self.affine_param: tau_min})
+            # Cast this result into a dictionary
+            out = interp(tau_min)
+        result.update({p: out[i] for i, p in enumerate(self.params[:-1])})
+        return result
 
     def run_steps(self, N):
         """
@@ -359,7 +427,8 @@ class Integrator:
 
         Returns
         -------
-        None
+        flag: int
+            Termination flag.
         """
         # Force an integer value
         if not isinstance(N, int):
@@ -368,9 +437,10 @@ class Integrator:
             raise ValueError("Required `N` > 0. Currently `N` = {}.".format(N))
         chain = numpy.full((N, len(self.params)), numpy.nan)
         # Check if the solver already meets the termination conditions
-        if self.to_terminate:
-            warnings.warn("Solver already terminated.")
-            return
+        flag = self.termination_flag
+        if flag in [FAIL_TERM_FLAG, SUCCESS_TERM_FLAG]:
+            return flag
+
         # Run for N steps
         for i in range(N):
             # Advance the solver
@@ -379,13 +449,14 @@ class Integrator:
             chain[i, :-1] = self.solver.y
             chain[i, -1] = self.solver.t  # tau always goes at the last pos.
 
-            if self.to_terminate:
-                # Terminate and shorten the working chain
-                warnings.warn("Termination condition met, terminating.")
-                chain = chain[:i+1, :]
+            flag = self.termination_flag
+            if flag in [FAIL_TERM_FLAG, SUCCESS_TERM_FLAG]:
+                chain = chain[:i + 1, :]
                 break
+
         # Stack the working chain to the big chain
         self.chain.append(chain)
+        return flag
 
     def run_termination(self, batch_size):
         """
@@ -399,13 +470,19 @@ class Integrator:
 
         Returns
         -------
-        None
+        flag: int
+            Termination flag.
         """
         # Force an integer value
         if not isinstance(batch_size, int):
             batch_size = int(batch_size)
+        # Check if the solver already meets the termination conditions
+        flag = self.termination_flag
+        if flag in [FAIL_TERM_FLAG, SUCCESS_TERM_FLAG]:
+            return flag
+
         # Keep running until termination
         while True:
-            if self.to_terminate:
-                break
-            self.run_steps(batch_size)
+            flag = self.run_steps(batch_size)
+            if flag in [FAIL_TERM_FLAG, SUCCESS_TERM_FLAG]:
+                return flag
