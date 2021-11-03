@@ -24,4 +24,5 @@ from .integrator import (Integrator, TerminationConditions)
 from .chain import Chain
 from .translate import (LambdifyVector, parse_mathematica_vector)
 from .utils import spherical_to_cartesian
-from .distance_measure import minkowski_geodesic_fit, cartesian_distance
+from .distance_measure import angdist
+from .solver import (get_ray_direction, Model)
