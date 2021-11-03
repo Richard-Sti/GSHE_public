@@ -25,6 +25,10 @@ import sympy
 from sympy.parsing.mathematica import mathematica
 from functools import lru_cache
 
+# Default mathemathica required translations
+TRANSLATIONS = {'Csc[x]': '1 / sin(x)',
+                'Cot[x]': '1 / tan(x)'}
+
 
 def parse_mathematica_vector(fpath, coords, additional_translations=None,
                              subs=None):
@@ -57,6 +61,8 @@ def parse_mathematica_vector(fpath, coords, additional_translations=None,
     vector: sympy.Matrix
         The translated symbolic vector.
     """
+    if additional_translations is None:
+        additional_translations = TRANSLATIONS
     vector = []
     with open(fpath, "r") as file:
         for i, line in enumerate(file):
@@ -80,7 +86,7 @@ def parse_mathematica_vector(fpath, coords, additional_translations=None,
 
 
 class LambdifyVector:
-    """
+    r"""
     A class to lambdify a `sympy.Matrix` vector. Enforces the correct ordering
     of input `x` in `self.__call__`.
 
@@ -89,29 +95,36 @@ class LambdifyVector:
     ---------
     vector: sympy.Matrix
         The symbolic expression which is to be lambdified.
-    symbols: list (of sympy.Symbol)
-        Symbols expected to be passed into the numerical expression during
-        runtime.
-    subs: dict, optinonal
-        Substitution dictionary. Key must be the original symbol in
-        `vector`, value the substitude symbol. By default no substitution.
+    coords: list (of sympy.Symbol)
+        Phase space coordinates.
+    system_params: list (of sympy.Symbol)
+        System parameters to be substituted into the vector. Typically
+        the Schwarzschild radius etc..
     """
-    _symbols = None
+    _coords = None
+    _system_params = None
 
-    def __init__(self, vector, symbols, subs=None):
+    def __init__(self, vector, coords, system_params):
         # Parse the inputs
         if not isinstance(vector, sympy.Matrix):
             raise ValueError("`vector` must be `sympy.Matrix`. Currently `{}`"
                              .format(type(vector)))
-        self.symbols = symbols
-        # Optionally substitute
-        vector = self.substitute_symbols(vector, subs)
-        # Unpack the remaining arguments after subtitution
+        self.coords = coords
+        self.system_params = list(system_params)
+
         self._args = list(vector.free_symbols)
+        # In args we only want the phase space coords
+        for param in self.system_params:
+            self._args.remove(param)
+        # Check that args have only phase space coordinates
+        for arg in self.args:
+            if arg not in self.coords:
+                raise KeyError("`{}` not a phase space coordinate".format(arg))
         # Memoise dictionary
         modules = {'sin': self._sin, 'cos': self._cos, 'tan': self._tan}
         # Lambdify
-        self._lmbdas = [sympy.utilities.lambdify(self.args, f, modules=modules)
+        pars = self.args + self.system_params
+        self._lmbdas = [sympy.utilities.lambdify(pars, f, modules=modules)
                         for f in vector]
         # Get the ordering
         self._ordering = self._get_ordering()
@@ -119,47 +132,74 @@ class LambdifyVector:
     @property
     def args(self):
         """
-        Lambdified vector arguments ordered as accepted by the
-        `sympy.utilities.lambdify` lambdified expressions `self.lmbdas`.
+        Phase space coordinate arguments ordered as expected by `self._lmbdas`.
 
         Returns
         -------
         args: list (of `sympy.Symbol`)
-            The lambdified expression inputs ordered as expected.
+            Phase space coordinates.
         """
         return self._args
 
     @property
-    def symbols(self):
+    def coords(self):
         """
-        Symbols which are expected to be inputted in `x` in `self.call`.
+        Phase space coordinates ordered as expected to be input in `x` in
+        `self.call`.
 
         Returns
         -------
-        symbols: list (of `sympy.Symbol`)
-            The expected inputs.
+        coords: list (of `sympy.Symbol`)
+            Phase space coordinates.
         """
-        return self._symbols
+        return self._coords
 
-    @symbols.setter
-    def symbols(self, symbols):
+    @coords.setter
+    def coords(self, coords):
         """
-        Sets `self.symbols`. Makes sure it is a list.
+        Sets `self.coords`. Makes sure it is a list.
 
         Arguments
         ---------
-        symbols: list (of `sympy.Symbol`)
+        coords: list (of `sympy.Symbol`)
             The expected inputs.
         """
-        if not isinstance(symbols, (list, tuple)):
-            raise ValueError("`symbols` must be a list. Currently {}"
-                             .format(type(symbols)))
-        self._symbols = symbols
+        if not isinstance(coords, (list, tuple)):
+            raise ValueError("`coords` must be a list. Currently {}"
+                             .format(type(coords)))
+        self._coords = coords
+
+    @property
+    def system_params(self):
+        """
+        System parameters expected to be passed in `self.call` as **kwargs.
+
+        Returns
+        -------
+        coords: list (of `sympy.Symbol`)
+            System parameters.
+        """
+        return self._system_params
+
+    @system_params.setter
+    def system_params(self, system_params):
+        """
+        Sets `self.system_params`. Makes sure it is a list.
+
+        Arguments
+        ---------
+        system_params: list (of `sympy.Symbol`)
+            The **kwargs keys in `self.call`.
+        """
+        if not isinstance(system_params, (list, tuple)):
+            raise ValueError("`coords` must be a list. Currently {}"
+                             .format(type(system_params)))
+        self._system_params = list(system_params)
 
     @property
     def ordering(self):
         """
-        Ordering of `self.args` in `self.symbols`.
+        Ordering of `self.args` in `self.coords`.
 
         Returns
         -------
@@ -170,53 +210,21 @@ class LambdifyVector:
 
     def _get_ordering(self):
         """
-        Gets `self.ordering`. Checks `args` are present in `self.symbols.`
+        Gets `self.ordering`. Checks `args` are present in `self.coords.`
 
         Returns
         -------
         ordering: list (of ints)
-            The ordering of `self.args` in `self.symbols`.
+            The ordering of `self.args` in `self.coords`.
         """
         ordering = [None] * len(self.args)
         for i, arg in enumerate(self.args):
             try:
-                ordering[i] = self.symbols.index(arg)
+                ordering[i] = self.coords.index(arg)
             except ValueError:
-                raise ValueError("{} not found in `symbols` {}"
-                                 .format(arg, self.symbols))
+                raise ValueError("{} not found in `coords` {}"
+                                 .format(arg, self.coords))
         return ordering
-
-    @staticmethod
-    def substitute_symbols(vector, subs):
-        """
-        Substitutes `subs` into vector. `subs`' keys must be present in
-        `vector.free_symbols`.
-
-        Arguments
-        ---------
-        vector: sympy.Matrix
-            Original vector.
-        subs: dict
-            Substitution dictionary. Key must be the original symbol in
-            `vector`, value the substitude symbol.
-
-        Returns
-        -------
-        substituted_vector: sympy.Matrix
-            Substituted vector.
-        """
-        if subs is None:
-            return vector
-
-        # Check all subs are present in the vector's symbols
-        for key in subs.keys():
-            if not isinstance(key, sympy.Symbol):
-                raise ValueError("`{}` must be a `sympy.Symbol`. "
-                                 "Currently `{}`".format(key, type(key)))
-            if key not in vector.free_symbols:
-                raise ValueError("`{}` not in vector's symbols `{}`."
-                                 .format(key, vector.free_symbols))
-        return vector.subs(subs)
 
     @staticmethod
     @lru_cache
@@ -272,15 +280,18 @@ class LambdifyVector:
         """
         return numpy.tan(x)
 
-    def __call__(self, x):
-        """
-        Evaluates the vector at `x`.
+    def __call__(self, x, **kwargs):
+        r"""
+        Evaluates the vector at `x` with system parameters **kwargs.
 
         Arguments
         ---------
-        x : list of numpy.ndarray
-            Values at which to evaluate the vector. Must be order according to
-            `self.symbols`.
+        x: list of numpy.ndarray
+            Vector :math:`x^\mu` and covectors :math:`p_i` at which to evaluate
+            the vector. Must be order according to `self.coords`.
+        **kwargs:
+            Additional values corresponding to `self.fix_values`. Typically
+            the Schwarzschild radius, polarisation etc..
         Returns
         -------
         out : list
@@ -288,4 +299,4 @@ class LambdifyVector:
         """
         if not isinstance(x, numpy.ndarray):
             x = numpy.asarray(x)
-        return [lmbda(*x[self.ordering]) for lmbda in self._lmbdas]
+        return [lmbda(*x[self.ordering], **kwargs) for lmbda in self._lmbdas]
