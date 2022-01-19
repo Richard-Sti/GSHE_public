@@ -1,0 +1,7 @@
+name = "GWBirefringence"
+uuid = "95376d2f-314f-47c4-97a6-da6eee6a3a26"
+authors = ["Richard Stiskalek <richard.stiskalek@protonmail.com>"]
+version = "0.1.0"
+
+[deps]
+Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
