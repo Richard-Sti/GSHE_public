@@ -1,4 +1,5 @@
 import Parameters: @with_kw;
+include("./equations/kerr_pinitial.jl")
 
 """
     params(a=::Float64, ϵ=::Float64, s=::Int64)
@@ -6,7 +7,14 @@ import Parameters: @with_kw;
 A keyword struct to hold some trigonometric variables and the Kerr spin
 parameter ``a``, perturbation parameter ``ϵ``, and polarisation ``s``.
 """
-@with_kw mutable struct params
+@with_kw mutable struct system
+    a::Float64
+    ϵ::Float64
+    s::Int64
+end;
+
+
+@with_kw mutable struct dummy
     s_θ::Float64 = 0.
     c_θ::Float64 = 0.
     s_2θ::Float64 = 0.
@@ -14,14 +22,10 @@ parameter ``a``, perturbation parameter ``ϵ``, and polarisation ``s``.
     t_θ::Float64 = 0.
     t_2θ::Float64 = 0.
     p_t::Float64 = 0.
-    a::Float64
-    ϵ::Float64
-    s::Int64
 end;
 
-
 """
-    spherical_coords(t=1.0, r=::Float64, theta=::Float64, phi=::Float64)
+    spherical_coords(t=0.0, r=::Float64, theta=::Float64, phi=::Float64)
 
 Spherical coordinates struct.
 """
@@ -30,6 +34,14 @@ Spherical coordinates struct.
     r::Float64
     theta::Float64
     phi::Float64
+end
+
+
+@with_kw struct configuration
+    source::spherical_coords
+    observer::spherical_coords
+    system::system
+    dummy::fummy
 end
 
 
@@ -50,15 +62,20 @@ function init_values!(x0::Vector{Float64}, psi::Float64, rho::Float64,
     return
 end
 
+"""
+    angdist(solution, observer::spherical_coords, rtol=1e-8)
 
-function angdist(solution, observer)
-    if ~isapprox(solution[2, end], observer["r"], rtol=1e-8)
+Calculate the angular distance between the geodesic solution and the observer.
+"""
+function angdist(solution, observer::spherical_coords, rtol::Float64=1e-8)
+    # Check that the radii agree within tolerance
+    if ~isapprox(solution[2, end], observer.r, rtol=rtol)
         return 2.0*pi
     end
 
-    θ, ϕ = sol[3:4, end]
+    theta, phi = solution[3:4, end]
 
-    return acos(cos(θ) * cos(observer["theta"])
-                + sin(θ) * sin(observer["theta"])
-                * cos(ϕ - observer["phi"]))
+    return acos(cos(theta) * cos(observer.theta)
+                + sin(theta) * sin(observer.theta)
+                * cos(phi - observer.phi))
 end
