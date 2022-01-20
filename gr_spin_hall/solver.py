@@ -63,4 +63,5 @@ class Model:
     def __call__(self, tau, x):
         xdot = self.xdot(x, **self.system_params)
         pdot = self.pdot(x, **self.system_params)
+#        return pdot
         return xdot + pdot
