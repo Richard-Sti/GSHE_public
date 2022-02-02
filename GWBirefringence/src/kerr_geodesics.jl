@@ -1,6 +1,3 @@
-import Parameters: @unpack;
-
-
 """
     pi0(psi::Float64, rho::Float64, geometry::GWBirefringence.geometry)
 
@@ -14,11 +11,53 @@ Calculate the initial covectors ``p_i``.
 function pi0(psi::Float64, rho::Float64, geometry::GWBirefringence.geometry)
     ψ = psi
     ρ = rho
-    r = geometry.source.r
-    θ = geometry.source.theta
+    @unpack r, theta = geometry.source
+    θ = theta
     a = geometry.params.a
     s_θ, c_θ = sin(θ), cos(θ)
     [sqrt((a.^2 .*c_θ.^2 + r.^2) ./(a.^2 + r .*(r - 2))) .*sin(ρ) .*sin(ψ), sqrt(a.^2 .*c_θ.^2 + r.^2) .*sin(ψ) .*cos(ρ), s_θ .*(-a .*s_θ .*sqrt((a.^2 + r .*(r - 2)) ./(a.^2 .*c_θ.^2 + r.^2)) + (a.^2 + r.^2) .*cos(ψ) ./sqrt(a.^2 .*c_θ.^2 + r.^2))]
+end
+
+
+"""
+    pt_null(x::Vector{Float64}, geometry::GWBirefringence.geometry)
+
+Calculate the time covector from the null condition.
+"""
+function pt_null(x::Vector{Float64}, geometry::GWBirefringence.geometry)
+    t, r, θ, ϕ, p_r, p_θ, p_ϕ = x
+    @unpack a, ϵ, s = geometry.params
+    s_θ, c_θ, c_2θ = sin(θ), cos(θ), cos(2.0*θ)
+    (-4*a .*p_ϕ .*r - 2*sqrt(4*a.^2 .*p_ϕ.^2 .*r.^2 + (p_r.^2 .*(a.^2 + r.^2 - 2*r).^2 + p_θ.^2 .*(a.^2 + r.^2 - 2*r) + p_ϕ.^2 .*(a.^2 .*c_θ.^2 + r.^2 - 2*r) ./s_θ.^2) .*(a.^4 .*c_θ.^2 + a.^2 .*r.^2 .*(c_2θ + 3)/2 + 2*a.^2 .*r .*s_θ.^2 + r.^4))) ./(2*a.^4 .*c_θ.^2 + a.^2 .*r.^2 .*(c_2θ + 3) + 4*a.^2 .*r .*s_θ.^2 + 2*r.^4)
+end
+
+
+"""
+    time_killing_conservation(x::Vector{Float64}, geometry::GWBirefringence.geometry)
+
+Calculate the time isometry.
+"""
+function time_killing_conservation(x::Vector{Float64}, geometry::GWBirefringence.geometry)
+    t, r, θ, ϕ, p_r, p_θ, p_ϕ = x
+    @unpack a, ϵ, s = geometry.params
+    c_θ = cos(θ)
+    p_t = pt_null(x, geometry)
+   -2*a .*c_θ .*p_r .*r .*s .*ϵ .*(a.^2 + r .*(r - 2)) ./((a .*p_ϕ + p_t .*(a.^2 + r.^2)) .*(a.^2 .*c_θ.^2 + r.^2).^2) + p_t
+end
+
+
+"""
+    phi_killing_conservation(x::Vector{Float64}, geometry::GWBirefringence.geometry)
+
+Calculate the azimuthal, phi isometry.
+"""
+function phi_killing_conservation(x::Vector{Float64}, geometry::GWBirefringence.geometry)
+    t, r, θ, ϕ, p_r, p_θ, p_ϕ = x
+    @unpack a, ϵ, s = geometry.params
+    c_θ, c_2θ = cos(θ), cos(2.0*θ)
+    s_θ = sin(θ)
+    p_t = pt_null(x, geometry)
+   (4*c_θ .*p_r .*s .*ϵ .*(a.^2 + r .*(r - 2)) .*(2*a.^4 .*c_θ.^2 + a.^2 .*r.^2 .*(c_2θ + 3) + 4*a.^2 .*r .*s_θ.^2 + 2*r.^4) + (4*a.^2 .*c_θ.^2 + 4*r.^2) .*(2*a .*p_ϕ.^2 .*(a.^2 .*c_θ.^2 + r.^2) + 2*p_t .*p_ϕ .*(a.^2 + r.^2) .*(a.^2 .*c_θ.^2 + r.^2) - 2*p_θ .*r .*s .*s_θ .*ϵ .*(a.^2 + r .*(r - 2)))) ./((8*a .*p_ϕ + 8*p_t .*(a.^2 + r.^2)) .*(a.^2 .*c_θ.^2 + r.^2).^2)
 end
 
 
@@ -33,14 +72,12 @@ function geodesic_odes!(dx::Vector{Float64}, x::Vector{Float64}, geometry::GWBir
     t, r, θ, ϕ, p_r, p_θ, p_ϕ = x
 
     # Unpack the struct
-    @unpack a, ϵ, s, s_θ, c_θ, s_2θ, c_2θ, t_θ, t_2θ, p_t = geometry.params
+    @unpack a, ϵ, s = geometry.params
 
     s_θ, c_θ = sin(θ), cos(θ)
     s_2θ, c_2θ = sin(2.0*θ), cos(2.0*θ)
     t_θ, t_2θ = tan(θ), tan(2.0*θ)
-
-
-    p_t = (-4*a .*p_ϕ .*r - 2*sqrt(4*a.^2 .*p_ϕ.^2 .*r.^2 + (p_r.^2 .*(a.^2 + r.^2 - 2*r).^2 + p_θ.^2 .*(a.^2 + r.^2 - 2*r) + p_ϕ.^2 .*(a.^2 .*c_θ.^2 + r.^2 - 2*r) ./s_θ.^2) .*(a.^4 .*c_θ.^2 + a.^2 .*r.^2 .*(c_2θ + 3)/2 + 2*a.^2 .*r .*s_θ.^2 + r.^4))) ./(2*a.^4 .*c_θ.^2 + a.^2 .*r.^2 .*(c_2θ + 3) + 4*a.^2 .*r .*s_θ.^2 + 2*r.^4)
+    p_t = pt_null(x, geometry)
 
     dx[1] = a .*s .*ϵ .*sqrt((a.^2 .*c_θ.^2 + r.^2) .*(a.^2 + r.^2 - 2*r)) .*(a .*c_θ .*p_r .*(-4*a .*p_t .*r .*s_θ.^2 + 2*p_ϕ .*(a.^2 .*c_θ.^2 + r.^2 - 2*r)) .*(a.^2 + r.^2 - 2*r) + p_θ .*s_θ .*(a.^2 .*c_θ.^2 + r.^2) .*(a .*p_ϕ .*(2 - 2*r) + 2*p_t .*(a.^2 - r.^2))) ./(2*sqrt((a.^2 + r.^2 - 2*r) ./(a.^2 .*c_θ.^2 + r.^2)) .*(a .*p_ϕ + p_t .*(a.^2 + r.^2)).^2 .*(a.^2 .*c_θ.^2 + r.^2).^3) + (-2*a .*p_ϕ .*r - p_t .*(2*a.^4 .*c_θ.^2 + a.^2 .*r.^2 .*(c_2θ + 3) + 4*a.^2 .*r .*s_θ.^2 + 2*r.^4)/2) ./((a.^2 .*c_θ.^2 + r.^2) .*(a.^2 + r.^2 - 2*r))
 

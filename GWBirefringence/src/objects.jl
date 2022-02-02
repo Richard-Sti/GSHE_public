@@ -8,13 +8,6 @@ parameter ``a``, perturbation parameter ``ϵ``, and polarisation ``s``.
     a::Float64
     ϵ::Float64
     s::Int64
-    s_θ::Float64 = 0.
-    c_θ::Float64 = 0.
-    s_2θ::Float64 = 0.
-    c_2θ::Float64 = 0.
-    t_θ::Float64 = 0.
-    t_2θ::Float64 = 0.
-    p_t::Float64 = 0.
 end
 
 

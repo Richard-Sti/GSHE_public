@@ -56,6 +56,5 @@ function angdist(solution, geometry::GWBirefringence.geometry,
     stheta, sphi = solution[3:4, end]
 
     return acos(cos(theta) * cos(stheta)
-                + sin(theta) * sin(stheta)
-                * cos(phi - sphi))
+                + sin(theta) * sin(stheta) * cos(phi - sphi))
 end
