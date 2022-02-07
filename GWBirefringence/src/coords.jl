@@ -6,7 +6,7 @@ import Clustering: kmeans
 Calculate the spherical coordinates (r, theta, phi) from Cartesian (x, y,z).
 If `unit_vector` is true returns (theta, phi)
 """
-function cartesian_to_spherical(X::Vector; unit_vector::Bool=false)
+function cartesian_to_spherical(X::Vector{GWFloat}; unit_vector::Bool=false)
     x, y, z = X
     r = sqrt(x^2 + y^2 + z^2)
     theta = acos(z / r)
@@ -25,7 +25,7 @@ end
 Calculate the Cartesian coordinates (x, y, z) from spherical (theta, phi) or
 (r, theta, phi), depending on the input length.
 """
-function spherical_to_cartesian(X::Vector)
+function spherical_to_cartesian(X::Vector{GWFloat})
     dim = length(X)
     if dim  == 2
         theta, phi = X
@@ -51,7 +51,7 @@ Sample a uniform point on a sphere. Returns (theta, phi), such that
 0<=theta<=pi and 0<=phi<2pi.
 """
 function uniform_sample_sphere()
-    theta, phi = rand(2)
+    theta, phi = rand(GWFloat, 2)
     theta = asin(2*(theta - 0.5)) + pi/2
     phi *= 2pi
     return [theta, phi]
@@ -63,7 +63,7 @@ end
 
 Calculate the angular distance between the geodesic solution and the observer.
 """
-function angdist(solution, geometry::GWBirefringence.geometry,
+function angdist(solution, geometry::Geometry,
                  rtol::Float64=1e-10)
     @unpack r, theta, phi = geometry.observer
     # Check that the radii agree within tolerance
@@ -81,11 +81,13 @@ end
 Calculate the angular distance X1 and X2. If length of X1 and X2 is 2 assumes
 inputs are `(theta, phi)` such that 0 <= theta <= pi and 0 <= phi < 2pi.
 """
-function angdist(X1::Vector, X2::Vector)
+function angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
     @assert length(X1) == length(X2) "Vector dimensions do not match"
 
-    X1 = convert(Vector{BigFloat}, X1)
-    X2 = convert(Vector{BigFloat}, X2)
+    if GWFloat == Float64
+        X1 = convert(Vector{Double64}, X1)
+        X2 = convert(Vector{Double64}, X2)
+    end
 
     if length(X1) == 3
         X1 = cartesian_to_spherical(X1; unit_vector=true)
@@ -95,7 +97,11 @@ function angdist(X1::Vector, X2::Vector)
     dist = acos(cos(X1[1]) * cos(X2[1])
                 + sin(X1[1]) * sin(X2[1]) * cos(X1[2] - X2[2]))
 
-    return Float64(dist)
+    if GWFloat == Float64
+        return Float64(dist)
+    else
+        return dist
+    end
 end
 
 
@@ -106,7 +112,7 @@ Assign vectors in X of shape (Nsamples, ndim) to clusters using k-means.
 Searches for clusters until the cost function is below tolerance and returns
 cluster assignemnts.
 """
-function assign_clusters(X::Matrix, tol::Float64=1e-10)
+function assign_clusters(X::Matrix{GWFloat}, tol::Float64=1e-10)
     Xcart = mapslices(spherical_to_cartesian, X, dims=(2))
 
     for k in 1:size(X)[1]

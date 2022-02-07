@@ -4,23 +4,26 @@
 A keyword struct to hold some trigonometric variables and the Kerr spin
 parameter ``a``, perturbation parameter ``ϵ``, and polarisation ``s``.
 """
-@with_kw mutable struct params
-    a::Float
-    ϵ::Float
+@with_kw mutable struct Params
+    a::GWFloat
+    ϵ::GWFloat
     s::Int64
 end
 
 
 """
-    spherical_coords(t::Float64=0.0 r::Float64, theta::Float64, phi::Float64) 
+    Spherical_coords{T<:Union{Float64, Double64, BigFloat}}(t::T,
+                                                            r::T
+                                                            theta::T
+                                                            phi::T) 
 
 Spherical coordinates object.
 """
-@with_kw mutable struct spherical_coords
-    t::Float = 0.0
-    r::Float
-    theta::Float
-    phi::Float
+@with_kw mutable struct Spherical_coords
+    t::GWFloat = GWFloat(0.0)
+    r::GWFloat
+    theta::GWFloat
+    phi::GWFloat
 end
 
 
@@ -31,8 +34,8 @@ end
 
 Geometry object holding the source, observer and params.
 """
-@with_kw mutable struct geometry 
-    source::spherical_coords
-    observer::spherical_coords
-    params::params
+@with_kw mutable struct Geometry 
+    source::Spherical_coords
+    observer::Spherical_coords
+    params::Params
 end

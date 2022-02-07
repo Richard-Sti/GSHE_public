@@ -1,12 +1,12 @@
 module GWBirefringence
 
 import DoubleFloats: Double64
-Float = Union{Float64, Double64, BigFloat}
+GWFloat = Float64
 
 export init_values
-export params, spherical_coords, geometry
+export Params, Spherical_coords, Geometry
 export pi0, geodesic_odes!
-export Float, Double64
+export GWFloat, Double64
 
 import Parameters: @with_kw, @unpack
 using DifferentialEquations

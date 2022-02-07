@@ -8,7 +8,7 @@ Calculate the initial covectors ``p_i``.
 - `rho::Float64`: the initial direction azimuthal angle
 - `geometry::GWBirefringence.geometry`: system geometry
 """
-function pi0(psi::Float, rho::Float, geometry::GWBirefringence.geometry)
+function pi0(psi::GWFloat, rho::GWFloat, geometry::Geometry)
     ψ = psi
     ρ = rho
     @unpack r, theta = geometry.source
@@ -24,7 +24,7 @@ end
 
 Calculate the time covector from the null condition.
 """
-function pt_null(x::Vector, geometry::GWBirefringence.geometry)
+function pt_null(x::Vector{GWFloat}, geometry::Geometry)
     t, r, θ, ϕ, p_r, p_θ, p_ϕ = x
     @unpack a, ϵ, s = geometry.params
     s_θ, c_θ, c_2θ = sin(θ), cos(θ), cos(2.0*θ)
@@ -37,7 +37,7 @@ end
 
 Calculate the time isometry.
 """
-function time_killing_conservation(x::Vector, geometry::GWBirefringence.geometry)
+function time_killing_conservation(x::Vector{GWFloat}, geometry::Geometry)
     t, r, θ, ϕ, p_r, p_θ, p_ϕ = x
     @unpack a, ϵ, s = geometry.params
     c_θ = cos(θ)
@@ -53,9 +53,10 @@ end
 
 Calculate the time and phi isometry residuals.
 """
-function isometry_residuals!(resid::Vector, x::Vector, p::Vector, tau::Float64,
-                             geometry::GWBirefringence.geometry,
-                             time_isometry::Float64, phi_isometry::Float64)
+function isometry_residuals!(resid::Vector{GWFloat}, x::Vector{GWFloat},
+                             p::Vector{GWFloat}, tau::GWFloat,
+                             geometry::Geometry,
+                             time_isometry::GWFloat, phi_isometry::GWFloat)
     resid[1] = time_killing_conservation(x, geometry) - time_isometry
     resid[2] = 0.0
     resid[3] = 0.0
@@ -72,7 +73,7 @@ end
 
 Calculate the azimuthal, phi isometry.
 """
-function phi_killing_conservation(x::Vector, geometry::GWBirefringence.geometry)
+function phi_killing_conservation(x::Vector{GWFloat}, geometry::Geometry)
     t, r, θ, ϕ, p_r, p_θ, p_ϕ = x
     @unpack a, ϵ, s = geometry.params
     c_θ, c_2θ = cos(θ), cos(2.0*θ)
@@ -89,7 +90,7 @@ Calculate the derivatives of ``x_μ`` and ``p_i`` with respect to
 the proper time, returned in this order. Expresssions are exported from
 Mathematica.
 """
-function geodesic_odes!(dx::Vector, x::Vector, geometry::GWBirefringence.geometry)
+function geodesic_odes!(dx::Vector{GWFloat}, x::Vector{GWFloat}, geometry::Geometry)
     t, r, θ, ϕ, p_r, p_θ, p_ϕ = x
 
     # Unpack the struct

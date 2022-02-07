@@ -7,7 +7,7 @@ import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,
 Calculate a vector of the initial vector ``x^mu`` and initial covector ``p_i``,
 in this order given the system geometry.
 """
-function init_values(p::Vector, geometry::GWBirefringence.geometry,
+function init_values(p::Vector{GWFloat}, geometry::Geometry,
                      enforce_isometry::Bool)
     @unpack t, r, theta, phi = geometry.source
     # Calculate r, rho and psi
@@ -33,7 +33,7 @@ end
 
 Far field callback, terminate integration when observer radius is reached.
 """
-function ffield_callback(geometry::GWBirefringence.geometry,
+function ffield_callback(geometry::Geometry,
                          interp_points::Int64=10)
     f(x, tau, integrator) = x[2] - geometry.observer.r
     terminate_affect!(integrator) = terminate!(integrator)
@@ -61,7 +61,7 @@ end
 
 Solve a geodesic in Kerr.
 """
-function solve_geodesic(p::Vector, geometry::GWBirefringence.geometry, cbs::Vector;
+function solve_geodesic(p::Vector{GWFloat}, geometry::Geometry, cbs::Vector;
                         save_everystep::Bool=false, enforce_isometry::Bool=false,
                         reltol::Float64=1e-12, abstol::Float64=1e-12)
     # Initial (co) vector
@@ -92,11 +92,11 @@ end
 
 Calculate the angular loss of a geodesic.
 """
-function loss(p::Vector, geometry::GWBirefringence.geometry, cbs::Vector;
+function loss(p::Vector{GWFloat}, geometry::Geometry, cbs::Vector;
               save_everystep::Bool=false, enforce_isometry::Bool=false,
               reltol::Float64=1e-12, abstol::Float64=1e-12)
 
-    if (length(p) == 2) & ~((0 <= p[1] <= pi) & (0 <= p[2] <= 2pi))
+    if (length(p) == 2) & ~((0. <= p[1] <= pi) & (0. <= p[2] <= 2pi))
         return Inf
     end
 
