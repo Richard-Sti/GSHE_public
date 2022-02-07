@@ -5,8 +5,8 @@ A keyword struct to hold some trigonometric variables and the Kerr spin
 parameter ``a``, perturbation parameter ``ϵ``, and polarisation ``s``.
 """
 @with_kw mutable struct params
-    a::Float64
-    ϵ::Float64
+    a::Float
+    ϵ::Float
     s::Int64
 end
 
@@ -17,10 +17,10 @@ end
 Spherical coordinates object.
 """
 @with_kw mutable struct spherical_coords
-    t::Float64 = 0.0
-    r::Float64
-    theta::Float64
-    phi::Float64
+    t::Float = 0.0
+    r::Float
+    theta::Float
+    phi::Float
 end
 
 

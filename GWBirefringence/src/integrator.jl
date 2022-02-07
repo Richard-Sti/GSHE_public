@@ -7,54 +7,100 @@ import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,
 Calculate a vector of the initial vector ``x^mu`` and initial covector ``p_i``,
 in this order given the system geometry.
 """
-function init_values(p::Vector{Float64}, geometry::GWBirefringence.geometry)
+function init_values(p::Vector, geometry::GWBirefringence.geometry,
+                     enforce_isometry::Bool)
     @unpack t, r, theta, phi = geometry.source
     # Calculate r, rho and psi
-    __, psi, rho = cartesian_to_spherical(p)
+    if length(p) == 3 
+        __, psi, rho = cartesian_to_spherical(p)
+    else
+        psi, rho = p
+    end
     p_r, p_theta, p_phi = pi0(psi, rho, geometry)
-    [t, r, theta, phi, p_r, p_theta, p_phi]
+    x0 = [t, r, theta, phi, p_r, p_theta, p_phi]
+
+    if enforce_isometry
+        return (x0, time_killing_conservation(x0, geometry),
+                phi_killing_conservation(x0, geometry))
+    else
+        return x0
+    end
 end
 
 
 """
-    get_callbacks(geometry::GWBirefringence.geometry, interp_points::Int64=10)
+    ffield_callback(geometry::GWBirefringence.geometry, interp_points::Int64=10)
 
-Return the callbacks to terminate integration if the far field or horizon
-condition is satisfied.
+Far field callback, terminate integration when observer radius is reached.
 """
-
-function get_callbacks(geometry::GWBirefringence.geometry,
-                       interp_points::Int64=10)
-    @unpack r = geometry.observer
-    # Far field termination
-    ffield_condition(u, tau, integrator) = u[2] - r;
-    # BH horizon termination
-    horizon_condition(u, tau, integrator) = u[2] <= 2;
-    terminate_affect!(integrator) = terminate!(integrator);
-
-
-    ffield_cb = ContinuousCallback(ffield_condition, terminate_affect!,
-                                   interp_points=interp_points)
-    horizon_cb = DiscreteCallback(horizon_condition, terminate_affect!)
-    CallbackSet(ffield_cb, horizon_cb)
+function ffield_callback(geometry::GWBirefringence.geometry,
+                         interp_points::Int64=10)
+    f(x, tau, integrator) = x[2] - geometry.observer.r
+    terminate_affect!(integrator) = terminate!(integrator)
+    return ContinuousCallback(f, terminate_affect!,
+                              interp_points=interp_points)
 end
 
 
 """
-    angdist(solution, geometry::GWBirefringence.geometry, rtol::Float64=1e-8)
+    horizon_callback(horizon_radius::Float64=2.0)
 
-Calculate the angular distance between the geodesic solution and the observer.
+Horizon callback, terminate integration if BH horizon is reached.
 """
-function angdist(solution, geometry::GWBirefringence.geometry,
-                 rtol::Float64=1e-8)
-    @unpack r, theta, phi = geometry.observer
-    # Check that the radii agree within tolerance
-    if ~isapprox(solution[2, end], r, rtol=rtol)
-        return 2.0pi
+function horizon_callback(horizon_radius::Float64=2.0)
+    f(x, tau, integrator) = x[2] <= horizon_radius
+    terminate_affect!(integrator) = terminate!(integrator)
+    return DiscreteCallback(f, terminate_affect!)
+end
+
+
+"""
+    solve_geodesic(p::Vector, geometry::GWBirefringence.geometry, cbs::Vector;
+                   save_everystep::Bool=false, enforce_isometry::Bool=false,
+                   reltol::Float64=1e-12, abstol::Float64=1e-12)
+
+Solve a geodesic in Kerr.
+"""
+function solve_geodesic(p::Vector, geometry::GWBirefringence.geometry, cbs::Vector;
+                        save_everystep::Bool=false, enforce_isometry::Bool=false,
+                        reltol::Float64=1e-12, abstol::Float64=1e-12)
+    # Initial (co) vector
+    x0 = GWBirefringence.init_values(p, geometry, enforce_isometry)
+    # Optionally enforce isometry
+    if enforce_isometry
+        x0, time_isometry, phi_isometry = x0
+        iso(res, x, p, tau) = GWBirefringence.isometry_residuals!(
+                                  res, x, p, tau, geometry, time_isometry,
+                                  phi_isometry)
+        iso_cb = ManifoldProjection(iso)
+        cb = CallbackSet(cbs[1], cbs[2], iso_cb)
+    else
+        cb = CallbackSet(cbs[1], cbs[2])
     end
 
-    stheta, sphi = solution[3:4, end]
+    odes!(dx, x, p, tau) = GWBirefringence.geodesic_odes!(dx, x, geometry)
+    prob = ODEProblem{true}(odes!, x0, (0.0, 100.0geometry.observer.r), p)
+    return solve(prob, Vern9(), callback=cb, save_everystep=save_everystep,
+                 reltol=reltol, abstol=abstol)
+end
 
-    return acos(cos(theta) * cos(stheta)
-                + sin(theta) * sin(stheta) * cos(phi - sphi))
+
+"""
+    loss(p::Vector, geometry::GWBirefringence.geometry, cbs::Vector;
+              save_everystep::Bool=false, enforce_isometry::Bool=false,
+              reltol::Float64=1e-12, abstol::Float64=1e-12)
+
+Calculate the angular loss of a geodesic.
+"""
+function loss(p::Vector, geometry::GWBirefringence.geometry, cbs::Vector;
+              save_everystep::Bool=false, enforce_isometry::Bool=false,
+              reltol::Float64=1e-12, abstol::Float64=1e-12)
+
+    if (length(p) == 2) & ~((0 <= p[1] <= pi) & (0 <= p[2] <= 2pi))
+        return Inf
+    end
+
+    sol = solve_geodesic(p, geometry, cbs, save_everystep=save_everystep,
+                         enforce_isometry=enforce_isometry, reltol=reltol, abstol=abstol)
+    return angdist(sol, geometry)
 end
