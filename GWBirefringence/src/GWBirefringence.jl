@@ -15,5 +15,7 @@ include("./objects.jl")
 include("./integrator.jl")
 include("./coords.jl")
 include("./kerr_geodesics.jl")
+include("./minimas.jl")
+include("./plotting.jl")
 
 end

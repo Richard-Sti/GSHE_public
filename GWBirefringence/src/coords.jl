@@ -1,5 +1,3 @@
-import Clustering: kmeans
-
 """
     cartesian_to_spherical(X::Vector{Float64}})
 
@@ -101,26 +99,5 @@ function angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
         return Float64(dist)
     else
         return dist
-    end
-end
-
-
-"""
-    assign_clusters(X::Matrix, tol::Float64=1e-10)
-
-Assign vectors in X of shape (Nsamples, ndim) to clusters using k-means.
-Searches for clusters until the cost function is below tolerance and returns
-cluster assignemnts.
-"""
-function assign_clusters(X::Matrix{GWFloat}, tol::Float64=1e-10)
-    Xcart = mapslices(spherical_to_cartesian, X, dims=(2))
-
-    for k in 1:size(X)[1]
-        R = kmeans(transpose(Xcart), k; maxiter=500)
-        @assert R.converged "Kmeans convergence"
-        
-        if sum(R.costs) < tol
-            return R.assignments
-        end
     end
 end
