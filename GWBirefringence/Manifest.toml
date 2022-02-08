@@ -548,9 +548,9 @@ version = "0.5.5+0"
 
 [[Optim]]
 deps = ["Compat", "FillArrays", "ForwardDiff", "LineSearches", "LinearAlgebra", "NLSolversBase", "NaNMath", "Parameters", "PositiveFactorizations", "Printf", "SparseArrays", "StatsBase"]
-git-tree-sha1 = "916077e0f0f8966eb0dc98a5c39921fdb8f49eb4"
+git-tree-sha1 = "045d10789f5daff18deb454d5923c6996017c2f3"
 uuid = "429524aa-4258-5aef-a3af-852621145aeb"
-version = "1.6.0"
+version = "1.6.1"
 
 [[OrderedCollections]]
 git-tree-sha1 = "85f8e6578bf1f9ee0d11e7bb1b1456435479d47c"
