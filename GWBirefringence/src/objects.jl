@@ -36,3 +36,21 @@ Geometry object holding the source, observer and params.
     observer::Spherical_coords
     params::Params
 end
+
+
+"""
+    Base.copy(geometry::GWBirefringence.Geometry)
+
+Deepcopy of geometry.
+"""
+function Base.copy(geometry::GWBirefringence.Geometry)
+    source = GWBirefringence.Spherical_coords(
+        @unpack t, r, theta, phi = geometry.source)
+    observer = GWBirefringence.Spherical_coords(
+        @unpack t, r, theta, phi = geometry.observer)
+    params = GWBirefringence.Params(
+        @unpack a, ϵ, s = geometry.params)
+    return GWBirefringence.Geometry(source=source,
+                                    observer=observer,
+                                    params=params)
+end
