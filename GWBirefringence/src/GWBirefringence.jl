@@ -7,6 +7,7 @@ export init_values
 export Params, Spherical_coords, Geometry
 export pi0, geodesic_odes!
 export GWFloat, Double64
+export geodesic_ode_problem
 
 import Parameters: @with_kw, @unpack
 using DifferentialEquations
