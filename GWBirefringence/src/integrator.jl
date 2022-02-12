@@ -2,7 +2,7 @@ import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,
                               terminate!;
 
 """
-    init_values(p::Vector{Float64}, geometry::GWBirefringence.geometry)
+    init_values(p::Vector{GWFloat}, geometry::Geometry, enforce_isometry::Bool)
 
 Calculate a vector of the initial vector ``x^mu`` and initial covector ``p_i``,
 in this order given the system geometry.
@@ -55,7 +55,7 @@ end
 
 
 """
-    solve_geodesic(p::Vector, geometry::GWBirefringence.geometry, cbs::Vector;
+    solve_geodesic(p::Vector{GWFloat}, geometry::Geometry, cbs::Vector;
                    save_everystep::Bool=false, enforce_isometry::Bool=false,
                    reltol::Float64=1e-12, abstol::Float64=1e-12)
 
@@ -86,21 +86,15 @@ end
 
 
 """
-    loss(p::Vector, geometry::GWBirefringence.geometry, cbs::Vector;
-              save_everystep::Bool=false, enforce_isometry::Bool=false,
-              reltol::Float64=1e-12, abstol::Float64=1e-12)
+    loss(p::Vector{GWFloat}, solve_geodesic::Function, geometry::Geometry)
 
-Calculate the angular loss of a geodesic.
+Calculate the angular loss of a geodesic, `solve_geodesic` expected to take
+only `p` as input.
 """
-function loss(p::Vector{GWFloat}, geometry::Geometry, cbs::Vector;
-              save_everystep::Bool=false, enforce_isometry::Bool=false,
-              reltol::Float64=1e-12, abstol::Float64=1e-12)
-
+function loss(p::Vector{GWFloat}, solve_geodesic::Function, geometry::Geometry)
     if (length(p) == 2) & ~((0. <= p[1] <= pi) & (0. <= p[2] <= 2pi))
         return Inf
     end
-
-    sol = solve_geodesic(p, geometry, cbs, save_everystep=save_everystep,
-                         enforce_isometry=enforce_isometry, reltol=reltol, abstol=abstol)
+    sol = solve_geodesic(p)
     return angdist(sol, geometry)
 end

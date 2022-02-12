@@ -2,10 +2,12 @@
     grid_func(func::Function, thetas::T=LinRange(0, pi, 50),
               phis::T=LinRange(0, 2pi, 50)) where T<:Union{Vector, LinRange}
 
-Evaluate `func` on a grid given by `thetas` and `phis`.
+Evaluate `func` on a grid given by `thetas` and `phis` if possible attempts
+to use multiple threads.
 """
 function grid_func(func::Function, thetas::T=LinRange(0, pi, 50),
-                   phis::T=LinRange(0, 2pi, 50)) where T<:Union{Vector, LinRange}
+                   phis::T=LinRange(0, 2pi, 50)) where T<:Union{Vector,
+                                                                LinRange}
     N = length(thetas) * length(phis)
     grid = zeros(N, 2)
     Z = zeros(N)

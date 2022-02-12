@@ -1,5 +1,5 @@
 """
-    params(a::Float64, ϵ::Float64, s::Int64)
+    Params(a::GWFloat, ϵ::GWFloat, s::Int64)
 
 A keyword struct to hold some trigonometric variables and the Kerr spin
 parameter ``a``, perturbation parameter ``ϵ``, and polarisation ``s``.
@@ -12,10 +12,7 @@ end
 
 
 """
-    Spherical_coords{T<:Union{Float64, Double64, BigFloat}}(t::T,
-                                                            r::T
-                                                            theta::T
-                                                            phi::T) 
+    Spherical_coords(t::GWFloat=0.0, r::GWFloat, theta::GWFloat, phi::GWFloat)
 
 Spherical coordinates object.
 """
@@ -28,9 +25,9 @@ end
 
 
 """
-    geometry(source::GWBirefringence.spherical_coords,
-             observer::GWBirefringence.spherical_coords,
-             params::GWBirefringence.params)
+    geometry(source::GWBirefringence.Spherical_coords,
+             observer::GWBirefringence.Spherical_coords,
+             params::GWBirefringence.Params)
 
 Geometry object holding the source, observer and params.
 """

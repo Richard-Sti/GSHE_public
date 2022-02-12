@@ -1,5 +1,5 @@
 """
-    pi0(psi::Float64, rho::Float64, geometry::GWBirefringence.geometry)
+    pi0(psi::GWFloat, rho::GWFloat, geometry::Geometry)
 
 Calculate the initial covectors ``p_i``.
 
@@ -20,7 +20,7 @@ end
 
 
 """
-    pt_null(x::Vector{Float64}, geometry::GWBirefringence.geometry)
+    pt_null(x::Vector{GWFloat}, geometry::Geometry)
 
 Calculate the time covector from the null condition.
 """
@@ -33,7 +33,7 @@ end
 
 
 """
-    time_killing_conservation(x::Vector{Float64}, geometry::GWBirefringence.geometry)
+    time_killing_conservation(x::Vector{GWFloat}, geometry::Geometry)
 
 Calculate the time isometry.
 """
@@ -47,9 +47,10 @@ end
 
 
 """
-    isometry_residuals!(resid::Vector, x::Vector, p::Vector, tau::Float64,
-                        geometry::GWBirefringence.geometry,
-                        time_isometry::Float64, phi_isometry::Float64)
+    isometry_residuals!(resid::Vector{GWFloat}, x::Vector{GWFloat},
+                        p::Vector{GWFloat}, tau::GWFloat,
+                        geometry::Geometry,
+                        time_isometry::GWFloat, phi_isometry::GWFloat)
 
 Calculate the time and phi isometry residuals.
 """
@@ -69,7 +70,7 @@ end
 
 
 """
-    phi_killing_conservation(x::Vector{Float64}, geometry::GWBirefringence.geometry)
+    phi_killing_conservation(x::Vector{GWFloat}, geometry::Geometry)
 
 Calculate the azimuthal, phi isometry.
 """
@@ -84,13 +85,15 @@ end
 
 
 """
-    geodesic_odes!(dx::Vector{Float64}, x::Vector{Float64}, geometry::GWBirefringence.geometry)
+    geodesic_odes!(dx::Vector{GWFloat}, x::Vector{GWFloat}, geometry::Geometry)
 
 Calculate the derivatives of ``x_μ`` and ``p_i`` with respect to
 the proper time, returned in this order. Expresssions are exported from
 Mathematica.
 """
-function geodesic_odes!(dx::Vector{GWFloat}, x::Vector{GWFloat}, geometry::Geometry)
+function geodesic_odes!(dx::Vector{GWFloat},
+                        x::Vector{GWFloat},
+                        geometry::Geometry)
     t, r, θ, ϕ, p_r, p_θ, p_ϕ = x
 
     # Unpack the struct

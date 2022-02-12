@@ -1,5 +1,5 @@
 """
-    cartesian_to_spherical(X::Vector{Float64}})
+    cartesian_to_spherical(X::Vector{GWFloat}; unit_vector::Bool=false)
 
 Calculate the spherical coordinates (r, theta, phi) from Cartesian (x, y,z).
 If `unit_vector` is true returns (theta, phi)
@@ -18,7 +18,7 @@ end
 
 
 """
-    spherical_to_cartesian2(X::Vector{Float64}; unit_vector::Bool=false)
+    spherical_to_cartesian(X::Vector{GWFloat})
 
 Calculate the Cartesian coordinates (x, y, z) from spherical (theta, phi) or
 (r, theta, phi), depending on the input length.
@@ -57,7 +57,7 @@ end
 
 
 """
-    angdist(solution, geometry::GWBirefringence.geometry, rtol::Float64=1e-8)
+    angdist(solution, geometry::GWBirefringence.geometry, rtol::Float64=1e-10)
 
 Calculate the angular distance between the geodesic solution and the observer.
 """
@@ -74,7 +74,7 @@ end
 
 
 """
-    angdist(X1::Vector, X2::Vector)
+    angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
 
 Calculate the angular distance X1 and X2. If length of X1 and X2 is 2 assumes
 inputs are `(theta, phi)` such that 0 <= theta <= pi and 0 <= phi < 2pi.
