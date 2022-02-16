@@ -12,7 +12,30 @@ end
 
 
 """
-    Spherical_coords(t::GWFloat=0.0, r::GWFloat, theta::GWFloat, phi::GWFloat)
+    Problem(
+        solve_geodesic::Function,
+        loss::Function, 
+        find_min::Function,
+        find_gradmin::Union{Function, Nothing}=nothing
+    )
+
+Problem with solvers and losses for a specific geometry.
+"""
+@with_kw struct Problem
+    solve_geodesic::Function
+    loss::Function
+    find_min::Function
+    find_gradmin::Union{Function, Nothing} = nothing
+end
+
+
+"""
+    Spherical_coords(
+        t::GWFloat=0.0,
+        r::GWFloat,
+        theta::GWFloat,
+        phi::GWFloat
+     )
 
 Spherical coordinates object.
 """
