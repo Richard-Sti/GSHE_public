@@ -25,7 +25,6 @@ Problem with solvers and losses for a specific geometry.
     solve_geodesic::Function
     loss::Function
     find_min::Function
-    find_gradmin::Union{Function, Nothing} = nothing
 end
 
 
