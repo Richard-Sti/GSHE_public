@@ -206,6 +206,12 @@ end
 
 """
     calc_flip(step::Int64, s_index::Int64, X::Array{GWFloat, 4})
+
+Calculates whether to flip the solution at `step + 1` with respect to the
+solution at `step` for polarisation indexed by `s_index`.
+
+Determines whether to do the flip on the angular distance between the two
+initial directions.
 """
 function calc_flip(step::Int64, s_index::Int64, X::Array{GWFloat, 4})
     x0 = X[step, s_index, 1, 2:end]
@@ -221,20 +227,24 @@ end
         X::Array{GWFloat, 4},
         index::Int64
     )
+
+Flips to which geodesics the solutions belong.
 """
 function do_flip!(
     Zscratch::Matrix{GWFloat},
     X::Array{GWFloat, 4},
-    index::Int64
+    step::Int64
 )
-    Zscratch[:, :] = X[index, :, 1, :]
-    X[index, :, 1, :] = X[index, :, 2, :]
-    X[index, :, 2, :] = Zscratch[:, :]
+    Zscratch[:, :] = X[step, :, 1, :]
+    X[step, :, 1, :] = X[step, :, 2, :]
+    X[step, :, 2, :] = Zscratch[:, :]
 end
 
 
 """
     do_flips!(X::Array{GWFloat, 4})
+
+Flips to which gedeosics solutions belong in the array `X`.
 """
 function do_flips!(X::Array{GWFloat, 4})
     N = size(X)[1]
@@ -243,9 +253,17 @@ function do_flips!(X::Array{GWFloat, 4})
     for step in 1:(N-1)
         f1 = calc_flip(step, 1, X)
         f2 = calc_flip(step, 2, X)
-        @assert f1 == f2
-        if f1 == true
-            do_flip!(Zscratch, X, step+1)
-        end
+        @assert (f1 == f2) "Different flips for the two polarisations."
+
+        f1 ? do_flip!(Zscratch, X, step+1) : nothing
     end
+end
+
+"""
+    calc_dts(X::Array{GWFloat, 4})
+
+Calculates the time delays from `X`.
+"""
+function calc_dts(X::Array{GWFloat, 4})
+    return abs.(X[:, 1, :, 1] - X[:, 2, :, 1])
 end
