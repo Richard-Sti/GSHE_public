@@ -77,23 +77,6 @@ end
 
 
 """
-    angdist(solution, geometry::GWBirefringence.geometry, rtol::Float64=1e-10)
-
-Calculate the angular distance between the geodesic solution and the observer.
-"""
-function angdist(solution, geometry::Geometry,
-                 rtol::Float64=1e-10)
-    @unpack r, theta, phi = geometry.observer
-    # Check that the radii agree within tolerance
-    if ~isapprox(solution[2, end], r, rtol=rtol)
-        return Inf
-    end
-
-    return angdist(solution[3:4, end], [theta, phi])
-end
-
-
-"""
     angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
 
 Calculate the angular distance between X1 and X2.
