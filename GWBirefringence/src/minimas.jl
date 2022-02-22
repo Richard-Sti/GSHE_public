@@ -1,33 +1,41 @@
 import Clustering: kmeans
-import Optim: optimize, Options, NLSolversBase.InplaceObjective, only_fg!
+import Optim: optimize, NLSolversBase.InplaceObjective, only_fg!
+import DiffResults: GradientResult
 
-
+"""
+    find_minima(
+        floss::Function,
+        alg::NelderMead,
+        options;
+        Nattempts=50
+    )
+"""
 function find_minima(
     floss::Function,
-    options;
-    Nattempts=50
+    alg::NelderMead,
+    options::Options;
+    Nattempts::Int64=50,
+    Nsols::Int64=3
 )
     X = [zeros(GWFloat, 2)]
-
-    Nmax = 2*Nattempts
-    for i in 1:Nmax
+    for i in 1:Nsols
         # Optionally pass previously found solutions into the loss func.
-        f(p) = floss(p, (i ===1 ? nothing : X))
-        opt = find_minimum(f, NelderMead(), options; Nmax=Nattempts)
-
+        loss(p) = floss(p, (i ===1 ? nothing : X))
+        
+        Xnew = find_minimum(loss, alg, options; Nmax=Nattempts)
         # Terminate the search
-        if opt === nothing
-            @info ("Search terminated with $(i-1) solutions after "
+        if Xnew === nothing
+            @info ("Search terminated with $(i-1)/$Nsols solutions after "
                    *"trying $Nattempts attempts to find a new solution.")
             break
         end
+        Xnew, Xval = Xnew
         # Append the newly found solution
-        i === 1 ? (X[1][:] = opt.minimizer) : push!(X, opt.minimizer)
+        i === 1 ? (X[1][:] = Xnew) : push!(X, Xnew)
     end
     # Return and turn this into a matrix
     return  mapreduce(permutedims, vcat, X)
 end
-
 
 
 """
@@ -50,9 +58,8 @@ function find_minimum(
 )
     for i in 1:Nmax
         opt = optimize(floss, uniform_sample_sphere(), alg, options)
-
         if isapprox(opt.minimum, 0.0, atol=atol)
-            return opt
+            return opt.minimizer, opt.minimum
         end
     end
 
@@ -60,35 +67,40 @@ function find_minimum(
 end
 
 
-"""
-    find_minimum(
-        floss,
-        alg::Union{NeldearMead, ConjugateGradient},
-        options::Options;
-        Nmax::Int64=100,
-        atol::Float64=1e-12
-    )
-
-Find minimum of a function `floss` using gradients."""
-function find_minimum(
-    floss,
-    alg::ConjugateGradient,
-    options::Options;
-    Nmax::Int64=10,
-    atol::Float64=1e-12
-)
-    for i in 1:Nmax
-        opt = optimize(only_fg!(floss),
-                       uniform_sample_sphere(true),
-                       alg,
-                       options)
-
-        if isapprox(opt.minimum, 0.0, atol=atol)
-            return opt
-        end
-    end
-    @assert false "No minimum found in $Nmax attempts."
-end
+# """
+#     find_minimum(
+#         floss,
+#         alg::ConjugateGradient,
+#         options::Options;
+#         Nmax::Int64=100,
+#         atol::Float64=1e-12
+#     )
+# 
+# Find minimum of a function `floss` using gradients."""
+# function find_minimum(
+#     floss,
+#     alg::ConjugateGradient,
+#     options::Options;
+#     Nmax::Int64=100,
+#     atol::Float64=1e-12
+# )
+#     result = GradientResult(zeros(GWFloat, 3))
+#     floss_gradient!(F, G, p) = loss_gradient!(F, G, p, result, floss)
+#     for i in 1:Nmax
+#         opt = optimize(only_fg!(floss_gradient!),
+#                        uniform_sample_sphere(true),
+#                        alg,
+#                        options)
+# 
+#         if isapprox(opt.minimum, 0.0, atol=atol)
+#             Xnew = opt.minimizer
+#             cartesian_to_spherical!(Xnew)
+#             return Xnew[2:end], opt.minimum
+#         end
+#     end
+#     return nothing
+# #    @assert false "No minimum found in $Nmax attempts."
+# end
 
 
 """
@@ -133,43 +145,6 @@ function cluster_minima(
         @assert R.converged "Kmeans not converged."
         sum(R.totalcost) < tol ? (return k, R.assignments) : nothing
     end
-end
-
-
-"""
-    search_unique_minima(
-        fmin::Function,
-        N::Int64;
-        Nmax::Int64=50,
-        atol::Float64=1e-12
-    )
-
-Searches ``N`` unique minimas.
-"""
-function search_unique_minima(
-    fmin::Function,
-    N::Int64;
-    Nmax::Int64=50,
-    atol::Float64=1e-12
-)
-    out = zeros(N, 2)
-    Nfound = 0
-    X = [zeros(GWFloat, 2)]
-    for i in 1:Nmax
-        opt = fmin()
-        dir = opt.minimizer
-        push!(X, dir)
-        i == 1 ? (X[1][:]= dir) : push!(X, dir)
-        
-        k, __ = cluster_minima(X, atol)
-        if k > Nfound
-            Nfound += 1
-            out[Nfound, :] = dir 
-            
-            Nfound == N ? (return out) : nothing
-        end
-    end
-    @assert false "Failed to find $N minima in $Nmax attempts. Found $Nfound."
 end
 
 

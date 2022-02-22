@@ -24,7 +24,6 @@ Problem with solvers and losses for a specific geometry.
 @with_kw struct Problem
     solve_geodesic::Function
     loss::Function
-    find_min::Function
 end
 
 

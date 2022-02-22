@@ -12,7 +12,7 @@ export geodesic_ode_problem
 export setup_geometry, setup_problem
 
 import Parameters: @with_kw, @unpack
-import Optim: NelderMead, ConjugateGradient
+import Optim: NelderMead, ConjugateGradient, Options
 using DifferentialEquations
 
 include("./objects.jl")

@@ -44,7 +44,6 @@ end
     setup_problem(
         geometry::GWBirefringence.Geometry,
         options::Options;
-        use_gradients::Bool=false,
         geodesic::Bool=false
     )
 
@@ -53,7 +52,7 @@ Sets up the problem.
 function setup_problem(
     geometry::GWBirefringence.Geometry,
     options::Options;
-    use_gradients::Bool=false,
+#    use_gradients::Bool=false,
     geodesic::Bool=false
 )
     # Initial vector
@@ -70,24 +69,31 @@ function setup_problem(
                                                 p, prob, cb, init,
                                                 save_everystep=save_everystep)
     # Loss and minimizer
-    floss(p) = loss(p, fsolver, geometry)
+    floss(p, Xfound::Union{Vector{Vector{GWFloat}}, Nothing}) = loss(
+                                                                p, Xfound,
+                                                                fsolver,
+                                                                geometry)
 
-    if !use_gradients
-        fmin() = find_minimum(floss, NelderMead(), options)
-        problem = Problem(solve_geodesic=fsolver,
-                          loss=floss,
-                          find_min=fmin)
-    else
-        result = GradientResult(zeros(GWFloat, 3))
-        floss_gradient!(F, G, p) = loss_gradient!(F, G, p, result, floss)
-    
-        grad_fmin() = find_minimum(floss_gradient!,
-                              ConjugateGradient(manifold=Sphere()),
-                              options)
-        problem = Problem(solve_geodesic=fsolver,
-                          loss=floss,
-                          find_min=grad_fmin)
-    end
+
+    problem = Problem(solve_geodesic=fsolver,
+                      loss=floss)
+
+#     if !use_gradients
+#         fmin() = find_minimum(floss, NelderMead(), options)
+#         problem = Problem(solve_geodesic=fsolver,
+#                           loss=floss,
+#                           find_min=fmin)
+#     else
+#         result = GradientResult(zeros(GWFloat, 3))
+#         floss_gradient!(F, G, p) = loss_gradient!(F, G, p, result, floss)
+#     
+#         grad_fmin() = find_minimum(floss_gradient!,
+#                               ConjugateGradient(manifold=Sphere()),
+#                               options)
+#         problem = Problem(solve_geodesic=fsolver,
+#                           loss=floss,
+#                           find_min=grad_fmin)
+#     end
     
     return problem
 end

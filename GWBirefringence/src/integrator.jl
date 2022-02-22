@@ -1,7 +1,7 @@
 import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,
                               terminate!, remake, ODEProblem
-import ForwardDiff: gradient!
-import DiffResults: MutableDiffResult
+#import ForwardDiff: gradient!
+#import DiffResults: MutableDiffResult
 
 
 """
@@ -115,8 +115,10 @@ end
 """
     loss(
         p::Vector,
+        Xfound::Union{Vector{Vector{GWFloat}}, Nothing},
         solve_geodesic::Function,
-        geometry::Geometry
+        geometry::Geometry;
+        rtol::Float64=1e-10,
     )
 
 Calculate the angular loss of a geodesic, `solve_geodesic` expected to take
@@ -126,13 +128,19 @@ function loss(
     p::Vector,
     Xfound::Union{Vector{Vector{GWFloat}}, Nothing},
     solve_geodesic::Function,
-    geometry::Geometry
+    geometry::Geometry;
+    rtol::Float64=1e-10,
 )
-    # TODO
-    rtol = 1e-10
     # Check that angular coords. are in their bounds
-    if (length(p) == 2) & ~((0. <= p[1] <= pi) & (0. <= p[2] <= 2pi))
+    if (length(p) === 2) & ~((0. <= p[1] <= pi) & (0. <= p[2] <= 2pi))
         return Inf
+    end
+    # If initial condition too close to old init. conds. do not integrate
+    if Xfound !== nothing
+        min_dist = minimum([angdist(p, x) for x in Xfound])
+        if min_dist < rtol
+            return min_dist^0.6
+        end
     end
     # Solve the solution
     sol = solve_geodesic(p)
@@ -140,51 +148,41 @@ function loss(
     if ~isapprox(sol[2, end], geometry.observer.r, rtol=rtol)
         return Inf
     end
-    @unpack theta, phi = geometry.observer
-    Xnew = sol[3:4, end]
-    Xobs = [theta, phi]
 
-    out = angdist(Xnew, Xobs)
-
-    if Xfound !== nothing
-        min_dist = minimum([angdist(p, x) for x in Xfound])
-        # TODO
-        if min_dist < 1e-8
-            out += min_dist / 1e-12
-        end
-    end
-
-    return out 
+    return angdist(
+            sol[3:4, end],
+            [geometry.observer.theta, geometry.observer.phi]
+        )
 end
 
 
-"""
-    loss_gradient!(
-        F,
-        G::Vector,
-        p::Vector,
-        result::DiffResults.MutableDiffResult,
-        floss::Function
-    )
-
-Calculates the gradient of the loss function and stores it in ``G``.
-"""
-function loss_gradient!(
-    F,
-    G,
-    p::Vector,
-    result::MutableDiffResult,
-    floss::Function
-)
-    gradient!(result, floss, p)
-    if G !== nothing
-        G[:] = result.derivs[1]
-    end
-
-    if F !== nothing
-        return result.value
-    end
-end
+# """
+#     loss_gradient!(
+#         F,
+#         G::Vector,
+#         p::Vector,
+#         result::DiffResults.MutableDiffResult,
+#         floss::Function
+#     )
+# 
+# Calculates the gradient of the loss function and stores it in ``G``.
+# """
+# function loss_gradient!(
+#     F,
+#     G,
+#     p::Vector,
+#     result::MutableDiffResult,
+#     floss::Function
+# )
+#     gradient!(result, floss, p)
+#     if G !== nothing
+#         G[:] = result.derivs[1]
+#     end
+# 
+#     if F !== nothing
+#         return result.value
+#     end
+# end
 
 
 """
