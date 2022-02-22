@@ -22,12 +22,12 @@ end
 
 
 """
-    horizon_callback(horizon_radius::Float64=2.0)
+    horizon_callback(geometry::Geometry)
 
 Horizon callback, terminate integration if BH horizon is reached.
 """
-function horizon_callback(horizon_radius::Float64=2.0)
-    f(x, tau, integrator) = x[2] <= horizon_radius
+function horizon_callback(geometry::Geometry)
+    f(x, tau, integrator) = x[2] <= 2.0
     terminate_affect!(integrator) = terminate!(integrator)
     return DiscreteCallback(f, terminate_affect!,
                             save_positions=(false, false))
@@ -41,7 +41,7 @@ Get the far field and horizon callback set.
 """
 function get_callbacks(geometry::Geometry; interp_points::Int64=10)
     return CallbackSet(ffield_callback(geometry),
-                       horizon_callback())
+                       horizon_callback(geometry))
 end
 
 
@@ -61,7 +61,7 @@ function get_callbacks(geometry::Geometry, p::Vector;
                               res, x, p, tau, geometry, time_isometry,
                               phi_isometry)
     return CallbackSet(ffield_callback(geometry),
-                       horizon_callback(),
+                       horizon_callback(geometry),
                        ManifoldProjection(iso))
 end
 
@@ -154,21 +154,21 @@ function loss_gradient!(
     floss::Function
 )
     gradient!(result, floss, p)
-    if G != nothing
+    if G !== nothing
         G[:] = result.derivs[1]
     end
 
-    if F != nothing
+    if F !== nothing
         return result.value
     end
 end
 
 
 """
-    geodesic_ode_problem(geometry::Geometry)
+    ode_problem(odes!::Function, geometry::Geometry)
 """
-function geodesic_ode_problem(geometry::Geometry)
-    return ODEProblem{true}(geodesic_odes!,
+function ode_problem(odes!::Function, geometry::Geometry)
+    return ODEProblem{true}(odes!,
                             rand(7), 
                             (0.0, 100.0geometry.observer.r),
                             geometry)
@@ -176,10 +176,10 @@ end
 
 
 """
-    geodesic_ode_problem(geometry::Geometry, x0::Vector{GWFloat})
+    ode_problem(odes!::Function, geometry::Geometry, x0::Vector{GWFloat})
 """
-function geodesic_ode_problem(geometry::Geometry, x0::Vector{GWFloat})
-    return ODEProblem{true}(geodesic_odes!,
+function ode_problem(odes!::Function, geometry::Geometry, x0::Vector{GWFloat})
+    return ODEProblem{true}(odes!,
                             x0,
                             (0.0, 100.0geometry.observer.r),
                             geometry)

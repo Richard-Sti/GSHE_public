@@ -96,15 +96,9 @@ end
 """
     angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
 
-Calculate the angular distance X1 and X2. If length of X1 and X2 is 2 assumes
-inputs are `(theta, phi)` such that 0 <= theta <= pi and 0 <= phi < 2pi.
-Uses a numerically stable formula.
+Calculate the angular distance between X1 and X2.
 """
-function angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
-    if length(X1) == 3
-        X1 = cartesian_to_spherical(X1; unit_vector=true)
-        X2 = cartesian_to_spherical(X2; unit_vector=true)
-    end
+function angdist(X1::Vector, X2::Vector)
 
     dphi = X1[2] - X2[2]
     stheta1, stheta2 = sin(X1[1]), sin(X2[1])

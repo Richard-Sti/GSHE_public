@@ -112,14 +112,51 @@ function v_r(r, R_o::GWFloat, θ_o::GWFloat, a::GWFloat)
     return v_0, v_1
 end
 
+
 """
-    geodesic_odes!(dx::Vector, x::Vector, geometry::Geometry, tau::GWFloat)
+    geodesic!(dx::Vector, x::Vector, geometry::Geometry, tau)
 
 Calculate the derivatives of ``x^μ`` and ``p_i`` with respect to
 the proper time, returned in this order. Expresssions are exported from
 Mathematica.
 """
 function geodesic_odes!(dx::Vector, x::Vector, geometry::Geometry, tau)
+    t, r, θ, ϕ, p_r, p_θ, p_ϕ = x
+    # Unpack the struct
+    @unpack a, ϵ, s = geometry.params
+
+    s_θ, c_θ = sin(θ), cos(θ)
+    s_2θ, c_2θ = sin(2.0*θ), cos(2.0*θ)
+    t_θ, t_2θ = tan(θ), tan(2.0*θ)
+    p_t = pt_null(r, θ, p_r, p_θ, p_ϕ, a, s_θ, c_θ, c_2θ)
+
+    dx[1] = sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4))/((a^2 + r*(r - 2))*(a^2*c_θ^2 + r^2))
+
+    dx[2] = p_r*(a^2 + r*(r - 2))/(a^2*c_θ^2 + r^2)
+
+    dx[3] = p_θ/(a^2*c_θ^2 + r^2)
+
+    dx[4] = (a^2*p_ϕ/t_θ^2 + 2*a*r*(4*a*p_ϕ*r + 2*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4)))/(2*a^4*c_θ^2 + r*(a^2*c_2θ*r + 3*a^2*r + 4*a^2*s_θ^2 + 2*r^3)) + p_ϕ*r*(r - 2)/s_θ^2)/((a^2 + r*(r - 2))*(a^2*c_θ^2 + r^2))
+
+    dx[5] = (2*a*s_θ^2*(a^2*c_θ^2 + r^2)*(-4*a*p_ϕ*r - 2*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4)))*(2*a^4*c_θ^2 - a^2*r^2*(c_2θ + 3) - 6*r^4)*(a^2*p_ϕ/t_θ^2 + 2*a*r*(4*a*p_ϕ*r + 2*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4)))/(2*a^4*c_θ^2 + r*(a^2*c_2θ*r + 3*a^2*r + 4*a^2*s_θ^2 + 2*r^3)) + p_ϕ*r*(r - 2)/s_θ^2)/((a^2 + r*(r - 2))^2*(2*a^4*c_θ^2 + a^2*r^2*(c_2θ + 3) + 4*a^2*r*s_θ^2 + 2*r^4)) + 4*p_r^2*(a^2*c_θ^2 + r^2)^2*(a^2*c_θ^2 + r*(a^2*s_θ^2 - r)) + 4*p_θ^2*r*(a^2*c_θ^2 + r^2)^2 + 4*p_ϕ*(a^2*c_θ^2 + r^2)*(-a^3*c_θ^2 + a*r^2)*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4))/(a^2 + r*(r - 2))^2 + 2*p_ϕ*(a^2*p_ϕ/t_θ^2 + 2*a*r*(4*a*p_ϕ*r + 2*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4)))/(2*a^4*c_θ^2 + r*(a^2*c_2θ*r + 3*a^2*r + 4*a^2*s_θ^2 + 2*r^3)) + p_ϕ*r*(r - 2)/s_θ^2)*(2*a^6*c_θ^6*r + 6*a^2*c_θ^2*r^5 + 2*c_θ^4*(a^6*s_θ^2 + a^4*r^2*(3*r - 2)) + r^4*(-3*a^2*c_2θ - 5*a^2 + r^2*(2*r - 4)))/(a^2 + r*(r - 2))^2 + (4*a^2 + 4*r^2)*(a^2*c_θ^2 - r^2)*(a^2*c_θ^2 + r^2)*(4*a*p_ϕ*r + 2*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4)))*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4))/((a^2 + r*(r - 2))^2*(2*a^4*c_θ^2 + r*(a^2*c_2θ*r + 3*a^2*r + 4*a^2*s_θ^2 + 2*r^3))))/(4*(a^2*c_θ^2 + r^2)^4)
+
+    dx[6] = (4*a^3*c_θ*r*s_θ^3*(a^2*c_θ^2 + r^2)*(-4*a*p_ϕ*r - 2*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4)))*(a^2*p_ϕ/t_θ^2 + 2*a*r*(4*a*p_ϕ*r + 2*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4)))/(2*a^4*c_θ^2 + r*(a^2*c_2θ*r + 3*a^2*r + 4*a^2*s_θ^2 + 2*r^3)) + p_ϕ*r*(r - 2)/s_θ^2)/((a^2 + r*(r - 2))*(2*a^4*c_θ^2 + a^2*r^2*(c_2θ + 3) + 4*a^2*r*s_θ^2 + 2*r^4)) - a^2*p_r^2*s_2θ*(a^2 + r*(r - 2))*(a^2*c_θ^2 + r^2)^2 - a^2*p_θ^2*s_2θ*(a^2*c_θ^2 + r^2)^2 + 2*a^2*r*s_2θ*(a^2*c_θ^2 + r^2)*(4*a*p_ϕ*r + 2*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4)))*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4))/((a^2 + r*(r - 2))*(2*a^4*c_θ^2 + r*(a^2*c_2θ*r + 3*a^2*r + 4*a^2*s_θ^2 + 2*r^3))) - 4*a*p_ϕ*r*(a^2*c_θ^2 + r^2)*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4))/(t_θ*(a^2 + r*(r - 2))) + p_ϕ*(a^2*p_ϕ/t_θ^2 + 2*a*r*(4*a*p_ϕ*r + 2*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r*(r - 2))^2 + p_θ^2*(a^2 + r*(r - 2)) + p_ϕ^2*(a^2*c_θ^2 + r*(r - 2))/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4)))/(2*a^4*c_θ^2 + r*(a^2*c_2θ*r + 3*a^2*r + 4*a^2*s_θ^2 + 2*r^3)) + p_ϕ*r*(r - 2)/s_θ^2)*(2*a^6*c_θ^6 + 6*a^4*c_θ^4*r^2 + a^4*r*s_2θ^2 + 6*a^2*c_θ^2*r^4 + 4*a^2*r^3*s_θ^2 + 2*r^6)/(t_θ*(a^2 + r*(r - 2))))/(2*(a^2*c_θ^2 + r^2)^4)
+
+    dx[7] = 0.0
+
+end
+
+
+
+
+"""
+    spinhall_odes!(dx::Vector, x::Vector, geometry::Geometry, tau)
+
+Calculate the derivatives of ``x^μ`` and ``p_i`` with respect to
+the proper time, returned in this order. Expresssions are exported from
+Mathematica.
+"""
+function spinhall_odes!(dx::Vector, x::Vector, geometry::Geometry, tau)
     t, r, θ, ϕ, p_r, p_θ, p_ϕ = x
     # Unpack the struct
     @unpack a, ϵ, s = geometry.params

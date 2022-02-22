@@ -1,5 +1,5 @@
 import Clustering: kmeans
-import Optim: optimize, NelderMead, Options, NLSolversBase.InplaceObjective, ConjugateGradient, only_fg!
+import Optim: optimize, Options, NLSolversBase.InplaceObjective, only_fg!
 
 
 """
@@ -8,7 +8,7 @@ import Optim: optimize, NelderMead, Options, NLSolversBase.InplaceObjective, Con
         alg::NelderMead,
         options::Options;
         Nmax::Int64=100,
-        atol::AbstractFloat=1e-12
+        atol::Float64=1e-12
     )
 
 Find minimum of a function `floss`.
@@ -18,13 +18,10 @@ function find_minimum(
     alg::NelderMead,
     options::Options;
     Nmax::Int64=100,
-    atol::AbstractFloat=1e-12
+    atol::Float64=1e-12
 )
     for i in 1:Nmax
-        opt = optimize(floss,
-                       uniform_sample_sphere(),
-                       alg,
-                       options)
+        opt = optimize(floss, uniform_sample_sphere(), alg, options)
 
         if isapprox(opt.minimum, 0.0, atol=atol)
             return opt
@@ -72,12 +69,12 @@ Search `N` minima from `find_minimum`, which should take no arguments. The
 search is parallelised.
 """
 function search_minima(find_minimum::Function, N::Int64) 
-    X = zeros((N, 4))
+    X = zeros((N, 3))
     
     Threads.@threads for i in 1:N
         opt = find_minimum()
-        X[i, 1:3] = opt.minimizer
-        X[i, 4] = opt.minimum
+        X[i, 1:2] = opt.minimizer
+        X[i, 3] = opt.minimum
     end
     return X
 end
