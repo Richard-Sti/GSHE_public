@@ -37,7 +37,7 @@ end
         alg::Union{NeldearMead, ConjugateGradient},
         options::Options;
         Nmax::Int64=100,
-        atol::AbstractFloat=1e-12
+        atol::Float64=1e-12
     )
 
 Find minimum of a function `floss` using gradients."""
@@ -46,7 +46,7 @@ function find_minimum(
     alg::ConjugateGradient,
     options::Options;
     Nmax::Int64=10,
-    atol::AbstractFloat=1e-12
+    atol::Float64=1e-12
 )
     for i in 1:Nmax
         opt = optimize(only_fg!(floss),
@@ -108,13 +108,21 @@ end
 
 
 """
-    search_unique_minima(fmin::Function, N::Int64;
-                         Nmax::Int64=50, atol::AbstractFloat=1e-12)
+    search_unique_minima(
+        fmin::Function,
+        N::Int64;
+        Nmax::Int64=50,
+        atol::Float64=1e-12
+    )
 
 Searches ``N`` unique minimas.
 """
-function search_unique_minima(fmin::Function, N::Int64;
-                              Nmax::Int64=50, atol::AbstractFloat=1e-12)
+function search_unique_minima(
+    fmin::Function,
+    N::Int64;
+    Nmax::Int64=50,
+    atol::Float64=1e-12
+)
     out = zeros(N, 2)
     Nfound = 0
     X = [zeros(GWFloat, 2)]
@@ -138,12 +146,12 @@ end
 
 """
     timing_minima(geo_solver::Function, X::Matrix{GWFloat};
-                  atol::AbstractFloat=1e-10)
+                  atol::Float64=1e-10)
 
 Average solutions from geodesics.
 """
 function timing_minima(geo_solver::Function, X::Matrix{GWFloat};
-                       atol::AbstractFloat=1e-10)
+                       atol::Float64=1e-10)
     N, assign = cluster_minima(X[:, 1:2], atol)
     out = zeros(N, 3)
     # Grab the time from the solver
