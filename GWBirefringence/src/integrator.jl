@@ -124,14 +124,37 @@ only `p` as input.
 """
 function loss(
     p::Vector,
+    Xfound::Union{Vector{Vector{GWFloat}}, Nothing},
     solve_geodesic::Function,
     geometry::Geometry
 )
+    # TODO
+    rtol = 1e-10
+    # Check that angular coords. are in their bounds
     if (length(p) == 2) & ~((0. <= p[1] <= pi) & (0. <= p[2] <= 2pi))
         return Inf
     end
+    # Solve the solution
     sol = solve_geodesic(p)
-    return angdist(sol, geometry)
+    # Check that the radial distance is within tolerance
+    if ~isapprox(sol[2, end], geometry.observer.r, rtol=rtol)
+        return Inf
+    end
+    @unpack theta, phi = geometry.observer
+    Xnew = sol[3:4, end]
+    Xobs = [theta, phi]
+
+    out = angdist(Xnew, Xobs)
+
+    if Xfound !== nothing
+        min_dist = minimum([angdist(p, x) for x in Xfound])
+        # TODO
+        if min_dist < 1e-8
+            out += min_dist / 1e-12
+        end
+    end
+
+    return out 
 end
 
 

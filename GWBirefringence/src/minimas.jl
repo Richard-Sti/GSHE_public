@@ -2,7 +2,34 @@ import Clustering: kmeans
 import Optim: optimize, Options, NLSolversBase.InplaceObjective, only_fg!
 
 
-println("Let's test this branching!!!!")
+function find_minima(
+    floss::Function,
+    options;
+    Nattempts=50
+)
+    X = [zeros(GWFloat, 2)]
+
+    Nmax = 2*Nattempts
+    for i in 1:Nmax
+        # Optionally pass previously found solutions into the loss func.
+        f(p) = floss(p, (i ===1 ? nothing : X))
+        opt = find_minimum(f, NelderMead(), options; Nmax=Nattempts)
+
+        # Terminate the search
+        if opt === nothing
+            @info ("Search terminated with $(i-1) solutions after "
+                   *"trying $Nattempts attempts to find a new solution.")
+            break
+        end
+        # Append the newly found solution
+        i === 1 ? (X[1][:] = opt.minimizer) : push!(X, opt.minimizer)
+    end
+    # Return and turn this into a matrix
+    return  mapreduce(permutedims, vcat, X)
+end
+
+
+
 """
     find_minimum(
         floss,
@@ -15,10 +42,10 @@ println("Let's test this branching!!!!")
 Find minimum of a function `floss`.
 """
 function find_minimum(
-    floss,
+    floss::Function,
     alg::NelderMead,
     options::Options;
-    Nmax::Int64=100,
+    Nmax::Int64=500,
     atol::Float64=1e-12
 )
     for i in 1:Nmax
@@ -28,7 +55,8 @@ function find_minimum(
             return opt
         end
     end
-    @assert false "No minimum found in $Nmax attempts."
+
+    return nothing
 end
 
 
