@@ -65,7 +65,7 @@ Sample a uniform point on a sphere. Returns (theta, phi), such that
 """
 function uniform_sample_sphere(return_cartesian::Bool=false)
     theta, phi = rand(GWFloat, 2)
-    theta = asin(2*(theta - 0.5)) + pi/2
+    theta = acos(2*(theta - 0.5))
     phi *= 2pi
 
     if return_cartesian
