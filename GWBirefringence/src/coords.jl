@@ -96,19 +96,18 @@ end
 Calculate the angular distance between X1 and X2.
 """
 function angdist(X1::Vector, X2::Vector)
-
-    dphi = X1[2] - X2[2]
-    stheta1, stheta2 = sin(X1[1]), sin(X2[1])
-    ctheta1, ctheta2 = cos(X1[1]), cos(X2[1])
-    cdphi = cos(dphi)
+    dϕ = X1[2] - X2[2]
+    sθ1, sθ2 = sin(X1[1]), sin(X2[1])
+    cθ1, cθ2 = cos(X1[1]), cos(X2[1])
+    cdϕ = cos(dϕ)
 
     x = begin
-        x1 = (stheta2 * sin(dphi))^2
-        x2 = (stheta1 * ctheta2 - ctheta1 * stheta2 * cdphi)^2
+        x1 = (sθ2 * sin(dϕ))^2
+        x2 = (sθ1 * ctheta2 - cθ1 * sθ2 * cdϕ)^2
         sqrt(x1 + x2)
     end
 
-    y = ctheta1 * ctheta2 + stheta1 * stheta2 * cdphi
+    y = cθ1 * cθ2 + sθ1 * sθ2 * cdϕ
 
     return atan(x, y)
 end
