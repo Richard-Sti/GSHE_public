@@ -1,5 +1,16 @@
 """
-    pi0(psi, rho, geometry::Geometry)
+    pi0(ψ::GWFloat, ρ::GWFloat, geometry::Geometry, Rinv::Matrix{GWFloat})
+
+Calculate the initial covectors p_i after rotating ψ and ρ by matrix Rinv.
+"""
+function pi0(ψ::GWFloat, ρ::GWFloat, geometry::Geometry, Rinv::Matrix{GWFloat})
+    __, ψ, ρ = cartesian_to_spherical(Rinv * [1.0, ψ, ρ])
+    return pi0(ψ, ρ, geometry, Rinv)
+end
+
+
+"""
+    pi0(ψ::GWFloat, ρ::GWFloat, geometry::Geometry)
 
 Calculate the initial covectors ``p_i``.
 
@@ -8,8 +19,7 @@ Calculate the initial covectors ``p_i``.
 - `rho::Float64`: the initial direction azimuthal angle
 - `geometry::GWBirefringence.geometry`: system geometry
 """
-function pi0(psi, rho, geometry::Geometry)
-    ψ, ρ = psi, rho
+function pi0(ψ::GWFloat, ρ::GWFloat, geometry::Geometry)
     @unpack r, theta = geometry.source
     θ, a = theta, geometry.params.a
 
