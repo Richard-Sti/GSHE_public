@@ -12,7 +12,7 @@ Far field callback, terminate integration when observer radius is reached.
 """
 function ffield_callback(geometry::Geometry;
                          interp_points::Int64=10)
-    f(r, tau, integrator) = r - geometry.observer.r
+    f(r, τ, integrator) = r - geometry.observer.r
     terminate_affect!(integrator) = terminate!(integrator)
     return ContinuousCallback(f, terminate_affect!,
                               interp_points=interp_points,
@@ -27,7 +27,7 @@ end
 Horizon callback, terminate integration if BH horizon is reached.
 """
 function horizon_callback(geometry::Geometry)
-    f(x, tau, integrator) = x[2] <= 2.0
+    f(x, τ, integrator) = x[2] <= 2.0
     terminate_affect!(integrator) = terminate!(integrator)
     return DiscreteCallback(f, terminate_affect!,
                             save_positions=(false, false))
@@ -51,14 +51,14 @@ end
 
 Get the isometry, far field and horizon callback set.
 """
-function get_callbacks(geometry::Geometry, p::Vector;
+function get_callbacks(geometry::Geometry, p::Vector::Vector{GWFloat};
                        interp_points::Int64=10)
     # Initial covector and conserved values
     x0, time_isometry, phi_isometry = GWBirefringence.init_values(p,
                                                                   geometry,
                                                                   true)
-    iso(res, x, p, tau) = GWBirefringence.isometry_residuals!(
-                              res, x, p, tau, geometry, time_isometry,
+    iso(res, x, p, τ) = GWBirefringence.isometry_residuals!(
+                              res, x, p, τ, geometry, time_isometry,
                               phi_isometry)
     return CallbackSet(ffield_callback(geometry),
                        horizon_callback(geometry),
@@ -154,35 +154,6 @@ function loss(
             [geometry.observer.theta, geometry.observer.phi]
         )
 end
-
-
-# """
-#     loss_gradient!(
-#         F,
-#         G::Vector,
-#         p::Vector,
-#         result::DiffResults.MutableDiffResult,
-#         floss::Function
-#     )
-# 
-# Calculates the gradient of the loss function and stores it in ``G``.
-# """
-# function loss_gradient!(
-#     F,
-#     G,
-#     p::Vector,
-#     result::MutableDiffResult,
-#     floss::Function
-# )
-#     gradient!(result, floss, p)
-#     if G !== nothing
-#         G[:] = result.derivs[1]
-#     end
-# 
-#     if F !== nothing
-#         return result.value
-#     end
-# end
 
 
 """
