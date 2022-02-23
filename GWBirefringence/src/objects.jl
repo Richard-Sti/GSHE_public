@@ -8,6 +8,7 @@ parameter ``a``, perturbation parameter ``ϵ``, and polarisation ``s``.
     a::GWFloat
     ϵ::GWFloat
     s::Int64
+    θxmax::GWFloat = 10 * (π / 180)
 end
 
 
