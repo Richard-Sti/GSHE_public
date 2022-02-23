@@ -4,16 +4,22 @@
 Calculate the spherical coordinates (r, theta, phi) from Cartesian (x, y,z).
 If `unit_vector` is true returns (theta, phi)
 """
-function cartesian_to_spherical(X::Vector;
-                                unit_vector::Bool=false)
+function cartesian_to_spherical(
+    X::Vector;
+    unit_vector::Bool=false
+)
+    # Unpack the vector
     x, y, z = X
+    # Do the transformation
     r = sqrt(x^2 + y^2 + z^2)
-    theta = acos(z / r)
-    phi = atan(y, x) + pi
+    θ = acos(z / r)
+    ϕ = atan(y, x)
+    # Correct the ϕ range
+    ϕ < 0 ? (ϕ += 2pi) : nothing
     if unit_vector
-        return [theta, phi]
+        return [θ, ϕ]
     else
-        return [r, theta, phi]
+        return [r, θ, ϕ]
     end
 end
 
@@ -28,7 +34,9 @@ function cartesian_to_spherical!(X::Vector)
     r = sqrt(x^2 + y^2 + z^2)
     X[1] = r
     X[2]= acos(z / r)
-    X[3] = atan(y, x) + pi
+    X[3] = atan(y, x)
+    # Correct the ϕ range
+    X[3] < 0 ? (X[3] += 2pi) : nothing
 end
 
 
