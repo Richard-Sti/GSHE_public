@@ -45,25 +45,25 @@ function get_callbacks(geometry::Geometry; interp_points::Int64=10)
 end
 
 
-"""
-    get_callbacks(geometry::Geometry, p::Vector{GWFloat};
-                  interp_points::Int64=10)
-
-Get the isometry, far field and horizon callback set.
-"""
-function get_callbacks(geometry::Geometry, p::Vector::Vector{GWFloat};
-                       interp_points::Int64=10)
-    # Initial covector and conserved values
-    x0, time_isometry, phi_isometry = GWBirefringence.init_values(p,
-                                                                  geometry,
-                                                                  true)
-    iso(res, x, p, τ) = GWBirefringence.isometry_residuals!(
-                              res, x, p, τ, geometry, time_isometry,
-                              phi_isometry)
-    return CallbackSet(ffield_callback(geometry),
-                       horizon_callback(geometry),
-                       ManifoldProjection(iso))
-end
+# """
+#     get_callbacks(geometry::Geometry, p::Vector{GWFloat};
+#                   interp_points::Int64=10)
+# 
+# Get the isometry, far field and horizon callback set.
+# """
+# function get_callbacks(geometry::Geometry, p::Vector{GWFloat};
+#                        interp_points::Int64=10)
+#     # Initial covector and conserved values
+#     x0, time_isometry, phi_isometry = GWBirefringence.init_values(p,
+#                                                                   geometry,
+#                                                                   true)
+#     iso(res, x, p, τ) = GWBirefringence.isometry_residuals!(
+#                               res, x, p, τ, geometry, time_isometry,
+#                               phi_isometry)
+#     return CallbackSet(ffield_callback(geometry),
+#                        horizon_callback(geometry),
+#                        ManifoldProjection(iso))
+# end
 
 
 """
@@ -73,24 +73,24 @@ end
 Calculate a vector of the initial vector ``x^mu`` and initial covector ``p_i``,
 in this order given the system geometry.
 """
-function init_values(p::Vector, geometry::Geometry,
-                     enforce_isometry::Bool)
+function init_values(p::Vector, geometry::Geometry)
     @unpack t, r, theta, phi = geometry.source
 
-    if length(p) == 3 
-        __, psi, rho = cartesian_to_spherical(p)
-    else
-        psi, rho = p
-    end
-    p_r, p_theta, p_phi = pi0(psi, rho, geometry)
-    x0 = [t, r, theta, phi, p_r, p_theta, p_phi]
+#    if length(p) == 3 
+#        __, psi, rho = cartesian_to_spherical(p)
+#    else
+#        psi, rho = p
+#    end
+    ψ, ρ = p
+    p_r, p_theta, p_phi = pi0(ψ, ρ, geometry)
+    return [t, r, theta, phi, p_r, p_theta, p_phi]
 
-    if enforce_isometry
-        return (x0, time_killing_conservation(x0, geometry),
-                phi_killing_conservation(x0, geometry))
-    else
-        return x0
-    end
+#    if enforce_isometry
+#        return (x0, time_killing_conservation(x0, geometry),
+#                phi_killing_conservation(x0, geometry))
+#    else
+#        return x0
+#    end
 end
 
 
@@ -113,40 +113,53 @@ end
 
 
 """
+    angular_bounds(p::Vector{GWFloat}, θxmax::GWFloat)
+
+Check whether θ and ϕ and in range and if they lie sufficiently close to
+the x-axis (1, 0, 0).
+"""
+function angular_bounds(p::Vector{GWFloat}, θxmax::GWFloat)
+    θ, ϕ= p
+    return (0. ≤ θ ≤ π) & (0. ≤ ϕ  < 2π) & (acos(sin(θ)*cos(ϕ)) ≤ θxmax)
+end
+
+
+"""
     loss(
-        p::Vector,
+        p::Vector{GWFloat},
         Xfound::Union{Vector{Vector{GWFloat}}, Nothing},
         solve_geodesic::Function,
         geometry::Geometry;
+        θxmax::GWFloat=1π,
         rtol::Float64=1e-10,
     )
 
 Calculate the angular loss of a geodesic, `solve_geodesic` expected to take
-only `p` as input.
+only `p` as input. Checks whether initial condition close to any of `Xfound`.
 """
 function loss(
-    p::Vector,
+    p::Vector{GWFloat},
     Xfound::Union{Vector{Vector{GWFloat}}, Nothing},
     solve_geodesic::Function,
     geometry::Geometry;
+    θxmax::GWFloat=1π,
     rtol::Float64=1e-10,
 )
-    # Check that angular coords. are in their bounds
-    if (length(p) === 2) & ~((0. <= p[1] <= pi) & (0. <= p[2] <= 2pi))
-        return Inf
+    # Check angular coordinates
+    if ~angular_bounds(p, θxmax)
+        return Inf64
     end
     # If initial condition too close to old init. conds. do not integrate
     if Xfound !== nothing
-        min_dist = minimum([angdist(p, x) for x in Xfound])
-        if min_dist < rtol
-            return min_dist^0.6
+        if minimum([angdist(p, x) for x in Xfound]) < rtol
+            return Inf64
         end
     end
     # Solve the solution
     sol = solve_geodesic(p)
     # Check that the radial distance is within tolerance
     if ~isapprox(sol[2, end], geometry.observer.r, rtol=rtol)
-        return Inf
+        return Inf64
     end
 
     return angdist(

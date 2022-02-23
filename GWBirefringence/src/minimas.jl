@@ -2,6 +2,7 @@ import Clustering: kmeans
 import Optim: optimize, NLSolversBase.InplaceObjective, only_fg!
 import DiffResults: GradientResult
 
+
 """
     find_minima(
         floss::Function,
@@ -18,18 +19,18 @@ function find_minima(
     Nsols::Int64=3
 )
     X = [zeros(GWFloat, 2)]
+
     for i in 1:Nsols
         # Optionally pass previously found solutions into the loss func.
-        loss(p) = floss(p, (i ===1 ? nothing : X))
-        
+        loss(p::Vector{GWFloat}) = floss(p, (i === 1 ? nothing : X))
         Xnew = find_minimum(loss, alg, options; Nmax=Nattempts)
+
         # Terminate the search
         if Xnew === nothing
             @info ("Search terminated with $(i-1)/$Nsols solutions after "
                    *"trying $Nattempts attempts to find a new solution.")
             break
         end
-        Xnew, Xval = Xnew
         # Append the newly found solution
         i === 1 ? (X[1][:] = Xnew) : push!(X, Xnew)
     end
@@ -40,7 +41,7 @@ end
 
 """
     find_minimum(
-        floss,
+        floss::Function,
         alg::NelderMead,
         options::Options;
         Nmax::Int64=100,
@@ -59,7 +60,7 @@ function find_minimum(
     for i in 1:Nmax
         opt = optimize(floss, uniform_sample_sphere(), alg, options)
         if isapprox(opt.minimum, 0.0, atol=atol)
-            return opt.minimizer, opt.minimum
+            return opt.minimizer
         end
     end
 
@@ -67,49 +68,13 @@ function find_minimum(
 end
 
 
-# """
-#     find_minimum(
-#         floss,
-#         alg::ConjugateGradient,
-#         options::Options;
-#         Nmax::Int64=100,
-#         atol::Float64=1e-12
-#     )
-# 
-# Find minimum of a function `floss` using gradients."""
-# function find_minimum(
-#     floss,
-#     alg::ConjugateGradient,
-#     options::Options;
-#     Nmax::Int64=100,
-#     atol::Float64=1e-12
-# )
-#     result = GradientResult(zeros(GWFloat, 3))
-#     floss_gradient!(F, G, p) = loss_gradient!(F, G, p, result, floss)
-#     for i in 1:Nmax
-#         opt = optimize(only_fg!(floss_gradient!),
-#                        uniform_sample_sphere(true),
-#                        alg,
-#                        options)
-# 
-#         if isapprox(opt.minimum, 0.0, atol=atol)
-#             Xnew = opt.minimizer
-#             cartesian_to_spherical!(Xnew)
-#             return Xnew[2:end], opt.minimum
-#         end
-#     end
-#     return nothing
-# #    @assert false "No minimum found in $Nmax attempts."
-# end
-
-
 """
-    search_minima(find_minimum::Function, N::Int64)
+    brute_find_minima(find_minimum::Function, N::Int64)
 
 Search `N` minima from `find_minimum`, which should take no arguments. The
 search is parallelised.
 """
-function search_minima(find_minimum::Function, N::Int64) 
+function brute_find_minima(find_minimum::Function, N::Int64) 
     X = zeros((N, 3))
     
     Threads.@threads for i in 1:N
