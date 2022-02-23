@@ -91,6 +91,25 @@ end
 
 
 """
+    uniform_sample_sphere_near_x(
+        θmax::Union{GWFloat, Irrational}=π
+    )
+
+Sample a point within distance θmax of the x-axis.
+"""
+function uniform_sample_sphere_near_x(
+    θmax::Union{GWFloat, Irrational}=π
+)
+    θ_0, ϕ_0 = GWBirefringence.uniform_sample_sphere(false, θmax)
+
+    θ = acos(-sin(θ_0)*cos(ϕ_0))
+    ϕ = atan(sin(θ_0)*sin(ϕ_0), cos(θ_0))
+    ϕ < 0 ? (ϕ += 2pi) : nothing
+    return [θ, ϕ]
+end
+
+
+"""
     rotation_to_x(θ::GWFloat, ϕ::GWFloat)
 
 Calculate the rotation matrix to rotate a unit vector given by θ and ϕ to
