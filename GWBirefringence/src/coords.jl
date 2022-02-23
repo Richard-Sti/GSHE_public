@@ -103,7 +103,7 @@ function angdist(X1::Vector, X2::Vector)
 
     x = begin
         x1 = (sθ2 * sin(dϕ))^2
-        x2 = (sθ1 * ctheta2 - cθ1 * sθ2 * cdϕ)^2
+        x2 = (sθ1 * cθ2 - cθ1 * sθ2 * cdϕ)^2
         sqrt(x1 + x2)
     end
 
