@@ -58,21 +58,35 @@ end
 
 
 """
-    uniform_sample_sphere(return_cartesian::Bool=false)
+    uniform_sample_sphere(
+        return_cartesian::Bool=false,
+        θmax::Union{GWFloat, Irrational}=π
+    )
 
-Sample a uniform point on a sphere. Returns (theta, phi), such that
-0<=theta<=pi and 0<=phi<2pi.
+Sample a uniform point on a sphere. Returns (θ, ϕ), such that
+0 ≤ theta ≤ π and 0 ≤ ϕ  < 2π. If `return_cartesian` is true returns the
+Cartesian coordinates of the point.
 """
-function uniform_sample_sphere(return_cartesian::Bool=false)
-    theta, phi = rand(GWFloat, 2)
-    theta = acos(2*(theta - 0.5))
-    phi *= 2pi
+
+function uniform_sample_sphere(
+    return_cartesian::Bool=false,
+    θmax::Union{GWFloat, Irrational}=π
+)
+    # Sample within [0, 1] uniformly
+    θ, ϕ = rand(GWFloat, 2)
+    # if θmax is not π restrict it to a smaller range
+    if θmax != π
+        θ *= (1 - cos(θmax)) / 2
+    end
+    # Get the actual angles
+    θ = asin(2*(θ - 0.5)) + π/2
+    ϕ *= 2π
 
     if return_cartesian
-        return spherical_to_cartesian([theta, phi])
+        return spherical_to_cartesian([θ, ϕ])
     end
 
-    return [theta, phi]
+    return [θ, ϕ]
 end
 
 
