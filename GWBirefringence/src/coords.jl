@@ -91,11 +91,26 @@ end
 
 
 """
+    rotation_to_x(θ::GWFloat, ϕ::GWFloat)
+
+Calculate the rotation matrix to rotate a unit vector given by θ and ϕ to
+lie on the x-axis.
+"""
+function rotation_to_x(θ::GWFloat, ϕ::GWFloat)
+    sθ, cθ = sin(θ), cos(θ)
+    sϕ, cϕ = sin(ϕ), cos(ϕ)
+    return [ sθ*cϕ    sθ*sϕ  cθ;
+             -sϕ      cϕ     0
+             -cθ*cϕ  -cθ*sϕ  sθ]
+end
+
+
+"""
     angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
 
 Calculate the angular distance between X1 and X2.
 """
-function angdist(X1::Vector, X2::Vector)
+function angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
     dϕ = X1[2] - X2[2]
     sθ1, sθ2 = sin(X1[1]), sin(X2[1])
     cθ1, cθ2 = cos(X1[1]), cos(X2[1])
