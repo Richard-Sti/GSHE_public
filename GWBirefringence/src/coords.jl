@@ -78,7 +78,7 @@ Cartesian coordinates of the point.
 
 function uniform_sample_sphere(
     return_cartesian::Bool=false,
-    θmax::Union{GWFloat, Irrational}=π
+    θmax::GWFloat=1π
 )
     # Sample within [0, 1] uniformly
     θ, ϕ = rand(GWFloat, 2)
@@ -99,36 +99,32 @@ end
 
 
 """
-    uniform_sample_sphere_near_x(
-        θmax::Union{GWFloat, Irrational}=π
-    )
+    uniform_sample_sphere_near_x(θmax::GWFloat=1π)
 
-Sample a point within distance θmax of the x-axis.
+Sample a point within distance θmax of the y-axis.
 """
-function uniform_sample_sphere_near_x(
-    θmax::Union{GWFloat, Irrational}=π
-)
+function uniform_sample_sphere_near_y(θmax::GWFloat=1π)
     θ_0, ϕ_0 = GWBirefringence.uniform_sample_sphere(false, θmax)
 
     θ = acos(-sin(θ_0)*cos(ϕ_0))
-    ϕ = atan(sin(θ_0)*sin(ϕ_0), cos(θ_0))
+    ϕ = atan(sin(θ_0)*sin(ϕ_0), cos(θ_0)) + π/2
     ϕ < 0 ? (ϕ += 2pi) : nothing
     return [θ, ϕ]
 end
 
 
 """
-    rotation_to_x(θ::GWFloat, ϕ::GWFloat)
+    rotation_to_y(θ::GWFloat, ϕ::GWFloat)
 
 Calculate the rotation matrix to rotate a unit vector given by θ and ϕ to
-lie on the x-axis.
+lie on the y-axis.
 """
-function rotation_to_x(θ::GWFloat, ϕ::GWFloat)
+function rotation_to_y(θ::GWFloat, ϕ::GWFloat)
     sθ, cθ = sin(θ), cos(θ)
     sϕ, cϕ = sin(ϕ), cos(ϕ)
-    return [ sθ*cϕ    sθ*sϕ  cθ;
-             -sϕ      cϕ     0
-             -cθ*cϕ  -cθ*sϕ  sθ]
+    return [ sϕ    -cϕ    0.0
+             sθ*cϕ  sθ*sϕ cθ
+            -cθ*cϕ -cθ*sϕ sθ]
 end
 
 

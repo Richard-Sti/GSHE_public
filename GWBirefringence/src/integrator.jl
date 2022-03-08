@@ -67,50 +67,85 @@ end
 
 
 """
-    init_values(p::Vector, geometry::Geometry,
-                enforce_isometry::Bool)
+    init_values(p::Vector{GWFloat}, geometry::Geometry)
 
 Calculate a vector of the initial vector ``x^mu`` and initial covector ``p_i``,
 in this order given the system geometry.
 """
-function init_values(p::Vector, geometry::Geometry)
+function init_values(p::Vector{GWFloat}, geometry::Geometry)
     @unpack t, r, theta, phi = geometry.source
-
-#    if length(p) == 3 
-#        __, psi, rho = cartesian_to_spherical(p)
-#    else
-#        psi, rho = p
-#    end
     ψ, ρ = p
     p_r, p_theta, p_phi = pi0(ψ, ρ, geometry)
     return [t, r, theta, phi, p_r, p_theta, p_phi]
-
-#    if enforce_isometry
-#        return (x0, time_killing_conservation(x0, geometry),
-#                phi_killing_conservation(x0, geometry))
-#    else
-#        return x0
-#    end
 end
 
 
 """
-    solve_geodesic(p::Vector, prob::ODEProblem,
-                   cb::CallbackSet, init_pos::Function;
-                   save_everystep::Bool=false, reltol::Float64=1e-12,
-                   abstol::Float64=1e-12)
+    init_values(
+        p::Vector{GWFloat},
+        geometry::Geometry,
+        Rinv::Transpose{GWFloat, Matrix{GWFloat}}
+    )
+
+Calculate a vector of the initial vector ``x^mu`` and initial covector ``p_i``,
+in this order given the system geometry. Assumes values sampled near the x-axis
+and thus performs the inverse rotation.
+"""
+function init_values(
+    p::Vector{GWFloat},
+    geometry::Geometry,
+    Rinv::Transpose{GWFloat, Matrix{GWFloat}}
+)
+    # Doing this rotation is somewhat ugly.
+    ψ, ρ = p
+    x0 = spherical_to_cartesian([1.0, ψ, ρ])
+    __, ψ, ρ = cartesian_to_spherical(Rinv * x0)
+    return init_values([ψ, ρ], geometry)
+
+end
+
+
+"""
+    solve_geodesic(
+        p::Vector,
+        prob::ODEProblem,
+        cb::CallbackSet;
+        save_everystep::Bool=false,
+        reltol::Float64=1e-12,
+        abstol::Float64=1e-12
+    )
 
 Solve a geodesic problem, allows changing intial conditions ``p`` on the fly.
 """
-function solve_geodesic(p::Vector, prob::ODEProblem,
-                        cb::CallbackSet, init_pos::Function;
-                        save_everystep::Bool=false, reltol::Float64=1e-12,
-                        abstol::Float64=1e-12)
-    re_prob = remake(prob, u0=init_pos(p))
+function solve_geodesic(
+    p::Vector,
+    prob::ODEProblem,
+    geometry::Geometry,
+    cb::CallbackSet;
+    save_everystep::Bool=false,
+    reltol::Float64=1e-12,
+    abstol::Float64=1e-12
+)
+    re_prob = remake(prob, u0=init_values(p, geometry))
     return solve(re_prob, Vern9(), callback=cb, save_everystep=save_everystep,
                  reltol=reltol, abstol=abstol)
 end
 
+
+function solve_geodesic(
+    p::Vector,
+    prob::ODEProblem,
+    geometry::Geometry,
+    cb::CallbackSet,
+    Rinv::Transpose{GWFloat, Matrix{GWFloat}};
+    save_everystep::Bool=false,
+    reltol::Float64=1e-12,
+    abstol::Float64=1e-12
+)
+    re_prob = remake(prob, u0=init_values(p, geometry, Rinv))
+    return solve(re_prob, Vern9(), callback=cb, save_everystep=save_everystep,
+                 reltol=reltol, abstol=abstol)
+end
 
 """
     angular_bounds(p::Vector{GWFloat}, θxmax::GWFloat)
@@ -118,9 +153,13 @@ end
 Check whether θ and ϕ and in range and if they lie sufficiently close to
 the x-axis (1, 0, 0).
 """
-function angular_bounds(p::Vector{GWFloat}, θxmax::GWFloat)
-    θ, ϕ= p
-    return (0. ≤ θ ≤ π) & (0. ≤ ϕ  < 2π) & (acos(sin(θ)*cos(ϕ)) ≤ θxmax)
+function angular_bounds(p::Vector{GWFloat})
+    return (0. ≤ p[1] ≤ π) & (0. ≤ p[2]  < 2π)
+end
+
+
+function angular_bounds(p::Vector{GWFloat}, θmax::GWFloat)
+    return (acos(sin(p[1])*sin(p[2])) ≤ θmax) & angular_bounds(p)
 end
 
 
@@ -142,32 +181,50 @@ function loss(
     Xfound::Union{Vector{Vector{GWFloat}}, Nothing},
     solve_geodesic::Function,
     geometry::Geometry;
-    θxmax::GWFloat=1π,
     rtol::Float64=1e-10,
 )
-    # Check angular coordinates
-    if ~angular_bounds(p, θxmax)
+    # Check angular bounds
+    if ~angular_bounds(p)
         return Inf64
     end
+
     # If initial condition too close to old init. conds. do not integrate
-    if Xfound !== nothing
-        if minimum([angdist(p, x) for x in Xfound]) < rtol
-            return Inf64
-        end
+    if Xfound !== nothing && minimum([angdist(p, x) for x in Xfound]) < rtol
+        return Inf64
     end
-    # Solve the solution
+
     sol = solve_geodesic(p)
     # Check that the radial distance is within tolerance
-    if ~isapprox(sol[2, end], geometry.observer.r, rtol=rtol)
+    return sol_angdist(sol[:, end], geometry, rtol=rtol)
+end
+
+
+function loss(
+    p::Vector{GWFloat},
+    Rinv::Transpose{GWFloat, Matrix{GWFloat}},
+    θmax::GWFloat,
+    solve_geodesic::Function,
+    geometry::Geometry;
+    rtol::Float64=1e-10,
+)
+    if ~angular_bounds(p, θmax)
+        return Inf64
+    end
+    sol = solve_geodesic(p, Rinv)
+    return sol_angdist(sol[:, end], geometry, rtol=rtol)
+end
+
+
+function sol_angdist(sol::Vector{GWFloat}, geometry; rtol)
+    if ~isapprox(sol[2], geometry.observer.r, rtol=rtol)
         return Inf64
     end
 
     return angdist(
-            sol[3:4, end],
+            sol[3:4],
             [geometry.observer.theta, geometry.observer.phi]
         )
 end
-
 
 """
     ode_problem(odes!::Function, geometry::Geometry)

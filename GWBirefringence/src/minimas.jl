@@ -15,16 +15,15 @@ function find_minima(
     floss::Function,
     alg::NelderMead,
     options::Options;
+    Nsols::Int64=1,
     Nattempts::Int64=50,
-    Nsols::Int64=3
 )
-    X = [zeros(GWFloat, 2)]
-
+    X = nothing
+    f(p::Vector{GWFloat}) = floss(p, X)
     for i in 1:Nsols
         # Optionally pass previously found solutions into the loss func.
-        loss(p::Vector{GWFloat}) = floss(p, (i === 1 ? nothing : X))
-        Xnew = find_minimum(loss, alg, options; Nmax=Nattempts)
-
+        Xnew = find_minimum(f, alg, options;
+                            Nmax=Nattempts)
         # Terminate the search
         if Xnew === nothing
             @info ("Search terminated with $(i-1)/$Nsols solutions after "
@@ -32,7 +31,11 @@ function find_minima(
             break
         end
         # Append the newly found solution
-        i === 1 ? (X[1][:] = Xnew) : push!(X, Xnew)
+        if i === 1
+            X = [Xnew]
+        else
+            push!(X, Xnew)
+        end
     end
     # Return and turn this into a matrix
     return  mapreduce(permutedims, vcat, X)
@@ -59,6 +62,27 @@ function find_minimum(
 )
     for i in 1:Nmax
         opt = optimize(floss, uniform_sample_sphere(), alg, options)
+        if isapprox(opt.minimum, 0.0, atol=atol)
+            return opt.minimizer
+        end
+    end
+
+    return nothing
+end
+
+
+function find_restricted_minimum(
+    floss::Function,
+    Rinv::Transpose{GWFloat, Matrix{GWFloat}},
+    θmax::GWFloat,
+    alg::NelderMead,
+    options::Options;
+    Nmax::Int64=500,
+    atol::Float64=1e-12
+)
+    f(p::Vector{GWFloat}) = floss(p, Rinv, θmax)
+    for i in 1:Nmax
+        opt = optimize(f, uniform_sample_sphere_near_y(θmax), alg, options)
         if isapprox(opt.minimum, 0.0, atol=atol)
             return opt.minimizer
         end

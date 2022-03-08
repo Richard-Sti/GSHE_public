@@ -41,63 +41,56 @@ end
 
 
 """
-    setup_problem(
-        geometry::GWBirefringence.Geometry,
-        options::Options;
-        geodesic::Bool=false
-    )
+    setup_problem(geometry::GWBirefringence.Geometry)
 
-Sets up the problem.
+Sets up the geodesic problem.
 """
-function setup_problem(
-    geometry::GWBirefringence.Geometry,
-    options::Options;
-#    use_gradients::Bool=false,
-    geodesic::Bool=false
-)
-    # Initial vector
-    init(p) = init_values(p, geometry, false)
-    # Problem and callbacks
-    if geodesic
-        prob = ode_problem(geodesic_odes!, geometry)
-    else
-        prob = ode_problem(spinhall_odes!, geometry)
-    end
+function setup_geodesic_problem2(geometry::GWBirefringence.Geometry)
+    # Get callbacks from upthere
     cb = get_callbacks(geometry)
-    # Geodesic solver
-    fsolver(p, save_everystep::Bool=false) = solve_geodesic(
-                                                p, prob, cb, init,
-                                                save_everystep=save_everystep)
-    # Loss and minimizer
-    floss(p, Xfound::Union{Vector{Vector{GWFloat}}, Nothing}) = loss(
-                                                                p, Xfound,
-                                                                fsolver,
-                                                                geometry)
+    # ODEProblem
+    prob = ode_problem(geodesic_odes!, geometry)
+    # Integrator function
+    function fsolver(p::Vector{GWFloat}, save_everystep::Bool=false)
+        solve_geodesic(p, prob, geometry, cb; save_everystep=save_everystep)
+    end
 
+    # Loss function, define with two methods
+    function floss(
+        p::Vector{GWFloat},
+        Xfound::Union{Vector{Vector{GWFloat}}, Nothing}=nothing,
+    )
+        return loss(p, Xfound, fsolver, geometry)
+    end
 
-    problem = Problem(solve_geodesic=fsolver,
-                      loss=floss)
-
-#     if !use_gradients
-#         fmin() = find_minimum(floss, NelderMead(), options)
-#         problem = Problem(solve_geodesic=fsolver,
-#                           loss=floss,
-#                           find_min=fmin)
-#     else
-#         result = GradientResult(zeros(GWFloat, 3))
-#         floss_gradient!(F, G, p) = loss_gradient!(F, G, p, result, floss)
-#     
-#         grad_fmin() = find_minimum(floss_gradient!,
-#                               ConjugateGradient(manifold=Sphere()),
-#                               options)
-#         problem = Problem(solve_geodesic=fsolver,
-#                           loss=floss,
-#                           find_min=grad_fmin)
-#     end
-    
-    return problem
+    return Problem(solve_geodesic=fsolver, loss=floss)
 end
 
+
+function setup_spinhall_problem(geometry::GWBirefringence.Geometry)
+    # Get callbacks from upthere
+    cb = get_callbacks(geometry)
+    prob = ode_problem(spinhall_odes!, geometry)
+    # Integrator function
+    function fsolver(
+        p::Vector{GWFloat},
+        Rinv::Transpose{GWFloat, Matrix{GWFloat}},
+        save_everystep::Bool=false
+    )
+        solve_geodesic(p, prob, geometry, cb, Rinv; save_everystep=save_everystep)
+    end
+
+    # Loss function, define with two methods
+    function floss(
+        p::Vector{GWFloat},
+        Rinv::Transpose{GWFloat, Matrix{GWFloat}},
+        θmax::GWFloat
+    )
+        return loss(p, Rinv, θmax, fsolver, geometry)
+    end
+
+    return Problem(solve_geodesic=fsolver, loss=floss)
+end
 
 """
     solve_config!(
