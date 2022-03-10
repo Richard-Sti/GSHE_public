@@ -29,11 +29,11 @@ function setup_geometry(;
     s::Int64=2
 )
     source = Spherical_coords(r=r_source,
-                              theta=theta_source,
-                              phi=phi_source)
+                              θ=theta_source,
+                              ϕ=phi_source)
     observer = Spherical_coords(r=r_obs,
-                                theta=theta_obs,
-                                phi=phi_obs)
+                                θ=theta_obs,
+                                ϕ=phi_obs)
     params = Params(a=a, ϵ=eps, s=s)
 
     return Geometry(source=source, observer=observer, params=params)
@@ -41,11 +41,11 @@ end
 
 
 """
-    setup_problem(geometry::GWBirefringence.Geometry)
+    setup_geodesic_problem(geometry::GWBirefringence.Geometry)
 
-Sets up the geodesic problem.
+Setup the geodesic problem.
 """
-function setup_geodesic_problem2(geometry::GWBirefringence.Geometry)
+function setup_geodesic_problem(geometry::GWBirefringence.Geometry)
     # Get callbacks from upthere
     cb = get_callbacks(geometry)
     # ODEProblem
@@ -63,10 +63,14 @@ function setup_geodesic_problem2(geometry::GWBirefringence.Geometry)
         return geodesic_loss(p, pfound, fsolver, geometry)
     end
 
-    return Problem(solve_geodesic=fsolver, loss=floss)
+    return Problem(solve=fsolver, loss=floss)
 end
 
+"""
+    setup_spinhall_problem(geometry::GWBirefringence.Geometry)
 
+Setup the Spin Hall problem.
+"""
 function setup_spinhall_problem(geometry::GWBirefringence.Geometry)
     # Get callbacks from upthere
     cb = get_callbacks(geometry)
@@ -89,32 +93,32 @@ function setup_spinhall_problem(geometry::GWBirefringence.Geometry)
         return spinhall_loss(p, pgeo, θmax, fsolver, geometry)
     end
 
-    return Problem(solve_geodesic=fsolver, loss=floss)
+    return Problem(solve=fsolver, loss=floss)
 end
 
-"""
-    solve_config!(
-        prob::GWBirefringence.Problem,
-        geometry::GWBirefringence.Geometry;
-        Nminima::Int64=2
-    )
-
-Solves a particular configuration, writing results into `X` at step `step`.
-"""
-function solve_config(
-    prob::GWBirefringence.Problem,
-    geometry::GWBirefringence.Geometry;
-    Nminima::Int64=2,
-)
-
-    Xplus = search_unique_minima(prob.find_min, Nminima)
-    Xplus = timing_minima(prob.solve_geodesic, Xplus)
-
-    geometry.params.s *= -1
-    Xminus = search_unique_minima(prob.find_min, Nminima)
-    Xminus  = timing_minima(prob.solve_geodesic, Xminus)
-    geometry.params.s *= -1
-
-    Xminus = match_Xminus(Xplus, Xminus)
-    return Xplus, Xminus
-end
+# """
+#     solve_config!(
+#         prob::GWBirefringence.Problem,
+#         geometry::GWBirefringence.Geometry;
+#         Nminima::Int64=2
+#     )
+# 
+# Solves a particular configuration, writing results into `X` at step `step`.
+# """
+# function solve_config(
+#     prob::GWBirefringence.Problem,
+#     geometry::GWBirefringence.Geometry;
+#     Nminima::Int64=2,
+# )
+# 
+#     Xplus = search_unique_minima(prob.find_min, Nminima)
+#     Xplus = timing_minima(prob.solve_geodesic, Xplus)
+# 
+#     geometry.params.s *= -1
+#     Xminus = search_unique_minima(prob.find_min, Nminima)
+#     Xminus  = timing_minima(prob.solve_geodesic, Xminus)
+#     geometry.params.s *= -1
+# 
+#     Xminus = match_Xminus(Xplus, Xminus)
+#     return Xplus, Xminus
+# end

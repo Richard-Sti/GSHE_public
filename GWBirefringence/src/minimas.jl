@@ -7,9 +7,14 @@ import DiffResults: GradientResult
     find_minima(
         floss::Function,
         alg::NelderMead,
-        options;
+        options::Optim.Options;
+        Nsols::Int64=1,
         Nattempts=50
     )
+
+Find `Nsols` minima of a function
+
+    `floss(p::GWFloat, pfound::Union{Vector{GWFloat}, Nothing}`.
 """
 function find_minima(
     floss::Function,
@@ -46,12 +51,12 @@ end
     find_minimum(
         floss::Function,
         alg::NelderMead,
-        options::Options;
+        options::Optim.Options;
         Nmax::Int64=100,
         atol::Float64=1e-12
     )
 
-Find minimum of a function `floss`.
+Find minimum of a function `floss(p::Vector{GWFloat})`.
 """
 function find_minimum(
     floss::Function,
@@ -71,16 +76,33 @@ function find_minimum(
 end
 
 
+"""
+    find_restricted_minimum(
+        floss::Function,
+        pfound::Vector{GWFloat},
+        θmax::GWFloat,
+        alg::NelderMead,
+        options::Options;
+        Nmax::Int64=500,
+        atol::Float64=1e-12
+    )
+
+Find a minima of function
+
+    `floss(p::Vector{GWFloat}, pfound::Vector{GWFloat}, θmax)`.
+
+Searches withing `θmax` angular distance of `pfound`.
+"""
 function find_restricted_minimum(
     floss::Function,
-    Xfound::Vector{GWFloat},
+    pfound::Vector{GWFloat},
     θmax::GWFloat,
     alg::NelderMead,
     options::Options;
     Nmax::Int64=500,
     atol::Float64=1e-12
 )
-    f(p::Vector{GWFloat}) = floss(p, Xfound, θmax)
+    f(p::Vector{GWFloat}) = floss(p, pfound, θmax)
     for i in 1:Nmax
         # Sample initial position and inv transform it
         p0 = rvs_sphere_y(θmax)
@@ -100,22 +122,22 @@ function find_restricted_minimum(
 end
 
 
-"""
-    brute_find_minima(find_minimum::Function, N::Int64)
-
-Search `N` minima from `find_minimum`, which should take no arguments. The
-search is parallelised.
-"""
-function brute_find_minima(find_minimum::Function, N::Int64) 
-    X = zeros((N, 3))
-    
-    Threads.@threads for i in 1:N
-        opt = find_minimum()
-        X[i, 1:2] = opt.minimizer
-        X[i, 3] = opt.minimum
-    end
-    return X
-end
+# """
+#     brute_find_minima(find_minimum::Function, N::Int64)
+# 
+# Search `N` minima from `find_minimum`, which should take no arguments. The
+# search is parallelised.
+# """
+# function brute_find_minima(find_minimum::Function, N::Int64) 
+#     X = zeros((N, 3))
+#     
+#     Threads.@threads for i in 1:N
+#         opt = find_minimum()
+#         X[i, 1:2] = opt.minimizer
+#         X[i, 3] = opt.minimum
+#     end
+#     return X
+# end
 
 
 """

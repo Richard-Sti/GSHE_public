@@ -197,15 +197,14 @@ end
 
 
 """
-    angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
+    angdist(θ1::GWFloat, ϕ1::GWFloat, θ2::GWFloat, ϕ2::GWfloat)
 
-Calculate the angular distance between `X1` and `X2` spherical vectors
-specified as (θ, ϕ).
+Calculate the angular distance between (θ1, ϕ1) and (θ2, ϕ2).
 """
-function angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
-    dϕ = X1[2] - X2[2]
-    sθ1, sθ2 = sin(X1[1]), sin(X2[1])
-    cθ1, cθ2 = cos(X1[1]), cos(X2[1])
+function angdist(θ1::GWFloat, ϕ1::GWFloat, θ2::GWFloat, ϕ2::GWFloat)
+    dϕ = ϕ1 - ϕ2
+    sθ1, sθ2 = sin(θ1), sin(θ2)
+    cθ1, cθ2 = cos(θ1), cos(θ2)
     cdϕ = cos(dϕ)
 
     x = begin
@@ -213,10 +212,22 @@ function angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
         x2 = (sθ1 * cθ2 - cθ1 * sθ2 * cdϕ)^2
         sqrt(x1 + x2)
     end
-
     y = cθ1 * cθ2 + sθ1 * sθ2 * cdϕ
 
     return atan(x, y)
+end
+
+
+"""
+    angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
+
+Calculate the angular distance between `X1` and `X2` spherical vectors
+specified as (θ, ϕ).
+"""
+function angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
+    θ1, ϕ1 = X1
+    θ2, ϕ2 = X2
+    return angdist(θ1, ϕ1, θ2, ϕ2)
 end
 
 

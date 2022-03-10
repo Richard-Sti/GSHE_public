@@ -13,16 +13,14 @@ end
 
 """
     Problem(
-        solve_geodesic::Function,
+        solve::Function,
         loss::Function, 
-        find_min::Function,
-        find_gradmin::Union{Function, Nothing}=nothing
     )
 
-Problem with solvers and losses for a specific geometry.
+Problem with a solver and loss for a specific geometry.
 """
 @with_kw struct Problem
-    solve_geodesic::Function
+    solve::Function
     loss::Function
 end
 
@@ -31,8 +29,8 @@ end
     Spherical_coords(
         t::GWFloat=0.0,
         r::GWFloat,
-        theta::GWFloat,
-        phi::GWFloat
+        θ::GWFloat,
+        ϕ::GWFloat
      )
 
 Spherical coordinates object.
@@ -40,8 +38,8 @@ Spherical coordinates object.
 @with_kw mutable struct Spherical_coords
     t::GWFloat = GWFloat(0.0)
     r::GWFloat
-    theta::GWFloat
-    phi::GWFloat
+    θ::GWFloat
+    ϕ::GWFloat
 end
 
 
@@ -66,9 +64,9 @@ Deepcopy of geometry.
 """
 function Base.copy(geometry::GWBirefringence.Geometry)
     source = GWBirefringence.Spherical_coords(
-        @unpack t, r, theta, phi = geometry.source)
+        @unpack t, r, θ, ϕ = geometry.source)
     observer = GWBirefringence.Spherical_coords(
-        @unpack t, r, theta, phi = geometry.observer)
+        @unpack t, r, θ, ϕ= geometry.observer)
     params = GWBirefringence.Params(
         @unpack a, ϵ, s = geometry.params)
     return GWBirefringence.Geometry(source=source,

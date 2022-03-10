@@ -2,7 +2,8 @@
 
 ## Immediate TO-DO
 
-- [ ] Clear up geodesic nomenclature.
+- [ ] Start saving the arrival time on the optimiser level
+- [ ] Clean up the interface.
 
 
 ## Long TO-DO
@@ -15,6 +16,7 @@ $$
 
 
 ## Completed TO-DO
+- [x] Clear up geodesic nomenclature.
 - [x] Perform arctan coordinate transformation when looking for perturbed solutions.
 - [x] Remove the dependence on the Rinv
 - [x] How to efficiently pass geometry etc. into the functions?

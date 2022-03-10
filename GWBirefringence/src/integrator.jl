@@ -70,10 +70,10 @@ end
 Calculate the vector [x^μ, p_i].
 """
 function init_values(p::Vector{GWFloat}, geometry::Geometry)
-    @unpack t, r, theta, phi = geometry.source
+    @unpack t, r, θ, ϕ = geometry.source
     ψ, ρ = p
-    p_r, p_theta, p_phi = pi0(ψ, ρ, geometry)
-    return [t, r, theta, phi, p_r, p_theta, p_phi]
+    p_r, p_θ, p_ϕ = pi0(ψ, ρ, geometry)
+    return [t, r, θ, ϕ, p_r, p_θ, p_ϕ]
 end
 
 
@@ -178,7 +178,7 @@ end
     loss(
         p::Vector{GWFloat},
         Xfound::Union{Vector{Vector{GWFloat}}, Nothing},
-        solve_geodesic::Function,
+        fsolve::Function,
         geometry::Geometry;
         rtol::Float64=1e-10,
     )
@@ -189,7 +189,7 @@ only `p` as input. Checks whether initial condition close to any of `Xfound`.
 function geodesic_loss(
     p::Vector{GWFloat},
     pfound::Union{Vector{Vector{GWFloat}}, Nothing},
-    solve_geodesic::Function,
+    fsolve::Function,
     geometry::Geometry;
     rtol::Float64=1e-10,
 )
@@ -203,10 +203,12 @@ function geodesic_loss(
         return Inf64
     end
 
-    sol = solve_geodesic(p)
+    sol = fsolve(p)
+    r, θ, ϕ = sol[2:4, end]
     # Check that the radial distance is within tolerance
-    return sol_angdist(sol[:, end], geometry, rtol=rtol)
+    return obs_angdist(r, θ, ϕ, geometry, rtol=rtol)
 end
+
 
 """
     spinhall_loss(
@@ -234,23 +236,41 @@ function spinhall_loss(
         return Inf64
     end
     sol = fsolve(px, pgeo)
-    return sol_angdist(sol[:, end], geometry, rtol=rtol)
+    r, θ, ϕ = sol[2:4, end]
+    return obs_angdist(r, θ, ϕ, geometry, rtol=rtol)
 end
 
 
-function sol_angdist(sol::Vector{GWFloat}, geometry; rtol)
-    if ~isapprox(sol[2], geometry.observer.r, rtol=rtol)
+"""
+    obs_angdist(
+        r::GWFloat,
+        θ::GWFloat,
+        ϕ::GWFloat,
+        geometry::Geometry;
+        rtol::Float64=1e-10
+        )
+
+Calculate the angular distance between (θ, ϕ) and the observer. Ensures that
+the solution's radius is within tolerance close to the observer's radius.
+"""
+function obs_angdist(
+    r::GWFloat,
+    θ::GWFloat,
+    ϕ::GWFloat,
+    geometry::Geometry;
+    rtol::Float64=1e-10
+    )
+    if ~isapprox(r, geometry.observer.r, rtol=rtol)
         return Inf64
     end
-
-    return angdist(
-            sol[3:4],
-            [geometry.observer.theta, geometry.observer.phi]
-        )
+    return angdist(θ, ϕ, geometry.observer.θ, geometry.observer.ϕ)
 end
+
 
 """
     ode_problem(odes!::Function, geometry::Geometry)
+
+ODE problem without specifying the initial conditions.
 """
 function ode_problem(odes!::Function, geometry::Geometry)
     return ODEProblem{true}(odes!,
@@ -262,6 +282,8 @@ end
 
 """
     ode_problem(odes!::Function, geometry::Geometry, x0::Vector{GWFloat})
+
+ODE probelem with specified initial conditins.
 """
 function ode_problem(odes!::Function, geometry::Geometry, x0::Vector{GWFloat})
     return ODEProblem{true}(odes!,
