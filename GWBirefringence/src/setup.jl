@@ -58,9 +58,9 @@ function setup_geodesic_problem2(geometry::GWBirefringence.Geometry)
     # Loss function, define with two methods
     function floss(
         p::Vector{GWFloat},
-        Xfound::Union{Vector{Vector{GWFloat}}, Nothing}=nothing,
+        pfound::Union{Vector{Vector{GWFloat}}, Nothing}=nothing,
     )
-        return loss(p, Xfound, fsolver, geometry)
+        return geodesic_loss(p, pfound, fsolver, geometry)
     end
 
     return Problem(solve_geodesic=fsolver, loss=floss)
@@ -74,19 +74,19 @@ function setup_spinhall_problem(geometry::GWBirefringence.Geometry)
     # Integrator function
     function fsolver(
         p::Vector{GWFloat},
-        Xfound::Vector{GWFloat},
+        pgeo::Vector{GWFloat};
         save_everystep::Bool=false
     )
-        solve_geodesic(p, prob, geometry, cb, Xfound; save_everystep=save_everystep)
+        solve_spinhall(p, prob, geometry, cb, pgeo; save_everystep=save_everystep)
     end
 
     # Loss function, define with two methods
     function floss(
         p::Vector{GWFloat},
-        Xfound::Vector{GWFloat},
+        pgeo::Vector{GWFloat},
         θmax::GWFloat
     )
-        return loss(p, Xfound, θmax, fsolver, geometry)
+        return spinhall_loss(p, pgeo, θmax, fsolver, geometry)
     end
 
     return Problem(solve_geodesic=fsolver, loss=floss)

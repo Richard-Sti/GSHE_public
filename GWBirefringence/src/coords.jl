@@ -199,7 +199,8 @@ end
 """
     angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
 
-Calculate the angular distance between X1 and X2.
+Calculate the angular distance between `X1` and `X2` spherical vectors
+specified as (θ, ϕ).
 """
 function angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
     dϕ = X1[2] - X2[2]
@@ -216,4 +217,24 @@ function angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
     y = cθ1 * cθ2 + sθ1 * sθ2 * cdϕ
 
     return atan(x, y)
+end
+
+
+"""
+    atan_transform(x::GWFloat, α::GWFloat=π/2)
+
+Transform `x` according to f(x) = π / 2 + α / (π / 2) * atan(x)
+"""
+function atan_transform(x::GWFloat, α::GWFloat=π/2)
+    return π / 2 +  α / (π / 2) * atan(x)
+end
+
+
+"""
+    atan_invtransform(y::GWFloat, alpha::GWFloat=π/2)
+
+Inverse transformation of `atan_transform` defined above.
+"""
+function atan_invtransform(y::GWFloat, α::GWFloat=π/2)
+    return tan((π / 2) / α * (y - π / 2))
 end

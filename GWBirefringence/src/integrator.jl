@@ -1,7 +1,5 @@
 import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,
                               terminate!, remake, ODEProblem
-#import ForwardDiff: gradient!
-#import DiffResults: MutableDiffResult
 
 
 """
@@ -69,8 +67,7 @@ end
 """
     init_values(p::Vector{GWFloat}, geometry::Geometry)
 
-Calculate a vector of the initial vector ``x^mu`` and initial covector ``p_i``,
-in this order given the system geometry.
+Calculate the vector [x^μ, p_i].
 """
 function init_values(p::Vector{GWFloat}, geometry::Geometry)
     @unpack t, r, theta, phi = geometry.source
@@ -84,19 +81,18 @@ end
     init_values(
         p::Vector{GWFloat},
         geometry::Geometry,
-        Rinv::Transpose{GWFloat, Matrix{GWFloat}}
+        pfound::Vector{GWFloat}
     )
 
-Calculate a vector of the initial vector ``x^mu`` and initial covector ``p_i``,
-in this order given the system geometry. Assumes values sampled near the x-axis
-and thus performs the inverse rotation.
+Calculate the vector [x^μ, p_i]. Inverse rotates `p` from the y-axis (0, 1, 0)
+under a rotation that transformed `pfound` to the y-axis.
 """
 function init_values(
     p::Vector{GWFloat},
     geometry::Geometry,
-    Xfound::Vector{GWFloat}
+    pgeo::Vector{GWFloat}
 )
-    x = rotate_from_y(p, Xfound)
+    x = rotate_from_y(p, pgeo)
     return init_values(x, geometry)
 end
 
@@ -111,7 +107,7 @@ end
         abstol::Float64=1e-12
     )
 
-Solve a geodesic problem, allows changing intial conditions ``p`` on the fly.
+Solve a geodesic problem, allows changing initial conditions `p` on the fly.
 """
 function solve_geodesic(
     p::Vector,
@@ -127,33 +123,52 @@ function solve_geodesic(
                  reltol=reltol, abstol=abstol)
 end
 
+"""
+    solve_spinhall(
+        p::Vector{GWFloat},
+        prob::ODEProblem,
+        geometry::Geometry,
+        cb::CallbackSet,
+        pgeo::Vector{GWFloat};
+        save_everystep::Bool=false,
+        reltol::Float64=1e-12,
+        abstol::Float64=1e-12
+)
 
-function solve_geodesic(
+Solve a Spin-hall problem, allows changing initial conditions `p` on the fly.
+"""
+function solve_spinhall(
     p::Vector{GWFloat},
     prob::ODEProblem,
     geometry::Geometry,
     cb::CallbackSet,
-    Xfound::Vector{GWFloat};
+    pgeo::Vector{GWFloat};
     save_everystep::Bool=false,
     reltol::Float64=1e-12,
     abstol::Float64=1e-12
 )
-    re_prob = remake(prob, u0=init_values(p, geometry, Xfound))
+    re_prob = remake(prob, u0=init_values(p, geometry, pgeo))
     return solve(re_prob, Vern9(), callback=cb, save_everystep=save_everystep,
                  reltol=reltol, abstol=abstol)
 end
 
-"""
-    angular_bounds(p::Vector{GWFloat}, θxmax::GWFloat)
 
-Check whether θ and ϕ and in range and if they lie sufficiently close to
-the y-axis (0, 1, 0).
+"""
+    angular_bounds(p::Vector{GWFloat})
+
+Check whether `p = [θ, ϕ]` satisfies 0 ≤ θ ≤ π and 0 ≤ ϕ < 2π.
 """
 function angular_bounds(p::Vector{GWFloat})
     return (0. ≤ p[1] ≤ π) & (0. ≤ p[2]  < 2π)
 end
 
 
+"""
+    angular_bounds(p::Vector{GWFloat}, θmax::GWFloat)
+
+Check whether `p = [θ, ϕ]` satisfies 0 ≤ θ ≤ π and 0 ≤ ϕ < 2π and whether the
+angular distance of `p` from the Cartesian point (0, 1, 0) is less than θmax.
+"""
 function angular_bounds(p::Vector{GWFloat}, θmax::GWFloat)
     return (acos(sin(p[1])*sin(p[2])) ≤ θmax) & angular_bounds(p)
 end
@@ -165,16 +180,15 @@ end
         Xfound::Union{Vector{Vector{GWFloat}}, Nothing},
         solve_geodesic::Function,
         geometry::Geometry;
-        θxmax::GWFloat=1π,
         rtol::Float64=1e-10,
     )
 
-Calculate the angular loss of a geodesic, `solve_geodesic` expected to take
+Calculate the angular loss of a geodesic, `fsolve` expected to take
 only `p` as input. Checks whether initial condition close to any of `Xfound`.
 """
-function loss(
+function geodesic_loss(
     p::Vector{GWFloat},
-    Xfound::Union{Vector{Vector{GWFloat}}, Nothing},
+    pfound::Union{Vector{Vector{GWFloat}}, Nothing},
     solve_geodesic::Function,
     geometry::Geometry;
     rtol::Float64=1e-10,
@@ -185,7 +199,7 @@ function loss(
     end
 
     # If initial condition too close to old init. conds. do not integrate
-    if Xfound !== nothing && minimum([angdist(p, x) for x in Xfound]) < rtol
+    if pfound !== nothing && minimum([angdist(p, x) for x in pfound]) < rtol
         return Inf64
     end
 
@@ -194,20 +208,32 @@ function loss(
     return sol_angdist(sol[:, end], geometry, rtol=rtol)
 end
 
+"""
+    spinhall_loss(
+        p::Vector{GWFloat},
+        pgeo::Vector{GWFloat},
+        θmax::GWFloat,
+        fsolve::Function,
+        geometry::Geometry;
+        rtol::Float64=1e-10,
+    )
 
-function loss(
+Calculate the angular loss of a Spin-hall trajectory, searches for a solution
+that is within `θmax` of a geodesic solution `pgeo`.
+"""
+function spinhall_loss(
     p::Vector{GWFloat},
-    Xfound::Vector{GWFloat},
+    pgeo::Vector{GWFloat},
     θmax::GWFloat,
-    solve_geodesic::Function,
+    fsolve::Function,
     geometry::Geometry;
     rtol::Float64=1e-10,
 )
-    if ~angular_bounds(p, θmax)
+    px = GWBirefringence.atan_transform.(p, θmax)
+    if ~angular_bounds(px, θmax)
         return Inf64
     end
-    p0 = copy(p)
-    sol = solve_geodesic(p, Xfound)
+    sol = fsolve(px, pgeo)
     return sol_angdist(sol[:, end], geometry, rtol=rtol)
 end
 
