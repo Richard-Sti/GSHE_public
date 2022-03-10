@@ -199,7 +199,8 @@ end
 """
     angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
 
-Calculate the angular distance between X1 and X2.
+Calculate the angular distance between `X1` and `X2` spherical vectors
+specified as (θ, ϕ).
 """
 function angdist(X1::Vector{GWFloat}, X2::Vector{GWFloat})
     dϕ = X1[2] - X2[2]

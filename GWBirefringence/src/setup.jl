@@ -74,10 +74,10 @@ function setup_spinhall_problem(geometry::GWBirefringence.Geometry)
     # Integrator function
     function fsolver(
         p::Vector{GWFloat},
-        pgeo::Vector{GWFloat},
+        pgeo::Vector{GWFloat};
         save_everystep::Bool=false
     )
-        solve_geodesic(p, prob, geometry, cb, pgeo; save_everystep=save_everystep)
+        solve_spinhall(p, prob, geometry, cb, pgeo; save_everystep=save_everystep)
     end
 
     # Loss function, define with two methods
