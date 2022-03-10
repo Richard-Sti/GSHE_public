@@ -74,19 +74,19 @@ function setup_spinhall_problem(geometry::GWBirefringence.Geometry)
     # Integrator function
     function fsolver(
         p::Vector{GWFloat},
-        Rinv::Transpose{GWFloat, Matrix{GWFloat}},
+        Xfound::Vector{GWFloat},
         save_everystep::Bool=false
     )
-        solve_geodesic(p, prob, geometry, cb, Rinv; save_everystep=save_everystep)
+        solve_geodesic(p, prob, geometry, cb, Xfound; save_everystep=save_everystep)
     end
 
     # Loss function, define with two methods
     function floss(
         p::Vector{GWFloat},
-        Rinv::Transpose{GWFloat, Matrix{GWFloat}},
+        Xfound::Vector{GWFloat},
         θmax::GWFloat
     )
-        return loss(p, Rinv, θmax, fsolver, geometry)
+        return loss(p, Xfound, θmax, fsolver, geometry)
     end
 
     return Problem(solve_geodesic=fsolver, loss=floss)

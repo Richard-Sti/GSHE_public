@@ -1,7 +1,6 @@
 module GWBirefringence
 
 import DoubleFloats: Double64
-import LinearAlgebra: Transpose
 
 GWFloat = Float64
 

@@ -94,14 +94,10 @@ and thus performs the inverse rotation.
 function init_values(
     p::Vector{GWFloat},
     geometry::Geometry,
-    Rinv::Transpose{GWFloat, Matrix{GWFloat}}
+    Xfound::Vector{GWFloat}
 )
-    # Doing this rotation is somewhat ugly.
-    ψ, ρ = p
-    x0 = spherical_to_cartesian([1.0, ψ, ρ])
-    __, ψ, ρ = cartesian_to_spherical(Rinv * x0)
-    return init_values([ψ, ρ], geometry)
-
+    x = rotate_from_y(p, Xfound)
+    return init_values(x, geometry)
 end
 
 
@@ -133,16 +129,16 @@ end
 
 
 function solve_geodesic(
-    p::Vector,
+    p::Vector{GWFloat},
     prob::ODEProblem,
     geometry::Geometry,
     cb::CallbackSet,
-    Rinv::Transpose{GWFloat, Matrix{GWFloat}};
+    Xfound::Vector{GWFloat};
     save_everystep::Bool=false,
     reltol::Float64=1e-12,
     abstol::Float64=1e-12
 )
-    re_prob = remake(prob, u0=init_values(p, geometry, Rinv))
+    re_prob = remake(prob, u0=init_values(p, geometry, Xfound))
     return solve(re_prob, Vern9(), callback=cb, save_everystep=save_everystep,
                  reltol=reltol, abstol=abstol)
 end
@@ -151,7 +147,7 @@ end
     angular_bounds(p::Vector{GWFloat}, θxmax::GWFloat)
 
 Check whether θ and ϕ and in range and if they lie sufficiently close to
-the x-axis (1, 0, 0).
+the y-axis (0, 1, 0).
 """
 function angular_bounds(p::Vector{GWFloat})
     return (0. ≤ p[1] ≤ π) & (0. ≤ p[2]  < 2π)
@@ -201,7 +197,7 @@ end
 
 function loss(
     p::Vector{GWFloat},
-    Rinv::Transpose{GWFloat, Matrix{GWFloat}},
+    Xfound::Vector{GWFloat},
     θmax::GWFloat,
     solve_geodesic::Function,
     geometry::Geometry;
@@ -210,7 +206,8 @@ function loss(
     if ~angular_bounds(p, θmax)
         return Inf64
     end
-    sol = solve_geodesic(p, Rinv)
+    p0 = copy(p)
+    sol = solve_geodesic(p, Xfound)
     return sol_angdist(sol[:, end], geometry, rtol=rtol)
 end
 

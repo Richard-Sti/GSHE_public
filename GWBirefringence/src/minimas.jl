@@ -61,7 +61,7 @@ function find_minimum(
     atol::Float64=1e-12
 )
     for i in 1:Nmax
-        opt = optimize(floss, uniform_sample_sphere(), alg, options)
+        opt = optimize(floss, rvs_sphere(), alg, options)
         if isapprox(opt.minimum, 0.0, atol=atol)
             return opt.minimizer
         end
@@ -73,18 +73,20 @@ end
 
 function find_restricted_minimum(
     floss::Function,
-    Rinv::Transpose{GWFloat, Matrix{GWFloat}},
+    Xfound::Vector{GWFloat},
     θmax::GWFloat,
     alg::NelderMead,
     options::Options;
     Nmax::Int64=500,
     atol::Float64=1e-12
 )
-    f(p::Vector{GWFloat}) = floss(p, Rinv, θmax)
+    f(p::Vector{GWFloat}) = floss(p, Xfound, θmax)
     for i in 1:Nmax
-        opt = optimize(f, uniform_sample_sphere_near_y(θmax), alg, options)
+        opt = optimize(f, rvs_sphere_y(θmax), alg, options)
         if isapprox(opt.minimum, 0.0, atol=atol)
-            return opt.minimizer
+            x = opt.minimizer
+            rotate_from_y!(x, Xfound)
+            return x
         end
     end
 
