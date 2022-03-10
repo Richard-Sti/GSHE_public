@@ -2,7 +2,6 @@
 
 ## Immediate TO-DO
 
-- [ ] Perform arctan coordinate transformation when looking for perturbed solutions.
 - [ ] Clear up geodesic nomenclature.
 
 
@@ -16,6 +15,7 @@ $$
 
 
 ## Completed TO-DO
+- [x] Perform arctan coordinate transformation when looking for perturbed solutions.
 - [x] Remove the dependence on the Rinv
 - [x] How to efficiently pass geometry etc. into the functions?
 - [x] Begin looking for $s=\pm 2$ within some radius of its geodesic. Make sure that that $[x^\mu, p_i]$ initialisation works.
