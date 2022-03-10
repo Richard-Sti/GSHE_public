@@ -172,9 +172,9 @@ end
 Calculate the angular loss of a geodesic, `solve_geodesic` expected to take
 only `p` as input. Checks whether initial condition close to any of `Xfound`.
 """
-function loss(
+function geodesic_loss(
     p::Vector{GWFloat},
-    Xfound::Union{Vector{Vector{GWFloat}}, Nothing},
+    pfound::Union{Vector{Vector{GWFloat}}, Nothing},
     solve_geodesic::Function,
     geometry::Geometry;
     rtol::Float64=1e-10,
@@ -185,7 +185,7 @@ function loss(
     end
 
     # If initial condition too close to old init. conds. do not integrate
-    if Xfound !== nothing && minimum([angdist(p, x) for x in Xfound]) < rtol
+    if pfound !== nothing && minimum([angdist(p, x) for x in pfound]) < rtol
         return Inf64
     end
 
@@ -195,19 +195,19 @@ function loss(
 end
 
 
-function loss(
+function spinhall_loss(
     p::Vector{GWFloat},
-    Xfound::Vector{GWFloat},
+    pgeo::Vector{GWFloat},
     θmax::GWFloat,
     solve_geodesic::Function,
     geometry::Geometry;
     rtol::Float64=1e-10,
 )
-    if ~angular_bounds(p, θmax)
+    px = GWBirefringence.atan_transform.(p, θmax)
+    if ~angular_bounds(px, θmax)
         return Inf64
     end
-    p0 = copy(p)
-    sol = solve_geodesic(p, Xfound)
+    sol = solve_geodesic(px, pgeo)
     return sol_angdist(sol[:, end], geometry, rtol=rtol)
 end
 

@@ -82,9 +82,15 @@ function find_restricted_minimum(
 )
     f(p::Vector{GWFloat}) = floss(p, Xfound, θmax)
     for i in 1:Nmax
-        opt = optimize(f, rvs_sphere_y(θmax), alg, options)
+        # Sample initial position and inv transform it
+        p0 = rvs_sphere_y(θmax)
+        @. p0 = atan_invtransform(p0, θmax)
+
+        opt = optimize(f, p0, alg, options)
         if isapprox(opt.minimum, 0.0, atol=atol)
+            # Transform back to the default coordinate system
             x = opt.minimizer
+            @. x = atan_transform(x, θmax)
             rotate_from_y!(x, Xfound)
             return x
         end
