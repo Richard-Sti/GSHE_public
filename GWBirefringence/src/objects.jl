@@ -54,6 +54,7 @@ Geometry object holding the source, observer and params.
     source::Spherical_coords
     observer::Spherical_coords
     params::Params
+    xf::Vector{GWFloat} = zeros(7)
 end
 
 

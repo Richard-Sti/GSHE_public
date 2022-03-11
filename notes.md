@@ -1,9 +1,8 @@
 # Gravitational spin-Hall equations
 
 ## Immediate TO-DO
-
-- [ ] Start saving the arrival time on the optimiser level
-- [ ] Clean up the interface.
+- [ ] Start searching within small $\theta_{\rm max}$ and if no solution found gradually increase.
+- [ ] Add capabilities to fit the power law $f(\epsilon) = \alpha~\epsilon^\beta$
 
 
 ## Long TO-DO
@@ -16,6 +15,8 @@ $$
 
 
 ## Completed TO-DO
+- [x] Clean up the interface.
+- [x] Start saving the arrival time on the optimiser level
 - [x] Clear up geodesic nomenclature.
 - [x] Perform arctan coordinate transformation when looking for perturbed solutions.
 - [x] Remove the dependence on the Rinv

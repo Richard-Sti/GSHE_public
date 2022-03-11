@@ -204,9 +204,8 @@ function geodesic_loss(
     end
 
     sol = fsolve(p)
-    r, θ, ϕ = sol[2:4, end]
     # Check that the radial distance is within tolerance
-    return obs_angdist(r, θ, ϕ, geometry, rtol=rtol)
+    return obs_angdist(sol[:, end], geometry, rtol=rtol)
 end
 
 
@@ -236,30 +235,19 @@ function spinhall_loss(
         return Inf64
     end
     sol = fsolve(px, pgeo)
-    r, θ, ϕ = sol[2:4, end]
-    return obs_angdist(r, θ, ϕ, geometry, rtol=rtol)
+    return obs_angdist(sol[:, end], geometry, rtol=rtol)
 end
 
 
 """
-    obs_angdist(
-        r::GWFloat,
-        θ::GWFloat,
-        ϕ::GWFloat,
-        geometry::Geometry;
-        rtol::Float64=1e-10
-        )
+    obs_angdist(sol::Vector{GWFloat}, geometry::Geometry; rtol::Float64=1e-10)
 
 Calculate the angular distance between (θ, ϕ) and the observer. Ensures that
 the solution's radius is within tolerance close to the observer's radius.
 """
-function obs_angdist(
-    r::GWFloat,
-    θ::GWFloat,
-    ϕ::GWFloat,
-    geometry::Geometry;
-    rtol::Float64=1e-10
-    )
+function obs_angdist(sol::Vector{GWFloat}, geometry::Geometry; rtol::Float64=1e-10)
+    geometry.xf .= sol
+    r, θ, ϕ = geometry.xf[2:4]
     if ~isapprox(r, geometry.observer.r, rtol=rtol)
         return Inf64
     end

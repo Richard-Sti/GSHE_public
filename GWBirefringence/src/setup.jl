@@ -18,83 +18,113 @@ import Optim: Sphere
 Setup the geometry.
 """
 function setup_geometry(;
-    r_source::GWFloat,
-    theta_source::GWFloat,
-    phi_source::GWFloat,
-    r_obs::GWFloat,
-    theta_obs::GWFloat,
-    phi_obs::GWFloat,
+    rsource::GWFloat,
+    θsource::GWFloat,
+    ϕsource::GWFloat,
+    robs::GWFloat,
+    θobs::GWFloat,
+    ϕobs::GWFloat,
     a::GWFloat,
     eps::GWFloat,
     s::Int64=2
 )
-    source = Spherical_coords(r=r_source,
-                              θ=theta_source,
-                              ϕ=phi_source)
-    observer = Spherical_coords(r=r_obs,
-                                θ=theta_obs,
-                                ϕ=phi_obs)
+    source = Spherical_coords(r=rsource, θ=θsource, ϕ=ϕsource)
+    observer = Spherical_coords(r=robs, θ=θobs, ϕ=ϕobs)
     params = Params(a=a, ϵ=eps, s=s)
-
     return Geometry(source=source, observer=observer, params=params)
 end
 
 
-"""
-    setup_geodesic_problem(geometry::GWBirefringence.Geometry)
-
-Setup the geodesic problem.
-"""
-function setup_geodesic_problem(geometry::GWBirefringence.Geometry)
+function setup_geodesic_solver(geometry::Geometry)
     # Get callbacks from upthere
     cb = get_callbacks(geometry)
     # ODEProblem
     prob = ode_problem(geodesic_odes!, geometry)
     # Integrator function
-    function fsolver(p::Vector{GWFloat}, save_everystep::Bool=false)
+    function solver(p::Vector{GWFloat}, save_everystep::Bool=false)
         solve_geodesic(p, prob, geometry, cb; save_everystep=save_everystep)
     end
+    return solver
+end
 
+
+function setup_geodesic_loss(geometry::Geometry)
     # Loss function, define with two methods
-    function floss(
+    f = setup_geodesic_solver(geometry)
+    function loss(
         p::Vector{GWFloat},
         pfound::Union{Vector{Vector{GWFloat}}, Nothing}=nothing,
     )
-        return geodesic_loss(p, pfound, fsolver, geometry)
+        return geodesic_loss(p, pfound, f, geometry)
     end
-
-    return Problem(solve=fsolver, loss=floss)
+    return loss
 end
 
-"""
-    setup_spinhall_problem(geometry::GWBirefringence.Geometry)
 
-Setup the Spin Hall problem.
-"""
-function setup_spinhall_problem(geometry::GWBirefringence.Geometry)
+function setup_spinhall_solver(geometry::GWBirefringence.Geometry)
     # Get callbacks from upthere
     cb = get_callbacks(geometry)
     prob = ode_problem(spinhall_odes!, geometry)
     # Integrator function
-    function fsolver(
+    function solver(
         p::Vector{GWFloat},
         pgeo::Vector{GWFloat};
         save_everystep::Bool=false
     )
         solve_spinhall(p, prob, geometry, cb, pgeo; save_everystep=save_everystep)
     end
+    return solver
+end
 
+
+function setup_spinhall_loss(geometry::GWBirefringence.Geometry)
+    solver = setup_spinhall_solver(geometry)
     # Loss function, define with two methods
-    function floss(
+    function loss(
         p::Vector{GWFloat},
         pgeo::Vector{GWFloat},
         θmax::GWFloat
     )
-        return spinhall_loss(p, pgeo, θmax, fsolver, geometry)
+        return spinhall_loss(p, pgeo, θmax, solver, geometry)
     end
-
-    return Problem(solve=fsolver, loss=floss)
+    return loss
 end
+
+
+function solve_perturbed_config(
+    Xgeo::Matrix{Float64},
+    geometry::Geometry,
+    alg::NelderMead,
+    options::Options,
+    θmax::Float64=0.15;
+    verbose::Bool=false
+)
+    Nsols = size(Xgeo)[1]
+
+    X = zeros(2, Nsols, 3)
+    
+   for i in 1:Nsols
+        if verbose
+            println("Iteration $i")
+        end
+        X[1, i, :] .= GWBirefringence.find_restricted_minimum(
+            geometry, Xgeo[i, 1:2], θmax, alg, options, Nmax=500)
+        geometry.params.s *= -1
+        X[2, i, :] .= GWBirefringence.find_restricted_minimum(
+            geometry, Xgeo[i, 1:2], θmax, alg, options, Nmax=500)
+        geometry.params.s *= -1
+   end
+   return X
+end
+
+
+function vary_ϵ(ϵ::Float64, geometry::GWBirefringence.Geometry)
+    new_geometry = copy(geometry)
+    new_geometry.params.ϵ = ϵ
+    return new_geometry
+end
+
+
 
 # """
 #     solve_config!(
