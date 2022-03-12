@@ -128,7 +128,7 @@ function solve_perturbed_config(
     geometry::Geometry,
     alg::NelderMead,
     options::Options;
-    θmax0::Float64=0.025
+    θmax0::Float64=0.025,
     verbose::Bool=false
 )
     Nsols = size(Xgeo)[1]
@@ -140,7 +140,7 @@ function solve_perturbed_config(
             println("Iteration $i")
         end
         X[1, i, :] .= GWBirefringence.find_restricted_minimum(
-            geometry, Xgeo[i, 1:2], alg, option; θmax0=θmax0, Nmax=50)
+            geometry, Xgeo[i, 1:2], alg, options; θmax0=θmax0, Nmax=50)
         geometry.params.s *= -1
         X[2, i, :] .= GWBirefringence.find_restricted_minimum(
             geometry, Xgeo[i, 1:2], alg, options; θmax0=θmax0, Nmax=50)
@@ -151,12 +151,12 @@ end
 
 
 """
-    vary_ϵ(ϵ::Float64, geometry::GWBirefringence.Geometry)
+    vary_ϵ(ϵ::GWFloat, geometry::GWBirefringence.Geometry)
 
 Copy geometry and replace its ϵ with a new value specified in the function
 input.
 """
-function vary_ϵ(ϵ::Float64, geometry::GWBirefringence.Geometry)
+function vary_ϵ(ϵ::GWFloat, geometry::GWBirefringence.Geometry)
     new_geometry = copy(geometry)
     new_geometry.params.ϵ = ϵ
     return new_geometry

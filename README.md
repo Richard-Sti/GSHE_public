@@ -3,7 +3,7 @@
 ## Immediate TO-DO
 - [ ] Clean up the plotting modules.
 - [ ] Add capabilities to fit the power law $f(\epsilon) = \alpha~\epsilon^\beta$. Can this be done analytically?
-
+- [ ] Add support for varying other parameters.
 
 ## Long TO-DO
 
