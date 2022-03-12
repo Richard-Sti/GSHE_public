@@ -80,12 +80,23 @@ end
 
 
 """
+    θmax_scaling(θmax0::GWFloat, ϵ::GWFloat)
+
+Calculate :math:`θmax = θmax0 + √ϵ`, however maximum value is capped at π/3.
+"""
+function θmax_scaling(θmax0::GWFloat, ϵ::GWFloat)
+    θmax =  θmax0 + sqrt(ϵ)
+    θmax > π / 3 ? (return π/3) : return θmax
+end
+
+
+"""
     find_restricted_minimum(
         geometry::Geometry,
         pfound::Vector{GWFloat},
-        θmax::GWFloat,
         alg::NelderMead,
         options::Options;
+        θmax0::GWFloat=0.025,
         Nmax::Int64=500,
         atol::Float64=1e-12
     )
@@ -95,18 +106,19 @@ Find a spin Hall minimum. Searches withing `θmax` angular distance of `pfound`.
 function find_restricted_minimum(
     geometry::Geometry,
     pfound::Vector{GWFloat},
-    θmax::GWFloat,
     alg::NelderMead,
     options::Options;
+    θmax0::GWFloat=0.025,
     Nmax::Int64=500,
     atol::Float64=1e-12
 )
     loss = GWBirefringence.setup_spinhall_loss(geometry)
-    f(p::Vector{GWFloat}) = loss(p, pfound, θmax)
     for i in 1:Nmax
+        θmax = θmax_scaling(θmax0, geometry.params.ϵ)
         # Sample initial position and inv transform it
         p0 = rvs_sphere_y(θmax)
         @. p0 = atan_invtransform(p0, θmax)
+        f(p::Vector{GWFloat}) = loss(p, pfound, θmax)
 
         opt = optimize(f, p0, alg, options)
         if isapprox(opt.minimum, 0.0, atol=atol)
@@ -116,6 +128,8 @@ function find_restricted_minimum(
             rotate_from_y!(x, pfound)
             push!(x, geometry.xf[1])
             return x
+        else
+            θmax0 *= 1.25
         end
     end
 

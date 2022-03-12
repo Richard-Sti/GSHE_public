@@ -4,12 +4,12 @@ import Optim: Sphere
 
 """
     setup_geometry(;
-        r_source::GWFloat,
-        theta_source::GWFloat,
-        phi_source::GWFloat,
-        r_obs::GWFloat,
-        theta_obs::GWFloat,
-        phi_obs::GWFloat,
+        rsource::GWFloat,
+        θsource::GWFloat,
+        ϕsource::GWFloat,
+        robs::GWFloat,
+        θobs::GWFloat,
+        ϕobs::GWFloat,
         a::GWFloat,
         eps::GWFloat,
         s::Int64=2
@@ -35,6 +35,11 @@ function setup_geometry(;
 end
 
 
+"""
+    setup_geodesic_solver(geometry::Geometry)
+
+Setup the geodesic solver for a given geometry.
+"""
 function setup_geodesic_solver(geometry::Geometry)
     # Get callbacks from upthere
     cb = get_callbacks(geometry)
@@ -48,6 +53,11 @@ function setup_geodesic_solver(geometry::Geometry)
 end
 
 
+"""
+    setup_geodesic_loss(geometry::Geometry)
+
+Setup the geodesic loss function for a given geometry.
+"""
 function setup_geodesic_loss(geometry::Geometry)
     # Loss function, define with two methods
     f = setup_geodesic_solver(geometry)
@@ -61,6 +71,11 @@ function setup_geodesic_loss(geometry::Geometry)
 end
 
 
+"""
+    setup_spinhall_solver(geometry::GWBirefringence.Geometry)
+
+Setup the spin Hall trajectory solver for a given geometry.
+"""
 function setup_spinhall_solver(geometry::GWBirefringence.Geometry)
     # Get callbacks from upthere
     cb = get_callbacks(geometry)
@@ -77,6 +92,11 @@ function setup_spinhall_solver(geometry::GWBirefringence.Geometry)
 end
 
 
+"""
+    setup_spinhall_loss(geometry::GWBirefringence.Geometry)
+
+Setup the spin Hall trajectory loss function for a given geometry.
+"""
 function setup_spinhall_loss(geometry::GWBirefringence.Geometry)
     solver = setup_spinhall_solver(geometry)
     # Loss function, define with two methods
@@ -91,12 +111,24 @@ function setup_spinhall_loss(geometry::GWBirefringence.Geometry)
 end
 
 
+"""
+    solve_perturbed_config(
+        Xgeo::Matrix{Float64},
+        geometry::Geometry,
+        alg::NelderMead,
+        options::Options;
+        θmax0::Float64=0.025
+        verbose::Bool=false
+    )
+
+Find the s = ± 2 spin-Hall perturbations for geodesics specified in `Xgeo`.
+"""
 function solve_perturbed_config(
     Xgeo::Matrix{Float64},
     geometry::Geometry,
     alg::NelderMead,
-    options::Options,
-    θmax::Float64=0.15;
+    options::Options;
+    θmax0::Float64=0.025
     verbose::Bool=false
 )
     Nsols = size(Xgeo)[1]
@@ -108,47 +140,24 @@ function solve_perturbed_config(
             println("Iteration $i")
         end
         X[1, i, :] .= GWBirefringence.find_restricted_minimum(
-            geometry, Xgeo[i, 1:2], θmax, alg, options, Nmax=500)
+            geometry, Xgeo[i, 1:2], alg, option; θmax0=θmax0, Nmax=50)
         geometry.params.s *= -1
         X[2, i, :] .= GWBirefringence.find_restricted_minimum(
-            geometry, Xgeo[i, 1:2], θmax, alg, options, Nmax=500)
+            geometry, Xgeo[i, 1:2], alg, options; θmax0=θmax0, Nmax=50)
         geometry.params.s *= -1
    end
    return X
 end
 
 
+"""
+    vary_ϵ(ϵ::Float64, geometry::GWBirefringence.Geometry)
+
+Copy geometry and replace its ϵ with a new value specified in the function
+input.
+"""
 function vary_ϵ(ϵ::Float64, geometry::GWBirefringence.Geometry)
     new_geometry = copy(geometry)
     new_geometry.params.ϵ = ϵ
     return new_geometry
 end
-
-
-
-# """
-#     solve_config!(
-#         prob::GWBirefringence.Problem,
-#         geometry::GWBirefringence.Geometry;
-#         Nminima::Int64=2
-#     )
-# 
-# Solves a particular configuration, writing results into `X` at step `step`.
-# """
-# function solve_config(
-#     prob::GWBirefringence.Problem,
-#     geometry::GWBirefringence.Geometry;
-#     Nminima::Int64=2,
-# )
-# 
-#     Xplus = search_unique_minima(prob.find_min, Nminima)
-#     Xplus = timing_minima(prob.solve_geodesic, Xplus)
-# 
-#     geometry.params.s *= -1
-#     Xminus = search_unique_minima(prob.find_min, Nminima)
-#     Xminus  = timing_minima(prob.solve_geodesic, Xminus)
-#     geometry.params.s *= -1
-# 
-#     Xminus = match_Xminus(Xplus, Xminus)
-#     return Xplus, Xminus
-# end

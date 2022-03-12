@@ -12,20 +12,6 @@ end
 
 
 """
-    Problem(
-        solve::Function,
-        loss::Function, 
-    )
-
-Problem with a solver and loss for a specific geometry.
-"""
-@with_kw struct Problem
-    solve::Function
-    loss::Function
-end
-
-
-"""
     Spherical_coords(
         t::GWFloat=0.0,
         r::GWFloat,
