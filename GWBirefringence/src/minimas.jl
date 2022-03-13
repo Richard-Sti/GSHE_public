@@ -85,7 +85,7 @@ end
 Calculate :math:`θmax = θmax0 + √ϵ`, however maximum value is capped at π/3.
 """
 function θmax_scaling(θmax0::GWFloat, ϵ::GWFloat)
-    θmax =  θmax0 + sqrt(ϵ)
+    θmax =  θmax0 + 0.75 * sqrt(ϵ)
     θmax > π / 3 ? (return π/3) : return θmax
 end
 

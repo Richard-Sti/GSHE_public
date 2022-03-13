@@ -74,7 +74,29 @@ end
 """
     setup_spinhall_solver(geometry::GWBirefringence.Geometry)
 
-Setup the spin Hall trajectory solver for a given geometry.
+Setup the spin Hall trajectory solver for a given geometry without reference
+frame rotations.
+"""
+function setup_spinhall_solver_norot(geometry::GWBirefringence.Geometry)
+    # Get callbacks from upthere
+    cb = get_callbacks(geometry)
+    prob = ode_problem(spinhall_odes!, geometry)
+    # Integrator function
+    function solver(
+        p::Vector{GWFloat},
+        save_everystep::Bool=false
+    )
+        solve_geodesic(p, prob, geometry, cb; save_everystep=save_everystep)
+    end
+    return solver
+end
+
+
+"""
+    setup_spinhall_solver(geometry::GWBirefringence.Geometry)
+
+Setup the spin Hall trajectory solver for a given geometry including reference
+frame rotations.
 """
 function setup_spinhall_solver(geometry::GWBirefringence.Geometry)
     # Get callbacks from upthere

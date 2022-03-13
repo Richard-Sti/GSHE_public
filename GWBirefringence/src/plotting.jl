@@ -54,6 +54,84 @@ function plot_time_difference(
 end
 
 
+function cartesian_trajectory(
+    p0::Vector{Float64},
+    geometry::GWBirefringence.Geometry,
+    is_geodesic::Bool
+)
+    if is_geodesic
+        f = GWBirefringence.setup_geodesic_solver(geometry)
+    else
+        f = GWBirefringence.setup_spinhall_solver_norot(geometry)
+    end
+    sol = f(p0, true)
+    return mapslices(GWBirefringence.spherical_to_cartesian, sol[2:4, :], dims=1)
+end
+
+
+function plot_geodesics!(
+    fig::Plots.Plot,
+    Xgeo::Matrix{Float64},
+    geometry::GWBirefringence.Geometry
+)
+    Ngeo = size(Xgeo)[1]
+    colors = Plots.palette(:lightrainbow,Ngeo)
+    for i in 1:Ngeo
+        X = cartesian_trajectory(Xgeo[i, 1:2], geometry, true)
+        Plots.plot!(fig, X[1,:], X[2, :], X[3, :], label="Geodesic $i", ls=:dash, color=colors[i])
+    end
+end
+
+
+function plot_blackhole!(fig::Plots.Plot, loc::Tuple{Float64, Float64, Float64}, radius::Float64)
+    if radius == 0.0
+        Plots.scatter!(fig, loc, label=nothing, c="black")
+    else
+        s = Meshes.Sphere(loc, radius)
+        Plots.scatter!(fig, s, alpha=0.0025, label=nothing)
+    end
+end
+
+
+function plot_start_end!(fig::Plots.Plot, geometry)
+    Xsource = [geometry.source.r, geometry.source.θ, geometry.source.ϕ]
+    GWBirefringence.spherical_to_cartesian!(Xsource)
+    Plots.scatter!(fig, [Xsource[1]], [Xsource[2]], [Xsource[3]], color="red", label=nothing)
+
+    Xobs = [geometry.observer.r, geometry.observer.θ, geometry.observer.ϕ]
+    GWBirefringence.spherical_to_cartesian!(Xobs)
+    Plots.scatter!(fig, [Xobs[1]], [Xobs[2]], [Xobs[3]], color="blue", label=nothing)
+end
+
+
+function plot_spinhall_trajectories!(
+    fig::Plots.Plot,
+    Xspinhall::Array{Float64, 4},
+    geometries::Vector{GWBirefringence.Geometry}
+)
+    
+    Neps = length(geometries)
+    colpos = Plots.palette(:matter, Neps)
+    colneg = Plots.palette(:haline, Neps)
+    for igeo in 1:size(Xspinhall)[3]
+        for i in 1:Neps
+            geometry = geometries[i]
+            for s in [-2, 2]
+                if s < 0
+                    geometry.params.s *= -1
+                    colours = colneg
+                else
+                    colours = colpos
+                end
+                X = cartesian_trajectory(Xspinhall[i, s == 2 ? 1 : 2, igeo, 1:2], geometry, false)
+                Plots.plot!(fig, X[1,:], X[2, :], X[3, :], label=nothing, color=colours[i], lw=0.25)
+                s < 0 ? (geometry.params.s *= -1) : nothing
+            end
+        end
+    end
+end  
+
+
 """
     grid_func(func::Function, thetas::T=LinRange(0, pi, 50),
               phis::T=LinRange(0, 2pi, 50)) where T<:Union{Vector, LinRange}

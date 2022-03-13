@@ -22,5 +22,6 @@ include("./kerr_geodesics.jl")
 include("./minimas.jl")
 include("./plotting.jl")
 include("./setup.jl")
+include("./powerlaw.jl")
 
 end

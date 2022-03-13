@@ -1,2 +1,4 @@
 [deps]
 Einsum = "b7d42ee7-0b51-5a75-98ca-779d3107e4c0"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"

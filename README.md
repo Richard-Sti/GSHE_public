@@ -2,8 +2,10 @@
 
 ## Immediate TO-DO
 - [ ] Clean up the plotting modules.
-- [ ] Add capabilities to fit the power law $f(\epsilon) = \alpha~\epsilon^\beta$. Can this be done analytically?
 - [ ] Add support for varying other parameters.
+- [ ] Outlier detection when fitting the power law.
+- [ ] Back up the Mathematica modules.
+- [ ] In fitting set some lower sensitivity on $\Delta t$ (e.g. 1e-10)
 
 ## Long TO-DO
 
@@ -24,3 +26,4 @@ $$
 - [x] Begin looking for $s=\pm 2$ within some radius of its geodesic. Make sure that that $[x^\mu, p_i]$ initialisation works.
 - [x] Have a look at how I do coordinate transformations. Can we avoid some memory allocations?
 - [x] Start searching within small $\theta_{\rm max}$ and if no solution found gradually increase.
+- [x] Add capabilities to fit the power law $f(\epsilon) = \alpha~\epsilon^\beta$ and the uncertanties.
