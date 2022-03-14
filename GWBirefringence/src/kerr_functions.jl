@@ -29,6 +29,12 @@ function pt_null(r, θ, p_r, p_θ, p_ϕ, a::GWFloat, s_θ, c_θ, c_2θ)
 end
 
 
+"""
+    obs_proper_time(t::GWFloat, geometry::Geometry)
+
+Convert the trajectory time `t` into observer's proper time such that
+f(t) = t √(-1/g_{00}).
+"""
 function obs_proper_time(t::GWFloat, geometry::Geometry)
     @unpack r, θ = geometry.observer
     a = geometry.params.a
