@@ -240,12 +240,20 @@ end
 
 
 """
-    obs_angdist(sol::Vector{GWFloat}, geometry::Geometry; rtol::Float64=1e-10)
+    obs_angdist(
+        sol::Vector{GWFloat},
+        geometry::Geometry;
+        rtol::Float64=1e-10
+    )
 
 Calculate the angular distance between (θ, ϕ) and the observer. Ensures that
 the solution's radius is within tolerance close to the observer's radius.
 """
-function obs_angdist(sol::Vector{GWFloat}, geometry::Geometry; rtol::Float64=1e-10)
+function obs_angdist(
+    sol::Vector{GWFloat},
+    geometry::Geometry;
+    rtol::Float64=1e-10
+)
     geometry.xf .= sol
     # Additionally parametrise the time in the observer's proper time
     geometry.xf[1] = obs_proper_time(geometry.xf[1], geometry)
