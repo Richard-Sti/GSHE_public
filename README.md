@@ -2,6 +2,7 @@
 
 ## Immediate TO-DO
 - [ ] Clean up the plotting modules.
+- [ ] When plotting time differences remove 0.0 (since log)
 - [ ] Add support for varying other parameters.
 - [ ] Outlier detection when fitting the power law.
 - [ ] Back up the Mathematica modules.

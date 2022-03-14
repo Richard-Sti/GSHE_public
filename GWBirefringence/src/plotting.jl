@@ -1,59 +1,92 @@
 using LaTeXStrings
 import Plots
 
+"""
+    plot_initial_conditions(
+        Xspinhall::Array{Float64, 4},
+        Xgeo::Matrix{Float64},
+        igeo::Int64;
+        dpi::Int64=600
+    )
 
-function plot_initial_conditions(
+Plot the initial conditions ψ and ρ.
+"""
+function plot_initial_conditions!(
+    fig::Plots.Plot,
     Xspinhall::Array{Float64, 4},
     Xgeo::Matrix{Float64},
     igeo::Int64
 )
-    fig = Plots.plot(dpi=600, xlabel=L"\rho", ylabel=L"\psi")
     for s in [2, -2]
         x = @view Xspinhall[:, s == 2 ? 1 : 2, igeo, 1:2]
         Plots.scatter!(fig, x[:, 2], x[:, 1], label="s=$s")
     end
     Plots.scatter!(fig, [Xgeo[igeo, 2]], [Xgeo[igeo, 1]], label="Geodesic")
-    return fig
 end
 
 
+"""
+    plot_arrival_times(
+        fig::Plots.Plot,
+        ϵs::Union{Vector{Float64}, LinRange{Float64}},
+        Xspinhall::Array{Float64, 4},
+        Xgeo::Matrix{Float64},
+        igeo::Int64
+    )
+
+Plot the arrival time of the geodesic and the spin-Hall perturbations.
+"""
 function plot_arrival_times(
+    fig::Plots.Plot,
     ϵs::Union{Vector{Float64}, LinRange{Float64}},
     Xspinhall::Array{Float64, 4},
     Xgeo::Matrix{Float64},
     igeo::Int64
 )   
-    fig = Plots.plot(xaxis=:log, xlabel=L"\epsilon", ylabel=L"t_{\rm obs}",
-                     legend=:topleft)
     xplus = @view Xspinhall[:, 1, igeo, 3]
     xminus = @view Xspinhall[:, 2, igeo, 3]
 
     Plots.scatter!(fig, ϵs, xplus, label=L"s=2")
     Plots.scatter!(fig, ϵs, xminus, label=L"s=-2")
     Plots.hline!(fig, [Xgeo[igeo, 3]], label=L"{\rm Geodesic}")
-    return fig
 end
 
+
+"""
+    plot_time_difference(
+        fig::Plots.Plot,
+        ϵs::Union{Vector{Float64}, LinRange{Float64}},
+        Xspinhall::Array{Float64, 4},
+        Xgeo::Matrix{Float64}
+    )
+
+Plot the s = ± 2 arrival time difference.
+"""
 function plot_time_difference(
+    fig::Plots.Plot,
     ϵs::Union{Vector{Float64}, LinRange{Float64}},
     Xspinhall::Array{Float64, 4},
     Xgeo::Matrix{Float64}
 )
     Nsols = size(Xgeo)[1]
-    fig = Plots.plot(
-        xaxis=:log, yaxis=:log, legend=:topleft, dpi=600,
-        xlabel=L"\epsilon",
-        ylabel=L"|t_{\rm obs}(s=2) - t_{\rm obs}(s=-2)|")
     for igeo in 1:Nsols
         xplus = @view Xspinhall[:, 1, igeo, 3]
         xminus = @view Xspinhall[:, 2, igeo, 3]
 
         Plots.scatter!(fig, ϵs, abs.(xplus - xminus), label="Geodesic $igeo")
     end
-    return fig
 end
 
 
+"""
+    cartesian_trajectory(
+        p0::Vector{Float64},
+        geometry::GWBirefringence.Geometry,
+        is_geodesic::Bool
+    )
+
+Integrate a trajectory and convert to Cartesian coordinates.
+"""
 function cartesian_trajectory(
     p0::Vector{Float64},
     geometry::GWBirefringence.Geometry,
@@ -69,6 +102,15 @@ function cartesian_trajectory(
 end
 
 
+"""
+    plot_geodesics!(
+        fig::Plots.Plot,
+        Xgeo::Matrix{Float64},
+        geometry::GWBirefringence.Geometry
+    )
+
+Plot the geodesic solutions.
+"""
 function plot_geodesics!(
     fig::Plots.Plot,
     Xgeo::Matrix{Float64},
@@ -83,27 +125,15 @@ function plot_geodesics!(
 end
 
 
-function plot_blackhole!(fig::Plots.Plot, loc::Tuple{Float64, Float64, Float64}, radius::Float64)
-    if radius == 0.0
-        Plots.scatter!(fig, loc, label=nothing, c="black")
-    else
-        s = Meshes.Sphere(loc, radius)
-        Plots.scatter!(fig, s, alpha=0.0025, label=nothing)
-    end
-end
+"""
+    plot_spinhall_trajectories!(
+        fig::Plots.Plot,
+        Xspinhall::Array{Float64, 4},
+        geometries::Vector{GWBirefringence.Geometry}
+    )
 
-
-function plot_start_end!(fig::Plots.Plot, geometry)
-    Xsource = [geometry.source.r, geometry.source.θ, geometry.source.ϕ]
-    GWBirefringence.spherical_to_cartesian!(Xsource)
-    Plots.scatter!(fig, [Xsource[1]], [Xsource[2]], [Xsource[3]], color="red", label=nothing)
-
-    Xobs = [geometry.observer.r, geometry.observer.θ, geometry.observer.ϕ]
-    GWBirefringence.spherical_to_cartesian!(Xobs)
-    Plots.scatter!(fig, [Xobs[1]], [Xobs[2]], [Xobs[3]], color="blue", label=nothing)
-end
-
-
+Plot the spin-Hall solutions.
+"""
 function plot_spinhall_trajectories!(
     fig::Plots.Plot,
     Xspinhall::Array{Float64, 4},
@@ -133,31 +163,72 @@ end
 
 
 """
-    grid_func(func::Function, thetas::T=LinRange(0, pi, 50),
-              phis::T=LinRange(0, 2pi, 50)) where T<:Union{Vector, LinRange}
+    plot_blackhole!(
+        fig::Plots.Plot,
+        loc::Tuple{Float64, Float64, Float64},
+        radius::Float64
+    )
 
-Evaluate `func` on a grid given by `thetas` and `phis` if possible attempts
-to use multiple threads.
+Plot the black hole. If radius = 0 use as a point.
 """
-function grid_func(func::Function, thetas::T=LinRange(0, pi, 50),
-                   phis::T=LinRange(0, 2pi, 50)) where T<:Union{Vector,
-                                                                LinRange}
-    N = length(thetas) * length(phis)
-    grid = zeros(N, 2)
-    Z = zeros(N)
-    k = 1
-    # Create a meshgrid
-    for phi in phis
-        for theta in thetas
-            grid[k, 1] = theta
-            grid[k, 2] = phi
-            k += 1
-        end
+function plot_blackhole!(
+    fig::Plots.Plot,
+    loc::Tuple{Float64, Float64, Float64},
+    radius::Float64
+)
+    if radius == 0.0
+        Plots.scatter!(fig, loc, label=nothing, c="black")
+    else
+        s = Meshes.Sphere(loc, radius)
+        Plots.scatter!(fig, s, alpha=0.0025, label=nothing)
     end
-    # Calculate fmin in parallel
-    Threads.@threads for i in 1:N
-        Z[i] = func([grid[i, 1], grid[i, 2]])
-    end
-    
-    return grid, Z
 end
+
+
+"""
+    plot_start_end!(fig::Plots.Plot, geometry)
+
+Plot the source and observer.
+"""
+function plot_start_end!(fig::Plots.Plot, geometry)
+    Xsource = [geometry.source.r, geometry.source.θ, geometry.source.ϕ]
+    GWBirefringence.spherical_to_cartesian!(Xsource)
+    Plots.scatter!(fig, [Xsource[1]], [Xsource[2]], [Xsource[3]], color="red",
+                   label=nothing)
+
+    Xobs = [geometry.observer.r, geometry.observer.θ, geometry.observer.ϕ]
+    GWBirefringence.spherical_to_cartesian!(Xobs)
+    Plots.scatter!(fig, [Xobs[1]], [Xobs[2]], [Xobs[3]], color="blue",
+                   label=nothing)
+end
+
+
+# """
+#     grid_func(func::Function, thetas::T=LinRange(0, pi, 50),
+#               phis::T=LinRange(0, 2pi, 50)) where T<:Union{Vector, LinRange}
+# 
+# Evaluate `func` on a grid given by `thetas` and `phis` if possible attempts
+# to use multiple threads.
+# """
+# function grid_func(func::Function, thetas::T=LinRange(0, pi, 50),
+#                    phis::T=LinRange(0, 2pi, 50)) where T<:Union{Vector,
+#                                                                 LinRange}
+#     N = length(thetas) * length(phis)
+#     grid = zeros(N, 2)
+#     Z = zeros(N)
+#     k = 1
+#     # Create a meshgrid
+#     for phi in phis
+#         for theta in thetas
+#             grid[k, 1] = theta
+#             grid[k, 2] = phi
+#             k += 1
+#         end
+#     end
+#     # Calculate fmin in parallel
+#     Threads.@threads for i in 1:N
+#         Z[i] = func([grid[i, 1], grid[i, 2]])
+#     end
+#     
+#     return grid, Z
+# end
