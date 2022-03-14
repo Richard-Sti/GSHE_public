@@ -247,6 +247,8 @@ the solution's radius is within tolerance close to the observer's radius.
 """
 function obs_angdist(sol::Vector{GWFloat}, geometry::Geometry; rtol::Float64=1e-10)
     geometry.xf .= sol
+    # Additionally parametrise the time in the observer's proper time
+    geometry.xf[1] = obs_proper_time(geometry.xf[1], geometry)
     r, θ, ϕ = geometry.xf[2:4]
     if ~isapprox(r, geometry.observer.r, rtol=rtol)
         return Inf64
