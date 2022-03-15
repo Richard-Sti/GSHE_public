@@ -1,19 +1,24 @@
 module GWBirefringence
 
-import DoubleFloats: Double64
+# import DoubleFloats: Double64
 
 GWFloat = Float64
 
-export init_values
-export Params, Spherical_coords, Geometry
-export pi0, geodesic_odes!
-export GWFloat, Double64
-export geodesic_ode_problem
-export setup_geometry, setup_problem
+# export init_values
+# export Params, Spherical_coords, Geometry
+# export pi0, geodesic_odes!
+# export GWFloat
+# export geodesic_ode_problem
+# export setup_geometry, setup_problem
+
 
 import Parameters: @with_kw, @unpack
 import Optim: NelderMead, ConjugateGradient, Options
-using DifferentialEquations
+import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,
+                              terminate!, remake, ODEProblem, solve, Vern9
+using LaTeXStrings
+import Plots
+import Meshes
 
 include("./objects.jl")
 include("./integrator.jl")

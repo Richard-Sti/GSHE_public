@@ -1,8 +1,3 @@
-import Clustering: kmeans
-import Optim: optimize, NLSolversBase.InplaceObjective, only_fg!
-import DiffResults: GradientResult
-
-
 """
     find_minima(
         geometry::Geometry,
@@ -68,9 +63,8 @@ function find_minimum(
     for i in 1:Nmax
         opt = optimize(floss, rvs_sphere(), alg, options)
         if isapprox(opt.minimum, 0.0, atol=atol)
-#            return opt.minimizer
             x = opt.minimizer
-            push!(x, geometry.xf[1])
+            push!(x, geometry.arrival_time, geometry.redshift)
             return x
         end
     end
@@ -126,7 +120,7 @@ function find_restricted_minimum(
             x = opt.minimizer
             @. x = atan_transform(x, θmax)
             rotate_from_y!(x, pfound)
-            push!(x, geometry.xf[1])
+            push!(x, geometry.arrival_time, geometry.redshift)
             return x
         else
             θmax0 *= 1.25

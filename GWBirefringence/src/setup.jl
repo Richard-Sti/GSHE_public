@@ -1,7 +1,3 @@
-import DiffResults: GradientResult
-import Optim: Sphere
-
-
 """
     setup_geometry(;
         rsource::GWFloat,
@@ -155,7 +151,7 @@ function solve_perturbed_config(
 )
     Nsols = size(Xgeo)[1]
 
-    X = zeros(2, Nsols, 3)
+    X = zeros(2, Nsols, 4)
     
    for i in 1:Nsols
         if verbose

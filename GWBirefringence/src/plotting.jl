@@ -1,6 +1,3 @@
-using LaTeXStrings
-import Plots
-
 """
     plot_initial_conditions(
         Xspinhall::Array{Float64, 4},
@@ -25,8 +22,8 @@ function plot_initial_conditions!(
 end
 
 
-"""
-    plot_arrival_times(
+@doc """
+    plot_arrival_times!(
         fig::Plots.Plot,
         ϵs::Union{Vector{Float64}, LinRange{Float64}},
         Xspinhall::Array{Float64, 4},
@@ -36,7 +33,7 @@ end
 
 Plot the arrival time of the geodesic and the spin-Hall perturbations.
 """
-function plot_arrival_times(
+function plot_arrival_times!(
     fig::Plots.Plot,
     ϵs::Union{Vector{Float64}, LinRange{Float64}},
     Xspinhall::Array{Float64, 4},
@@ -46,14 +43,15 @@ function plot_arrival_times(
     xplus = @view Xspinhall[:, 1, igeo, 3]
     xminus = @view Xspinhall[:, 2, igeo, 3]
 
-    Plots.scatter!(fig, ϵs, xplus, label=L"s=2")
-    Plots.scatter!(fig, ϵs, xminus, label=L"s=-2")
-    Plots.hline!(fig, [Xgeo[igeo, 3]], label=L"{\rm Geodesic}")
+    t = Xgeo[igeo, 3]
+
+    Plots.scatter!(fig, ϵs, abs.(xplus .- t), label=L"s=2")
+    Plots.scatter!(fig, ϵs, abs.(xminus .- t), label=L"s=-2")
 end
 
 
 """
-    plot_time_difference(
+    plot_time_difference!(
         fig::Plots.Plot,
         ϵs::Union{Vector{Float64}, LinRange{Float64}},
         Xspinhall::Array{Float64, 4},
@@ -62,7 +60,7 @@ end
 
 Plot the s = ± 2 arrival time difference.
 """
-function plot_time_difference(
+function plot_time_difference!(
     fig::Plots.Plot,
     ϵs::Union{Vector{Float64}, LinRange{Float64}},
     Xspinhall::Array{Float64, 4},

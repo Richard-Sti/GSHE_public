@@ -32,8 +32,6 @@ function geodesic_odes!(dx::Vector, x::Vector, geometry::Geometry, tau)
 end
 
 
-
-
 """
     spinhall_odes!(dx::Vector, x::Vector, geometry::Geometry, tau)
 
@@ -41,7 +39,7 @@ Calculate the derivatives of ``x^μ`` and ``p_i`` with respect to
 the proper time, returned in this order. Expresssions are exported from
 Mathematica.
 """
-function spinhall_odes!(dx::Vector, x::Vector, geometry::Geometry, tau)
+function spinhall_odes!(dx::Vector{<:Real}, x::Vector{<:Real}, geometry::Geometry, tau::GWFloat)
     t, r, θ, ϕ, p_r, p_θ, p_ϕ = x
     # Unpack the struct
     @unpack a, ϵ, s = geometry.params

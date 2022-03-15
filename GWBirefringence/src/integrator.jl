@@ -1,7 +1,3 @@
-import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,
-                              terminate!, remake, ODEProblem
-
-
 """
     ffield_callback(geometry::GWBirefringence.geometry;
                     interp_points::Int64=10)
@@ -115,8 +111,8 @@ function solve_geodesic(
     geometry::Geometry,
     cb::CallbackSet;
     save_everystep::Bool=false,
-    reltol::Float64=1e-12,
-    abstol::Float64=1e-12
+    reltol::Float64=1e-14,
+    abstol::Float64=1e-14
 )
     re_prob = remake(prob, u0=init_values(p, geometry))
     return solve(re_prob, Vern9(), callback=cb, save_everystep=save_everystep,
@@ -144,8 +140,8 @@ function solve_spinhall(
     cb::CallbackSet,
     pgeo::Vector{GWFloat};
     save_everystep::Bool=false,
-    reltol::Float64=1e-12,
-    abstol::Float64=1e-12
+    reltol::Float64=1e-14,
+    abstol::Float64=1e-14
 )
     re_prob = remake(prob, u0=init_values(p, geometry, pgeo))
     return solve(re_prob, Vern9(), callback=cb, save_everystep=save_everystep,
@@ -205,7 +201,7 @@ function geodesic_loss(
 
     sol = fsolve(p)
     # Check that the radial distance is within tolerance
-    return obs_angdist(sol[:, end], geometry, rtol=rtol)
+    return obs_angdist(sol[:, 1], sol[:, end], geometry; rtol=rtol)
 end
 
 
@@ -235,13 +231,14 @@ function spinhall_loss(
         return Inf64
     end
     sol = fsolve(px, pgeo)
-    return obs_angdist(sol[:, end], geometry, rtol=rtol)
+    return obs_angdist(sol[:, 1], sol[:, end], geometry; rtol=rtol)
 end
 
 
 """
     obs_angdist(
-        sol::Vector{GWFloat},
+        x0::Vector{GWFloat},
+        xf::Vector{GWFloat},
         geometry::Geometry;
         rtol::Float64=1e-10
     )
@@ -250,17 +247,22 @@ Calculate the angular distance between (θ, ϕ) and the observer. Ensures that
 the solution's radius is within tolerance close to the observer's radius.
 """
 function obs_angdist(
-    sol::Vector{GWFloat},
+    x0::Vector{GWFloat},
+    xf::Vector{GWFloat},
     geometry::Geometry;
     rtol::Float64=1e-10
 )
-    geometry.xf .= sol
-    # Additionally parametrise the time in the observer's proper time
-    geometry.xf[1] = obs_proper_time(geometry.xf[1], geometry)
-    r, θ, ϕ = geometry.xf[2:4]
+    r, θ, ϕ = xf[2:4]
+    # Did the trajectory hit the BH horizon?
     if ~isapprox(r, geometry.observer.r, rtol=rtol)
         return Inf64
     end
+    # Parametrise the time in the observer's proper time
+    a = geometry.params.a
+    geometry.arrival_time = static_observer_proper_time(xf, a)
+    # Calculate gravitational redshift
+    geometry.redshift = obs_redshift(x0, xf, a)
+
     return angdist(θ, ϕ, geometry.observer.θ, geometry.observer.ϕ)
 end
 

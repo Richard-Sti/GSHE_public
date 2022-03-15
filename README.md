@@ -1,6 +1,7 @@
 # Gravitational spin-Hall equations
 
 ## Immediate TO-DO
+- [ ] Add calculation of the gravitational redshift
 - [ ] Clean up the plotting modules.
 - [ ] When plotting time differences remove 0.0 (since log)
 - [ ] Add support for varying other parameters.
@@ -18,6 +19,7 @@ $$
 
 
 ## Completed TO-DO
+- [x] Add the $\sqrt{-1/g_{00}}$ factor for observer proper time
 - [x] Clean up the interface.
 - [x] Start saving the arrival time on the optimiser level
 - [x] Clear up geodesic nomenclature.

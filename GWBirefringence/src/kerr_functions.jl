@@ -29,17 +29,47 @@ function pt_null(r, θ, p_r, p_θ, p_ϕ, a::GWFloat, s_θ, c_θ, c_2θ)
 end
 
 
+function pt_null(x::Vector{GWFloat}, a::GWFloat)
+    r, θ = x[2:3]
+    p_r, p_θ, p_ϕ = x[5:7]
+    s_θ, c_θ, c_2θ = sin(θ), cos(θ), cos(2*θ)
+    return pt_null(r, θ, p_r, p_θ, p_ϕ, a, s_θ, c_θ, c_2θ)
+end
+
+
 """
     obs_proper_time(t::GWFloat, geometry::Geometry)
 
-Convert the trajectory time `t` into observer's proper time such that
-f(t) = t √(-1/g_{00}).
 """
-function obs_proper_time(t::GWFloat, geometry::Geometry)
-    @unpack r, θ = geometry.observer
-    a = geometry.params.a
-    return t * sqrt(1 - 2 * r / (r^2 + a^2 * cos(θ)^2))
+function static_observer_proper_time(x::Vector{GWFloat}, a::GWFloat)
+    t, r, θ = x[1:3]
+    return t * sqrt(1 + 2*r / (r^2  - 2*r + a^2 * cos(θ)^2))
 end
+
+
+"""
+    obs_geofrequency(pt::GWFloat, r::GWFloat, θ::GWFloat, a::GWFloat)
+
+"""
+function obs_frequency(x::Vector{GWFloat}, a::GWFloat)
+    pt = pt_null(x, a)
+    r, θ = x[2:3]
+    return - pt * sqrt(1 + 2*r / (r^2 - 2*r + a^2 * cos(θ)^2))
+end
+
+
+
+function obs_redshift(
+    x0::Vector{GWFloat},
+    xf::Vector{GWFloat},
+    a::GWFloat
+)
+    ωsource = obs_frequency(x0, a)
+    ωobs = obs_frequency(xf, a)
+    return ωsource / ωobs
+end
+
+
 
 
 # """
