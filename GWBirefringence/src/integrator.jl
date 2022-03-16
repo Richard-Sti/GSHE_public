@@ -1,17 +1,13 @@
 """
-    ffield_callback(geometry::GWBirefringence.geometry;
-                    interp_points::Int64=10)
+    ffield_callback(geometry::GWBirefringence.geometry; interp_points::Integer=10)
 
 Far field callback, terminate integration when observer radius is reached.
 """
-function ffield_callback(geometry::Geometry;
-                         interp_points::Int64=10)
+function ffield_callback(geometry::Geometry; interp_points::Integer=10)
     f(r, τ, integrator) = r - geometry.observer.r
     terminate_affect!(integrator) = terminate!(integrator)
-    return ContinuousCallback(f, terminate_affect!,
-                              interp_points=interp_points,
-                              save_positions=(false, false),
-                              idxs=2)
+    return ContinuousCallback(f, terminate_affect!, interp_points=interp_points,
+                              save_positions=(false, false), idxs=2)
 end
 
 
@@ -23,49 +19,26 @@ Horizon callback, terminate integration if BH horizon is reached.
 function horizon_callback(geometry::Geometry)
     f(x, τ, integrator) = x[2] <= 2.0
     terminate_affect!(integrator) = terminate!(integrator)
-    return DiscreteCallback(f, terminate_affect!,
-                            save_positions=(false, false))
+    return DiscreteCallback(f, terminate_affect!, save_positions=(false, false))
 end
 
 
 """
-    get_callbacks(geometry::Geometry; interp_points::Int64=10)
+    get_callbacks(geometry::Geometry; interp_points::Integer=10)
 
 Get the far field and horizon callback set.
 """
-function get_callbacks(geometry::Geometry; interp_points::Int64=10)
-    return CallbackSet(ffield_callback(geometry),
-                       horizon_callback(geometry))
+function get_callbacks(geometry::Geometry; interp_points::Integer=10)
+    return CallbackSet(ffield_callback(geometry), horizon_callback(geometry))
 end
 
 
-# """
-#     get_callbacks(geometry::Geometry, p::Vector{GWFloat};
-#                   interp_points::Int64=10)
-# 
-# Get the isometry, far field and horizon callback set.
-# """
-# function get_callbacks(geometry::Geometry, p::Vector{GWFloat};
-#                        interp_points::Int64=10)
-#     # Initial covector and conserved values
-#     x0, time_isometry, phi_isometry = GWBirefringence.init_values(p,
-#                                                                   geometry,
-#                                                                   true)
-#     iso(res, x, p, τ) = GWBirefringence.isometry_residuals!(
-#                               res, x, p, τ, geometry, time_isometry,
-#                               phi_isometry)
-#     return CallbackSet(ffield_callback(geometry),
-#                        horizon_callback(geometry),
-#                        ManifoldProjection(iso))
-# end
-
-
 """
-    init_values(p::Vector{GWFloat}, geometry::Geometry)
+    init_values(p::Vector{<:Real}, geometry::Geometry)
 
 Calculate the vector [x^μ, p_i].
 """
-function init_values(p::Vector{GWFloat}, geometry::Geometry)
+function init_values(p::Vector{<:Real}, geometry::Geometry)
     @unpack t, r, θ, ϕ = geometry.source
     ψ, ρ = p
     p_r, p_θ, p_ϕ = pi0(ψ, ρ, geometry)
@@ -74,20 +47,12 @@ end
 
 
 """
-    init_values(
-        p::Vector{GWFloat},
-        geometry::Geometry,
-        pfound::Vector{GWFloat}
-    )
+    init_values(p::Vector{<:Real}, geometry::Geometry, pfound::Vector{<:Real})
 
-Calculate the vector [x^μ, p_i]. Inverse rotates `p` from the y-axis (0, 1, 0)
-under a rotation that transformed `pfound` to the y-axis.
+Calculate the vector [x^μ, p_i]. Inverse rotates `p` from the y-axis (0, 1, 0) under a
+rotation that transformed `pfound` to the y-axis.
 """
-function init_values(
-    p::Vector{GWFloat},
-    geometry::Geometry,
-    pgeo::Vector{GWFloat}
-)
+function init_values(p::Vector{<:Real}, geometry::Geometry, pgeo::Vector{<:Real})
     x = rotate_from_y(p, pgeo)
     return init_values(x, geometry)
 end
@@ -106,13 +71,13 @@ end
 Solve a geodesic problem, allows changing initial conditions `p` on the fly.
 """
 function solve_geodesic(
-    p::Vector,
+    p::Vector{<:Real},
     prob::ODEProblem,
     geometry::Geometry,
     cb::CallbackSet;
     save_everystep::Bool=false,
-    reltol::Float64=1e-14,
-    abstol::Float64=1e-14
+    reltol::Real=1e-14,
+    abstol::Real=1e-14
 )
     re_prob = remake(prob, u0=init_values(p, geometry))
     return solve(re_prob, Vern9(), callback=cb, save_everystep=save_everystep,
@@ -121,11 +86,11 @@ end
 
 """
     solve_spinhall(
-        p::Vector{GWFloat},
+        p::Vector{<:Real},
         prob::ODEProblem,
         geometry::Geometry,
         cb::CallbackSet,
-        pgeo::Vector{GWFloat};
+        pgeo::Vector{<:Real};
         save_everystep::Bool=false,
         reltol::Float64=1e-12,
         abstol::Float64=1e-12
@@ -134,11 +99,11 @@ end
 Solve a Spin-hall problem, allows changing initial conditions `p` on the fly.
 """
 function solve_spinhall(
-    p::Vector{GWFloat},
+    p::Vector{<:Real},
     prob::ODEProblem,
     geometry::Geometry,
     cb::CallbackSet,
-    pgeo::Vector{GWFloat};
+    pgeo::Vector{<:Real};
     save_everystep::Bool=false,
     reltol::Float64=1e-14,
     abstol::Float64=1e-14
@@ -150,30 +115,30 @@ end
 
 
 """
-    angular_bounds(p::Vector{GWFloat})
+    angular_bounds(p::Vector{<:Real})
 
 Check whether `p = [θ, ϕ]` satisfies 0 ≤ θ ≤ π and 0 ≤ ϕ < 2π.
 """
-function angular_bounds(p::Vector{GWFloat})
+function angular_bounds(p::Vector{<:Real})
     return (0. ≤ p[1] ≤ π) & (0. ≤ p[2]  < 2π)
 end
 
 
 """
-    angular_bounds(p::Vector{GWFloat}, θmax::GWFloat)
+    angular_bounds(p::Vector{<:Real}, θmax::Real)
 
-Check whether `p = [θ, ϕ]` satisfies 0 ≤ θ ≤ π and 0 ≤ ϕ < 2π and whether the
-angular distance of `p` from the Cartesian point (0, 1, 0) is less than θmax.
+Check whether `p = [θ, ϕ]` satisfies 0 ≤ θ ≤ π and 0 ≤ ϕ < 2π and whether the angular
+distance of `p` from the Cartesian point (0, 1, 0) is less than θmax.
 """
-function angular_bounds(p::Vector{GWFloat}, θmax::GWFloat)
+function angular_bounds(p::Vector{<:Real}, θmax::Real)
     return (acos(sin(p[1])*sin(p[2])) ≤ θmax) & angular_bounds(p)
 end
 
 
 """
     loss(
-        p::Vector{GWFloat},
-        Xfound::Union{Vector{Vector{GWFloat}}, Nothing},
+        p::Vector{<:Real},
+        Xfound::Union{Vector{Vector{<:Real}}, Nothing},
         fsolve::Function,
         geometry::Geometry;
         rtol::Float64=1e-10,
@@ -183,8 +148,8 @@ Calculate the angular loss of a geodesic, `fsolve` expected to take
 only `p` as input. Checks whether initial condition close to any of `Xfound`.
 """
 function geodesic_loss(
-    p::Vector{GWFloat},
-    pfound::Union{Vector{Vector{GWFloat}}, Nothing},
+    p::Vector{<:Real},
+    pfound::Union{Vector{<:Vector{<:Real}}, Nothing},
     fsolve::Function,
     geometry::Geometry;
     rtol::Float64=1e-10,
@@ -207,9 +172,9 @@ end
 
 """
     spinhall_loss(
-        p::Vector{GWFloat},
-        pgeo::Vector{GWFloat},
-        θmax::GWFloat,
+        p::Vector{<:Real},
+        pgeo::Vector{<:Real},
+        θmax::Real,
         fsolve::Function,
         geometry::Geometry;
         rtol::Float64=1e-10,
@@ -219,9 +184,9 @@ Calculate the angular loss of a Spin-hall trajectory, searches for a solution
 that is within `θmax` of a geodesic solution `pgeo`.
 """
 function spinhall_loss(
-    p::Vector{GWFloat},
-    pgeo::Vector{GWFloat},
-    θmax::GWFloat,
+    p::Vector{<:Real},
+    pgeo::Vector{<:Real},
+    θmax::Real,
     fsolve::Function,
     geometry::Geometry;
     rtol::Float64=1e-10,
@@ -237,8 +202,8 @@ end
 
 """
     obs_angdist(
-        x0::Vector{GWFloat},
-        xf::Vector{GWFloat},
+        x0::Vector{<:Real},
+        xf::Vector{<:Real},
         geometry::Geometry;
         rtol::Float64=1e-10
     )
@@ -247,8 +212,8 @@ Calculate the angular distance between (θ, ϕ) and the observer. Ensures that
 the solution's radius is within tolerance close to the observer's radius.
 """
 function obs_angdist(
-    x0::Vector{GWFloat},
-    xf::Vector{GWFloat},
+    x0::Vector{<:Real},
+    xf::Vector{<:Real},
     geometry::Geometry;
     rtol::Float64=1e-10
 )
@@ -273,21 +238,15 @@ end
 ODE problem without specifying the initial conditions.
 """
 function ode_problem(odes!::Function, geometry::Geometry)
-    return ODEProblem{true}(odes!,
-                            rand(7), 
-                            (0.0, 100.0geometry.observer.r),
-                            geometry)
+    return ODEProblem{true}(odes!, rand(7),  (0.0, 100.0geometry.observer.r), geometry)
 end
 
 
 """
-    ode_problem(odes!::Function, geometry::Geometry, x0::Vector{GWFloat})
+    ode_problem(odes!::Function, geometry::Geometry, x0::Vector{<:Real})
 
 ODE probelem with specified initial conditins.
 """
-function ode_problem(odes!::Function, geometry::Geometry, x0::Vector{GWFloat})
-    return ODEProblem{true}(odes!,
-                            x0,
-                            (0.0, 100.0geometry.observer.r),
-                            geometry)
+function ode_problem(odes!::Function, geometry::Geometry, x0::Vector{<:Real})
+    return ODEProblem{true}(odes!, x0, (0.0, 100.0geometry.observer.r), geometry)
 end

@@ -1,14 +1,9 @@
 """
-    pi0(ψ::GWFloat, ρ::GWFloat, geometry::Geometry)
+    pi0(ψ::Real, ρ::Real, geometry::Geometry)
 
 Calculate the initial covectors ``p_i``.
-
-# Arguments
-- `psi::Float64`: the initial direction polar angle
-- `rho::Float64`: the initial direction azimuthal angle
-- `geometry::GWBirefringence.geometry`: system geometry
 """
-function pi0(ψ::GWFloat, ρ::GWFloat, geometry::Geometry)
+function pi0(ψ::Real, ρ::Real, geometry::Geometry)
     @unpack r, θ = geometry.source
     @unpack a = geometry.params
 
@@ -20,50 +15,76 @@ end
 
 
 """
-    pt_null(r, θ, p_r, p_θ, p_ϕ, a::GWFloat, s_θ, c_θ, c_2θ)
+    pt_null(
+        r::Real,
+        θ::Real,
+        p_r::Real,
+        p_θ::Real,
+        p_ϕ::Real,
+        a::Real,
+        s_θ::Real,
+        c_θ::Real,
+        c_2θ::Real
+    )
 
 Calculate the time covector from the null condition.
 """
-function pt_null(r, θ, p_r, p_θ, p_ϕ, a::GWFloat, s_θ, c_θ, c_2θ)
+function pt_null(
+    r::Real,
+    θ::Real,
+    p_r::Real,
+    p_θ::Real,
+    p_ϕ::Real,
+    a::Real,
+    s_θ::Real,
+    c_θ::Real,
+    c_2θ::Real
+)
     return (-4*a*p_ϕ*r - 2*sqrt(4*a^2*p_ϕ^2*r^2 + (p_r^2*(a^2 + r^2 - 2*r)^2 + p_θ^2*(a^2 + r^2 - 2*r) + p_ϕ^2*(a^2*c_θ^2 + r^2 - 2*r)/s_θ^2)*(a^4*c_θ^2 + a^2*r^2*(c_2θ + 3)/2 + 2*a^2*r*s_θ^2 + r^4)))/(2*a^4*c_θ^2 + a^2*r^2*(c_2θ + 3) + 4*a^2*r*s_θ^2 + 2*r^4)
 end
 
 
-function pt_null(x::Vector{GWFloat}, a::GWFloat)
-    r, θ = x[2:3]
-    p_r, p_θ, p_ϕ = x[5:7]
+"""
+    pt_null(x::Vector{<:Real}, a::Real)
+
+Calculate the time covector from the null condition.
+"""
+function pt_null(x::Vector{<:Real}, a::Real)
+    r, θ, __, p_r, p_θ, p_ϕ = @view x[2:7]
     s_θ, c_θ, c_2θ = sin(θ), cos(θ), cos(2*θ)
     return pt_null(r, θ, p_r, p_θ, p_ϕ, a, s_θ, c_θ, c_2θ)
 end
 
 
 """
-    obs_proper_time(t::GWFloat, geometry::Geometry)
+    static_observer_proper_time(x::Vector{<:Real}, a::Real)
 
+Calculate the time of a static observer f(τ).
 """
-function static_observer_proper_time(x::Vector{GWFloat}, a::GWFloat)
-    t, r, θ = x[1:3]
+function static_observer_proper_time(x::Vector{<:Real}, a::Real)
+    t, r, θ = @view x[1:3]
     return t * sqrt(1 + 2*r / (r^2  - 2*r + a^2 * cos(θ)^2))
 end
 
 
 """
-    obs_geofrequency(pt::GWFloat, r::GWFloat, θ::GWFloat, a::GWFloat)
+    obs_frequency(x::Vector{<:Real}, a::Real)
 
+Calculate the frequency observed by a static observer.
 """
-function obs_frequency(x::Vector{GWFloat}, a::GWFloat)
+function obs_frequency(x::Vector{<:Real}, a::Real)
     pt = pt_null(x, a)
-    r, θ = x[2:3]
+    r, θ = @view x[2:3]
     return - pt * sqrt(1 + 2*r / (r^2 - 2*r + a^2 * cos(θ)^2))
 end
 
 
+"""
+    obs_redshift(x0::Vector{<:Real}, xf::Vector{<:Real}, a::Real)
 
-function obs_redshift(
-    x0::Vector{GWFloat},
-    xf::Vector{GWFloat},
-    a::GWFloat
-)
+Ratio of wavelength as observed by a static observer at `x0` and `xf`.
+"""
+function obs_redshift(x0::Vector{<:Real}, xf::Vector{<:Real}, a::Real)
     ωsource = obs_frequency(x0, a)
     ωobs = obs_frequency(xf, a)
     return ωsource / ωobs
@@ -139,12 +160,13 @@ end
 #    (4*c_θ .*p_r .*s .*ϵ .*(a.^2 + r .*(r - 2)) .*(2*a.^4 .*c_θ.^2 + a.^2 .*r.^2 .*(c_2θ + 3) + 4*a.^2 .*r .*s_θ.^2 + 2*r.^4) + (4*a.^2 .*c_θ.^2 + 4*r.^2) .*(2*a .*p_ϕ.^2 .*(a.^2 .*c_θ.^2 + r.^2) + 2*p_t .*p_ϕ .*(a.^2 + r.^2) .*(a.^2 .*c_θ.^2 + r.^2) - 2*p_θ .*r .*s .*s_θ .*ϵ .*(a.^2 + r .*(r - 2)))) ./((8*a .*p_ϕ + 8*p_t .*(a.^2 + r.^2)) .*(a.^2 .*c_θ.^2 + r.^2).^2)
 # end
 
+
 """
     v_r(r, R_o::GWFloat, θ_o::GWFloat, a::GWFloat)
 
 Boosting observer function.
 """
-function v_r(r, R_o::GWFloat, θ_o::GWFloat, a::GWFloat)
+function v_r(r, R_o::Real, θ_o::Real, a::Real)
     
     exp_sin = exp(-(-R_o + r)^2) * sin(θ_o)
     sqrroot = sqrt(R_o^2 - 2*R_o + a^2)

@@ -1,42 +1,31 @@
-import MultivariateStats: llsq
-
 """
-    average(x::Vector{GWFloat})
+    average(x::Vector{<:Real})
 
 Calculate the average of a vector `x`.
 """
-function average(x::Vector{GWFloat})
+function average(x::Vector{<:Real})
     return sum(x) / length(x)
 end
 
 
 """
-    std(x::Vector{GWFloat})
+    std(x::Vector{<:Real})
 
 Calculate the standard deviation of a vector `x`.
 """
-function std(x::Vector{GWFloat})
+function std(x::Vector{<:Real})
     mu = average(x)
     return average((x .- mu).^2)^0.5
 end
 
 
 """
-    bootstrap_log_llsq(
-        x::Vector{GWFloat},
-        y::Vector{GWFloat};
-        Nboots::Int64=1000
-    )
+    bootstrap_log_llsq(x::Vector{<:Real}, y::Vector{<:Real}; Nboots::Int64=1000)
 
-Calculate the bootstrap mean and standard deviation on the function
-:math:`f(x) = α x^β`. The output rows give, respectively, the mean and standard
-deviation of α and β.
+Calculate the bootstrap mean and standard deviation on the function :math:`f(x) = α x^β`.
+The output rows give, respectively, the mean and standard deviation of α and β.
 """
-function bootstrap_powerlaw(
-    x::Vector{GWFloat},
-    y::Vector{GWFloat};
-    Nboots::Int64=1000
-)
+function bootstrap_powerlaw(x::Vector{<:Real}, y::Vector{<:Real};  Nboots::Int64=1000)
     x = log10.(x)
     y = log10.(y)
     @assert length(x) == length(y) "`x` and `y` must have equal length."
@@ -62,13 +51,13 @@ end
 
 
 """
-    fit_Δts(ϵs::Vector{GWFloat}, Xspinhall::Array{GWFloat, 4})
+    fit_Δts(ϵs::Vector{<:Real}, Xspinhall::Array{Real, 4})
 
-Fit the spin-Hall s=±2 time of arrival differences as a function of ϵ. For each
-geodesic. Array indices represent first the geodesic, second mean value of
-α and β and third their standard deviatations.
+Fit the spin-Hall s=±2 time of arrival differences as a function of ϵ. For each geodesic.
+Array indices represent first the geodesic, second mean value of α and β and third their
+standard deviatations.
 """
-function fit_Δts(ϵs::Vector{GWFloat}, Xspinhall::Array{GWFloat, 4})
+function fit_Δts(ϵs::Vector{<:Real}, Xspinhall::Array{Real, 4})
     Ngeo = size(Xspinhall)[3]
     Δt = zeros(size(Xspinhall)[1])
 

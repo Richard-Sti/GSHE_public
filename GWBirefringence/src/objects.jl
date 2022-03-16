@@ -1,63 +1,32 @@
-"""
-    Params(a::GWFloat, ϵ::GWFloat, s::Int64)
-
-A keyword struct to hold some trigonometric variables and the Kerr spin
-parameter ``a``, perturbation parameter ``ϵ``, and polarisation ``s``.
-"""
-@with_kw mutable struct Params
-    a::GWFloat
-    ϵ::GWFloat
-    s::Int64
+@with_kw mutable struct Params{T <: Real} <: Number
+    a::T
+    ϵ::T
+    s::T
 end
 
 
-"""
-    Spherical_coords(
-        t::GWFloat=0.0,
-        r::GWFloat,
-        θ::GWFloat,
-        ϕ::GWFloat
-     )
-
-Spherical coordinates object.
-"""
-@with_kw mutable struct Spherical_coords
-    t::GWFloat = GWFloat(0.0)
-    r::GWFloat
-    θ::GWFloat
-    ϕ::GWFloat
+@with_kw mutable struct Spherical_coords{T <: Real} <: Number
+    t::T = 0.0
+    r::T
+    θ::T
+    ϕ::T
 end
 
 
-"""
-    geometry(source::GWBirefringence.Spherical_coords,
-             observer::GWBirefringence.Spherical_coords,
-             params::GWBirefringence.Params)
-
-Geometry object holding the source, observer and params.
-"""
-@with_kw mutable struct Geometry 
-    source::Spherical_coords
-    observer::Spherical_coords
-    params::Params
-    arrival_time::GWFloat = 0.0
-    redshift::GWFloat = 0.0
+@with_kw mutable struct Geometry{T <: Real}
+    source::Spherical_coords{T}
+    observer::Spherical_coords{T}
+    params::Params{T}
+    type::DataType
+    arrival_time::T = 0.0
+    redshift::T = 0.0
 end
 
 
-"""
-    Base.copy(geometry::GWBirefringence.Geometry)
-
-Deepcopy of geometry.
-"""
 function Base.copy(geometry::GWBirefringence.Geometry)
-    source = GWBirefringence.Spherical_coords(
-        @unpack t, r, θ, ϕ = geometry.source)
-    observer = GWBirefringence.Spherical_coords(
-        @unpack t, r, θ, ϕ= geometry.observer)
-    params = GWBirefringence.Params(
-        @unpack a, ϵ, s = geometry.params)
-    return GWBirefringence.Geometry(source=source,
-                                    observer=observer,
-                                    params=params)
+    T = geometry.type
+    source = GWBirefringence.Spherical_coords(@unpack t, r, θ, ϕ = geometry.source)
+    observer = GWBirefringence.Spherical_coords(@unpack t, r, θ, ϕ= geometry.observer)
+    params = GWBirefringence.Params(@unpack a, ϵ, s = geometry.params)
+    return GWBirefringence.Geometry{T}(source=source,observer=observer, params=params, type=T)
 end

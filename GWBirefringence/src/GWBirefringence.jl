@@ -1,9 +1,5 @@
 module GWBirefringence
 
-# import DoubleFloats: Double64
-
-GWFloat = Float64
-
 # export init_values
 # export Params, Spherical_coords, Geometry
 # export pi0, geodesic_odes!
@@ -13,12 +9,13 @@ GWFloat = Float64
 
 
 import Parameters: @with_kw, @unpack
-import Optim: NelderMead, ConjugateGradient, Options
+import Optim: NelderMead, ConjugateGradient, Options, optimize
 import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,
                               terminate!, remake, ODEProblem, solve, Vern9
 using LaTeXStrings
 import Plots
 import Meshes
+import MultivariateStats: llsq
 
 include("./objects.jl")
 include("./integrator.jl")

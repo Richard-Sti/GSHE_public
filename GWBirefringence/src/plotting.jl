@@ -1,7 +1,7 @@
 """
     plot_initial_conditions(
-        Xspinhall::Array{Float64, 4},
-        Xgeo::Matrix{Float64},
+        Xspinhall::Array{<:Real, 4},
+        Xgeo::Matrix{<:Real},
         igeo::Int64;
         dpi::Int64=600
     )
@@ -10,8 +10,8 @@ Plot the initial conditions ψ and ρ.
 """
 function plot_initial_conditions!(
     fig::Plots.Plot,
-    Xspinhall::Array{Float64, 4},
-    Xgeo::Matrix{Float64},
+    Xspinhall::Array{<:Real, 4},
+    Xgeo::Matrix{<:Real},
     igeo::Int64
 )
     for s in [2, -2]
@@ -25,9 +25,9 @@ end
 @doc """
     plot_arrival_times!(
         fig::Plots.Plot,
-        ϵs::Union{Vector{Float64}, LinRange{Float64}},
-        Xspinhall::Array{Float64, 4},
-        Xgeo::Matrix{Float64},
+        ϵs::Union{Vector{<:Real}, LinRange{Float64}},
+        Xspinhall::Array{<:Real, 4},
+        Xgeo::Matrix{<:Real},
         igeo::Int64
     )
 
@@ -35,9 +35,9 @@ Plot the arrival time of the geodesic and the spin-Hall perturbations.
 """
 function plot_arrival_times!(
     fig::Plots.Plot,
-    ϵs::Union{Vector{Float64}, LinRange{Float64}},
-    Xspinhall::Array{Float64, 4},
-    Xgeo::Matrix{Float64},
+    ϵs::Union{Vector{<:Real}, LinRange{Float64}},
+    Xspinhall::Array{<:Real, 4},
+    Xgeo::Matrix{<:Real},
     igeo::Int64
 )   
     xplus = @view Xspinhall[:, 1, igeo, 3]
@@ -53,18 +53,18 @@ end
 """
     plot_time_difference!(
         fig::Plots.Plot,
-        ϵs::Union{Vector{Float64}, LinRange{Float64}},
-        Xspinhall::Array{Float64, 4},
-        Xgeo::Matrix{Float64}
+        ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+        Xspinhall::Array{<:Real, 4},
+        Xgeo::Matrix{<:Real}
     )
 
 Plot the s = ± 2 arrival time difference.
 """
 function plot_time_difference!(
     fig::Plots.Plot,
-    ϵs::Union{Vector{Float64}, LinRange{Float64}},
-    Xspinhall::Array{Float64, 4},
-    Xgeo::Matrix{Float64}
+    ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+    Xspinhall::Array{<:Real, 4},
+    Xgeo::Matrix{<:Real}
 )
     Nsols = size(Xgeo)[1]
     for igeo in 1:Nsols
@@ -78,7 +78,7 @@ end
 
 """
     cartesian_trajectory(
-        p0::Vector{Float64},
+        p0::Vector{<:Real},
         geometry::GWBirefringence.Geometry,
         is_geodesic::Bool
     )
@@ -86,7 +86,7 @@ end
 Integrate a trajectory and convert to Cartesian coordinates.
 """
 function cartesian_trajectory(
-    p0::Vector{Float64},
+    p0::Vector{<:Real},
     geometry::GWBirefringence.Geometry,
     is_geodesic::Bool
 )
@@ -103,7 +103,7 @@ end
 """
     plot_geodesics!(
         fig::Plots.Plot,
-        Xgeo::Matrix{Float64},
+        Xgeo::Matrix{<:Real},
         geometry::GWBirefringence.Geometry
     )
 
@@ -111,7 +111,7 @@ Plot the geodesic solutions.
 """
 function plot_geodesics!(
     fig::Plots.Plot,
-    Xgeo::Matrix{Float64},
+    Xgeo::Matrix{<:Real},
     geometry::GWBirefringence.Geometry
 )
     Ngeo = size(Xgeo)[1]
@@ -126,7 +126,7 @@ end
 """
     plot_spinhall_trajectories!(
         fig::Plots.Plot,
-        Xspinhall::Array{Float64, 4},
+        Xspinhall::Array{<:Real, 4},
         geometries::Vector{GWBirefringence.Geometry}
     )
 
@@ -134,8 +134,8 @@ Plot the spin-Hall solutions.
 """
 function plot_spinhall_trajectories!(
     fig::Plots.Plot,
-    Xspinhall::Array{Float64, 4},
-    geometries::Vector{GWBirefringence.Geometry}
+    Xspinhall::Array{<:Real, 4},
+    geometries::Vector{<:Geometry{<:Real}}
 )
     
     Neps = length(geometries)
@@ -191,13 +191,11 @@ Plot the source and observer.
 function plot_start_end!(fig::Plots.Plot, geometry)
     Xsource = [geometry.source.r, geometry.source.θ, geometry.source.ϕ]
     GWBirefringence.spherical_to_cartesian!(Xsource)
-    Plots.scatter!(fig, [Xsource[1]], [Xsource[2]], [Xsource[3]], color="red",
-                   label=nothing)
+    Plots.scatter!(fig, [Xsource[1]], [Xsource[2]], [Xsource[3]], color="red", label=nothing)
 
     Xobs = [geometry.observer.r, geometry.observer.θ, geometry.observer.ϕ]
     GWBirefringence.spherical_to_cartesian!(Xobs)
-    Plots.scatter!(fig, [Xobs[1]], [Xobs[2]], [Xobs[3]], color="blue",
-                   label=nothing)
+    Plots.scatter!(fig, [Xobs[1]], [Xobs[2]], [Xobs[3]], color="blue", label=nothing)
 end
 
 
