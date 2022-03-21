@@ -20,15 +20,28 @@ end
 
 
 """
-    bootstrap_log_llsq(x::Vector{<:Real}, y::Vector{<:Real}; Nboots::Int64=1000)
+    bootstrap_powerlaw(
+        x::Vector{<:Real},
+        y::Vector{<:Real}; 
+        Nboots::Int64=1000,
+        integration_error::Real=1e-12
+    )
 
 Calculate the bootstrap mean and standard deviation on the function :math:`f(x) = α x^β`.
 The output rows give, respectively, the mean and standard deviation of α and β.
 """
-function bootstrap_powerlaw(x::Vector{<:Real}, y::Vector{<:Real};  Nboots::Int64=1000)
-    x = log10.(x)
-    y = log10.(y)
+function bootstrap_powerlaw(
+    x::Vector{<:Real},
+    y::Vector{<:Real}; 
+    Nboots::Int64=1000,
+    integration_error::Real=1e-12
+)
+    # Initial checks
     @assert length(x) == length(y) "`x` and `y` must have equal length."
+    x, y = cut_below_integration_error(x, y, integration_error)
+
+    x .= log10.(x)
+    y .= log10.(y)
     N = length(x)
     # Preallocate the scratch arrays
     res = zeros(Nboots, 2)
@@ -51,13 +64,37 @@ end
 
 
 """
-    fit_Δts(ϵs::Vector{<:Real}, Xspinhall::Array{Real, 4})
+    cut_below_integration_error(
+        x::Vector{<:Real},
+        y::Vector{<:Real},
+        integration_error::Real=1e-12
+    )
 
-Fit the spin-Hall s=±2 time of arrival differences as a function of ϵ. For each geodesic.
-Array indices represent first the geodesic, second mean value of α and β and third their
-standard deviatations.
+Remove elements from `x` and `y` satisfying |`y`| < `integration_error` and return the
+(new) `x` and and `y`.
 """
-function fit_Δts(ϵs::Vector{<:Real}, Xspinhall::Array{Real, 4})
+function cut_below_integration_error(
+    x::Vector{<:Real},
+    y::Vector{<:Real},
+    integration_error::Real=1e-12
+)
+    mask = abs.(y) .> integration_error
+    N = sum(.~mask)
+    if N > 0
+        @info "$N element(s) below integration error $integration_error. Removing."
+    end
+    return x[mask], y[mask]
+end
+
+
+"""
+    fit_Δts(ϵs::Vector{<:Real}, Xspinhall::Array{<:Real, 4})
+
+Fit the spin-Hall s=±2 time of arrival differences as a function of ϵ for each geodesic.
+Array indices represent first the geodesic, mean value of α and β, and third their
+standard deviatations, respectively.
+"""
+function fit_Δts(ϵs::Vector{<:Real}, Xspinhall::Array{<:Real, 4})
     Ngeo = size(Xspinhall)[3]
     Δt = zeros(size(Xspinhall)[1])
 
@@ -67,6 +104,26 @@ function fit_Δts(ϵs::Vector{<:Real}, Xspinhall::Array{Real, 4})
         xminus = @view Xspinhall[:, 2, igeo, 3]
         Δt .= abs.(xplus - xminus)
         X[igeo, :, :] .= bootstrap_powerlaw(ϵs, Δt)
+    end
+    return X
+end
+
+
+"""
+    fit_Δts(ϵs::Vector{<:Real}, Xgeo::Matrix{<:Real}, Xspinhall::Array{<:Real, 4})
+
+Fit the time of arrival difference between the spin Hall solution and the geodesic as a
+function of ϵ for s = ± 2. Array indices represent the geodesic, polarisation, mean value
+of α and β, and third their standard deviatations, respectively.
+"""
+function fit_Δts(ϵs::Vector{<:Real}, Xgeo::Matrix{<:Real}, Xspinhall::Array{<:Real, 4})
+    Ngeo = size(Xspinhall)[3]
+    Δt = zeros(size(Xspinhall)[1])
+
+    X = zeros(Ngeo, 2, 2, 2)
+    for igeo in 1:Ngeo, s in [2, -2]
+        Δt .= abs.(Xspinhall[:, s === 2 ? 1 : 2, igeo, 3] .- Xgeo[igeo, 3])
+        X[igeo, s === 2 ? 1 : 2, :, :] .= bootstrap_powerlaw(ϵs, Δt)
     end
     return X
 end

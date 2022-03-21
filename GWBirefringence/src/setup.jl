@@ -165,6 +165,72 @@ end
 
 
 """
+    check_perturbed_config!(
+        Xspinhall::Array{<:Real, 4},
+        Xgeo::Matrix{<:Real},
+        geometries::Vector{<:Geometry{<:Real}},
+        alg::NelderMead,
+        options::Options;
+        θmax0::Real=0.025,
+        slope_tolerance::Real=0.001,
+        integration_error::Real=1e-12,
+        Nmax::Integer=10
+    )
+
+Check whether the Δt - ϵ slope is 2 where Δt represents the absolute time of arrival
+difference between the perturbed spin Hall and geodesic solutions. If the slope is outside
+tolerance a solution will be attempted to be recalculated. If no solution found replaces
+with NaNs.
+"""
+function check_perturbed_config!(
+    Xspinhall::Array{<:Real, 4},
+    Xgeo::Matrix{<:Real},
+    geometries::Vector{<:Geometry{<:Real}},
+    alg::NelderMead,
+    options::Options;
+    θmax0::Real=0.025,
+    slope_tolerance::Real=0.001,
+    integration_error::Real=1e-12,
+    Nmax::Integer=10
+)
+    ϵs = [geo.params.ϵ for geo in geometries]
+    Nsols = size(Xgeo)[1]
+
+    for igeo in 1:Nsols, s in [2, -2]
+        for j in 1:(Nmax + 1)
+            y = abs.(Xspinhall[:, s == 2 ? 1 : 2, igeo, 3] .- Xgeo[igeo, 3])
+
+            pars = bootstrap_powerlaw(ϵs, y; integration_error=integration_error)
+            β, βstd= pars[1,:]
+
+            # If within tolerance exit check
+            if βstd / β < slope_tolerance
+                break
+            end
+
+            α = pars[2, 1]
+            logresiduals = abs.(log.(y) .- log(α)  .- β * log.(ϵs))
+            k = argmax(logresiduals)
+
+            # If reached Nmax exit check
+            if j > Nmax
+                @warn "Slope $β outside tolerance $slope_tolerance of 2.0. Recalculation failed after $Nmax attempts."
+                Xspinhall[k, s == 2 ? 1 : 2, igeo, :] = repeat([NaN], size(Xspinhall)[4])
+                break
+            else
+                @info "Slope $β outside tolerance $slope_tolerance of 2.0. Recalculating the worst element."
+            end
+
+            Xspinhall[k, s == 2 ? 1 : 2, igeo, :] .= GWBirefringence.find_restricted_minimum(
+                geometries[k], Xgeo[igeo, 1:2], alg, options; θmax0=θmax0, Nmax=50)
+        end
+    end
+
+    return nothing 
+end
+
+
+"""
     vary_ϵ(ϵ::Real, geometry::GWBirefringence.Geometry)
 
 Copy geometry and replace its ϵ with a new value specified in the function input.
