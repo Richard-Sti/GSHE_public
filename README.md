@@ -1,32 +1,22 @@
 # Gravitational spin-Hall equations
 
-## Immediate TO-DO
-- [ ] Add calculation of the gravitational redshift
-- [ ] Clean up the plotting modules.
-- [ ] When plotting time differences remove 0.0 (since log)
-- [ ] Add support for varying other parameters.
-- [ ] Outlier detection when fitting the power law.
-- [ ] Back up the Mathematica modules.
+## Powerlaw outlier TO-DO
+- [ ] Outlier detection when fitting the power law. If mean residuals too large fit a slope = 2 line (optionally) and throw away the biggest outlier and try recalculating, repeat until errors hit some threshold. 
 - [ ] In fitting set some lower sensitivity on $\Delta t$ (e.g. 1e-10)
 
-## Long TO-DO
 
-- [ ] Model the waveform, likely as such that the time delay is calculated with respect to the geodesic.
+## Plotting TO-DO
+- [ ] Plot the intercept as the function of the source-lens-observer configuration
+- [ ] When plotting time differences remove 0.0 (since log)
 
+## Waveform TO-DO
+
+- [ ] Model the waveform, likely compose backwards the frequency components as
 $$
 f(t) = \int \frac{\mathrm{d}\omega}{2\pi} e^{- i\omega\left[t + \Delta t(\omega)\right] \tilde{f}(\omega)}
 $$
+- [ ] The BH is initially shooting in diffferent diretions and we have an anisotropic source, different detector amplitudes?
 
 
-## Completed TO-DO
-- [x] Add the $\sqrt{-1/g_{00}}$ factor for observer proper time
-- [x] Clean up the interface.
-- [x] Start saving the arrival time on the optimiser level
-- [x] Clear up geodesic nomenclature.
-- [x] Perform arctan coordinate transformation when looking for perturbed solutions.
-- [x] Remove the dependence on the Rinv
-- [x] How to efficiently pass geometry etc. into the functions?
-- [x] Begin looking for $s=\pm 2$ within some radius of its geodesic. Make sure that that $[x^\mu, p_i]$ initialisation works.
-- [x] Have a look at how I do coordinate transformations. Can we avoid some memory allocations?
-- [x] Start searching within small $\theta_{\rm max}$ and if no solution found gradually increase.
-- [x] Add capabilities to fit the power law $f(\epsilon) = \alpha~\epsilon^\beta$ and the uncertanties.
+## Other TO-DO
+- [ ] Add support for varying other parameters.
