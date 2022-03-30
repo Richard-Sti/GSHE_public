@@ -81,7 +81,7 @@ function cut_below_integration_error(
     mask = abs.(y) .> integration_error
     N = sum(.~mask)
     if N > 0
-        @info "$N element(s) below integration error $integration_error. Removing."
+        @info "$N element(s) x=$(x[.~mask]) y=$(y[.~mask]) below integration error $integration_error. Removing."
     end
     return x[mask], y[mask]
 end

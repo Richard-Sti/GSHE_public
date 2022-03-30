@@ -1,11 +1,11 @@
 module GWBirefringence
 
-# export init_values
-# export Params, Spherical_coords, Geometry
-# export pi0, geodesic_odes!
-# export GWFloat
-# export geodesic_ode_problem
-# export setup_geometry, setup_problem
+export init_values
+export Params, Spherical_coords, Geometry
+export pi0, geodesic_odes!
+export GWFloat
+export geodesic_ode_problem
+export setup_geometry, setup_problem
 
 
 import Parameters: @with_kw, @unpack
@@ -16,6 +16,11 @@ using LaTeXStrings
 import Plots
 import Meshes
 import MultivariateStats: llsq
+import Printf: @printf, @sprintf
+import LinRegOutliers: @formula
+import LinRegOutliers: createRegressionSetting, smr98
+import DataFrames: DataFrame
+import LinRegOutliers
 
 include("./objects.jl")
 include("./integrator.jl")

@@ -16,16 +16,16 @@ function plot_initial_conditions!(
 )
     for s in [2, -2]
         x = @view Xspinhall[:, s == 2 ? 1 : 2, igeo, 1:2]
-        Plots.scatter!(fig, x[:, 2], x[:, 1], label="s=$s")
+        Plots.scatter!(fig, x[:, 2]/π, x[:, 1]/π, label="s=$s")
     end
-    Plots.scatter!(fig, [Xgeo[igeo, 2]], [Xgeo[igeo, 1]], label="Geodesic")
+    Plots.scatter!(fig, [Xgeo[igeo, 2]]/π, [Xgeo[igeo, 1]]/π, label="Geodesic")
 end
 
 
 @doc """
     plot_arrival_times!(
         fig::Plots.Plot,
-        ϵs::Union{Vector{<:Real}, LinRange{Float64}},
+        ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
         Xspinhall::Array{<:Real, 4},
         Xgeo::Matrix{<:Real},
         igeo::Int64
@@ -35,18 +35,22 @@ Plot the arrival time of the geodesic and the spin-Hall perturbations.
 """
 function plot_arrival_times!(
     fig::Plots.Plot,
-    ϵs::Union{Vector{<:Real}, LinRange{Float64}},
+    ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
     Xspinhall::Array{<:Real, 4},
     Xgeo::Matrix{<:Real},
     igeo::Int64
 )   
+
+    pars = GWBirefringence.fit_Δts(ϵs, Xgeo, Xspinhall)
+
     xplus = @view Xspinhall[:, 1, igeo, 3]
     xminus = @view Xspinhall[:, 2, igeo, 3]
 
     t = Xgeo[igeo, 3]
-
-    Plots.scatter!(fig, ϵs, abs.(xplus .- t), label=L"s=2")
-    Plots.scatter!(fig, ϵs, abs.(xminus .- t), label=L"s=-2")
+    β, α = round.(pars[1, 1, :, 1]; digits=3)
+    Plots.scatter!(fig, ϵs, abs.(xplus .- t), label=L"s=2; y(\epsilon) = %$α~\epsilon^{%$β}")
+    β, α = round.(pars[1, 2, :, 1]; digits=3)
+    Plots.scatter!(fig, ϵs, abs.(xminus .- t), label=L"s=-2; y(\epsilon) = %$α~\epsilon^{%$β}")
 end
 
 
@@ -71,7 +75,9 @@ function plot_time_difference!(
         xplus = @view Xspinhall[:, 1, igeo, 3]
         xminus = @view Xspinhall[:, 2, igeo, 3]
 
-        Plots.scatter!(fig, ϵs, abs.(xplus - xminus), label="Geodesic $igeo")
+        pars = GWBirefringence.fit_Δts(ϵs, Xspinhall)[igeo, :, 1]
+        β, α = round.(pars; digits=5)
+        Plots.scatter!(fig, ϵs, abs.(xplus - xminus), label=L"\mathrm{Geodesic}~%$igeo; y(\epsilon) = %$α~\epsilon^{%$β}")
     end
 end
 
@@ -112,13 +118,13 @@ Plot the geodesic solutions.
 function plot_geodesics!(
     fig::Plots.Plot,
     Xgeo::Matrix{<:Real},
-    geometry::GWBirefringence.Geometry
+    geometry::Geometry,
 )
     Ngeo = size(Xgeo)[1]
     colors = Plots.palette(:lightrainbow,Ngeo)
     for i in 1:Ngeo
         X = cartesian_trajectory(Xgeo[i, 1:2], geometry, true)
-        Plots.plot!(fig, X[1,:], X[2, :], X[3, :], label="Geodesic $i", ls=:dash, color=colors[i])
+        Plots.plot!(fig, X[1,:], X[2, :], X[3, :], label="Geodesic $i", color=colors[i])
     end
 end
 
@@ -127,7 +133,8 @@ end
     plot_spinhall_trajectories!(
         fig::Plots.Plot,
         Xspinhall::Array{<:Real, 4},
-        geometries::Vector{GWBirefringence.Geometry}
+        ϵs::Vector{<:Real},
+        geometry::Geometry{<:Real}
     )
 
 Plot the spin-Hall solutions.
@@ -135,12 +142,15 @@ Plot the spin-Hall solutions.
 function plot_spinhall_trajectories!(
     fig::Plots.Plot,
     Xspinhall::Array{<:Real, 4},
-    geometries::Vector{<:Geometry{<:Real}}
+    ϵs::Vector{<:Real},
+    geometry::Geometry{<:Real}
 )
     
-    Neps = length(geometries)
-    colpos = Plots.palette(:matter, Neps)
-    colneg = Plots.palette(:haline, Neps)
+    Neps = length(ϵs)
+    geometries = [vary_ϵ(ϵ, geometry) for ϵ in ϵs]
+
+    colpos = Plots.palette(:rainbow, Neps)
+    colneg = Plots.palette(:rainbow, Neps)
     for igeo in 1:size(Xspinhall)[3]
         for i in 1:Neps
             geometry = geometries[i]
@@ -175,10 +185,10 @@ function plot_blackhole!(
     radius::Float64
 )
     if radius == 0.0
-        Plots.scatter!(fig, loc, label=nothing, c="black")
+        Plots.scatter!(fig, loc, c="black", label="BH")
     else
         s = Meshes.Sphere(loc, radius)
-        Plots.scatter!(fig, s, alpha=0.0025, label=nothing)
+        Plots.scatter!(fig, s, alpha=0.01, label="BH")
     end
 end
 
@@ -191,11 +201,11 @@ Plot the source and observer.
 function plot_start_end!(fig::Plots.Plot, geometry)
     Xsource = [geometry.source.r, geometry.source.θ, geometry.source.ϕ]
     GWBirefringence.spherical_to_cartesian!(Xsource)
-    Plots.scatter!(fig, [Xsource[1]], [Xsource[2]], [Xsource[3]], color="red", label=nothing)
+    Plots.scatter!(fig, [Xsource[1]], [Xsource[2]], [Xsource[3]], color="red", label="source")
 
     Xobs = [geometry.observer.r, geometry.observer.θ, geometry.observer.ϕ]
     GWBirefringence.spherical_to_cartesian!(Xobs)
-    Plots.scatter!(fig, [Xobs[1]], [Xobs[2]], [Xobs[3]], color="blue", label=nothing)
+    Plots.scatter!(fig, [Xobs[1]], [Xobs[2]], [Xobs[3]], color="blue", label="Observer")
 end
 
 

@@ -3,10 +3,13 @@
 ## Powerlaw outlier TO-DO
 - [x] Outlier detection when fitting the power law. If mean residuals too large fit a slope = 2 line (optionally) and throw away the biggest outlier and try recalculating, repeat until errors hit some threshold. 
 
+- [ ] This doesn't workkkkkkkkkk!
+
 
 ## Plotting TO-DO
-- [ ] Write down tools to simply calculate several configurations
-- [ ] Plot the intercept as the function of the source-lens-observer configuration
+- [x] Write down tools to simply calculate several configurations
+- [x] Decide whether to keep carrying on geometries or only a list of several base geometries and epsilons
+- [x] Plot the intercept as the function of the source-lens-observer configuration
 - [ ] When plotting time differences remove 0.0 (since log)
 
 ## Waveform TO-DO
@@ -21,5 +24,5 @@ $$
 
 
 ## Other TO-DO
-- [ ] Add support for varying other parameters.
+- [x] Add support for varying other parameters.
 - [ ] When looping over arrays stop assuming $s=\pm 2$ when summarising results.

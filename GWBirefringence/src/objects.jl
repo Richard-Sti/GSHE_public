@@ -1,4 +1,4 @@
-@with_kw mutable struct Params{T <: Real} <: Number
+@with_kw mutable struct Params{T <: Real}
     a::T
     ϵ::T
     s::T
@@ -12,7 +12,6 @@ end
     ϕ::T
 end
 
-
 @with_kw mutable struct Geometry{T <: Real}
     source::Spherical_coords{T}
     observer::Spherical_coords{T}
@@ -23,7 +22,7 @@ end
 end
 
 
-function Base.copy(geometry::GWBirefringence.Geometry)
+function Base.copy(geometry::Geometry)
     T = geometry.type
     source = GWBirefringence.Spherical_coords(@unpack t, r, θ, ϕ = geometry.source)
     observer = GWBirefringence.Spherical_coords(@unpack t, r, θ, ϕ= geometry.observer)
