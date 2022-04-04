@@ -23,7 +23,7 @@ def epsilon(f, M):
     return c.c**3 / (c.G * c.Msun) / M / f
 
 
-def time_delay_analytical(f, M, alpha=1, beta=3):
+def time_delay_analytical(f, M, alpha, beta):
     r"""
     Calculate the analytical time delay :math:`\Delta \tau(f)`.
 
@@ -76,3 +76,26 @@ def linear_to_circular(plus, cross):
     left.data = (plus.data - 1j*cross.data)/numpy.sqrt(2)
     return right, left
 
+
+def mixing(freqs, time_delay):
+    r"""
+    Calculate the mixing factor
+
+    .. math::
+
+        exp^{-2\pi i f \Delta \tau (f)}.
+    
+    Arguments
+    ---------
+    freqs: float
+        Frequency [Hz]
+    time_delay: float
+        Time delay [s]
+
+    Returns
+    -------
+    mixing: float
+        Mixing factor.
+    """
+    arg = 2 * numpy.pi * freqs * time_delay
+    return numpy.cos(arg) - 1j *numpy.sin(arg)
