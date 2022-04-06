@@ -8,6 +8,7 @@ The gravitational spin-Hall effect (GSHE) describes the frequency and spin-depen
 - [ ] Correct the conversion to observer proper time.
 - [ ] When looping over arrays stop assuming $s=\pm 2$ when summarising results.
 - [ ] Add an example notebook to calculate the deviations.
+- [ ] Move the Mathematica notebooks to scripts
 
 
 ## Things to be resolved later
