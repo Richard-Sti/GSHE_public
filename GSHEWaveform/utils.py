@@ -77,6 +77,36 @@ def linear_to_circular(plus, cross):
     return right, left
 
 
+def circular_to_linear(right, left):
+    """
+    Convert PyCBC series from circular to linear polarisation.
+
+    Input type:
+        T = pycbc.types.frequencyseries.FrequencySeries
+            or pycbc.types.frequencyseries.TimeSeries
+
+    Arguments
+    ---------
+    right : T
+        Right circular polarisation.
+    left : T
+        Left ciruclar polarisation.
+
+    Returns
+    -------
+    plus : T
+        Plus linear polarisation.
+    cross : T
+        Cross linear polarisation.
+    """
+    plus = deepcopy(right)
+    cross = deepcopy(left)
+    
+    plus.data = (right.data + left.data)/numpy.sqrt(2)
+    cross.data = -1j * (right.data - left.data)/numpy.sqrt(2)
+    return plus, cross
+
+
 def mixing(freqs, time_delay):
     r"""
     Calculate the mixing factor
