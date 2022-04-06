@@ -1,28 +1,18 @@
-# Gravitational spin-Hall equations
+# Gravitational spin-Hall effect
 
-## Powerlaw outlier TO-DO
-- [x] Outlier detection when fitting the power law. If mean residuals too large fit a slope = 2 line (optionally) and throw away the biggest outlier and try recalculating, repeat until errors hit some threshold. 
-
-- [ ] This doesn't workkkkkkkkkk!
+The gravitational spin-Hall effect (GSHE) describes the frequency and spin-dependent trajectories of wavepackets, such as gravitational-waves emitted from a binary black hole merger, propagating in strong gravitational fields as described in [1]. We calculate the GSHE-induced deviations from a null geodesic and the observed detector strain for a gravitational wavepacket. 
 
 
-## Plotting TO-DO
-- [x] Write down tools to simply calculate several configurations
-- [x] Decide whether to keep carrying on geometries or only a list of several base geometries and epsilons
-- [x] Plot the intercept as the function of the source-lens-observer configuration
-- [ ] When plotting time differences remove 0.0 (since log)
-
-## Waveform TO-DO
-
-- [ ] Model the waveform, likely compose backwards the frequency components as
-
-$$
-f(t) = \int \frac{\mathrm{d}\omega}{2\pi} e^{- i\omega\left[t + \Delta t(\omega)\right] \tilde{f}(\omega)}
-$$
-
-- [ ] The BH is initially shooting in diffferent diretions and we have an anisotropic source, different detector amplitudes? Understand why the polar angle $\rho$ appears to vary so much in some cases.
-
-
-## Other TO-DO
-- [x] Add support for varying other parameters.
+## TO-DO
+- [ ] When plotting time differences remove 0.0, if any (since we plot log).
+- [ ] Correct the conversion to observer proper time.
 - [ ] When looping over arrays stop assuming $s=\pm 2$ when summarising results.
+- [ ] Add an example notebook to calculate the deviations.
+
+
+## Things to be resolved later
+- [ ] GW emitter anisotropy
+
+
+## References
+[1] Andersson, Lars, Jérémie Joudioux, Marius A. Oancea, and Ayush Raj. "Propagation of polarized gravitational waves." Physical Review D 103, no. 4 (2021): 044053.
