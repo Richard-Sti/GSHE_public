@@ -5,10 +5,8 @@ The gravitational spin-Hall effect (GSHE) describes the frequency and spin-depen
 
 ## TO-DO
 - [ ] When plotting time differences remove 0.0, if any (since we plot log).
-- [ ] Correct the conversion to observer proper time.
 - [ ] When looping over arrays stop assuming $s=\pm 2$ when summarising results.
 - [ ] Add an example notebook to calculate the deviations.
-- [ ] Move the Mathematica notebooks to scripts
 - [ ] Correct expression for calculating Cartesians in Boyer-Lindquist coordinates in Kerr (only relevant for plotting however).
 
 
