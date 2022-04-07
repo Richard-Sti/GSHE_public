@@ -4,7 +4,6 @@
 (* ::Title:: *)
 (*Gravitational spin Hall effect*)
 
-
 (* ::Subtitle:: *)
 (*Coordinates*)
 
