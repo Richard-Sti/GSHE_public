@@ -63,7 +63,7 @@ Calculate the time of a static observer f(τ).
 """
 function static_observer_proper_time(x::Vector{<:Real}, a::Real)
     t, r, θ = @view x[1:3]
-    return t * sqrt(1 + 2*r / (r^2  - 2*r + a^2 * cos(θ)^2))
+    return t * sqrt(1 - 2r / (r^2 + a^2 * cos(θ)^2))
 end
 
 
