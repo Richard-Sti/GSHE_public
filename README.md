@@ -8,7 +8,6 @@ The gravitational spin-Hall effect (GSHE) describes the frequency and spin-depen
 - [ ] Add an example notebook to calculate the deviations.
 - [ ] Clean up some older code and think about Kerr-Schild coordinates
 - [ ] Redo again the outliers. Consider instead derivatives to make sure that the arrival time is continuous.
-- [ ] Redo again how new perturbed solutions are found -- set the previous value of ϵ as prior instead of the geodesic one
 
 
 ## Things to be resolved later
