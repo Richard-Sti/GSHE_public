@@ -217,6 +217,14 @@ function solve_geodesics(
     return Xgeos
 end
 
+"""
+    is_strictly_increasing(x::Union{Vector{<:Real}, LinRange{<:Real}})
+
+Check if a vector is strictly increasing.
+"""
+function is_strictly_increasing(x::Union{Vector{<:Real}, LinRange{<:Real}})
+    return all((x[i+1] - x[i]) > 0 for i in 1:length(x)-1)
+end
 
 """
     solve_gshe(
@@ -259,7 +267,7 @@ end
 
 
 """
-    solve_perturbed_config(
+    solve_gshe(
         Xgeo::Matrix{<:Real},
         base_geometry::Geometry{<:Real},
         ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
@@ -287,6 +295,7 @@ function solve_gshe(
     integration_error::Real=1e-12,
     Nmax::Integer=10,
 )
+    @assert is_strictly_increasing(ϵs) "`ϵs` must be strictly increasing."
     N = length(ϵs)
     Nsols = size(Xgeo)[1]
     Xspinhall = zeros(base_geometry.type, N, Nsols, 2, 4)
@@ -347,6 +356,7 @@ function solve_gshes(
     Nmax::Integer=10
 )
     @assert length(Xgeos) === length(geometries) "`Xgeos` and `geometries` must have the same length."
+    @assert is_strictly_increasing(ϵs) "`ϵs` must be strictly increasing."
     check_geometry_types(geometries)
     dtype = geometries[1].type
 
