@@ -232,29 +232,29 @@ Find the s = ± |s| GSHE solutions for a configuration and its (typically 2) geo
 value of ϵ.
 """
 function solve_gshe(
-    Xgeo::Matrix{<:Real},
+    Xinit::Array{<:Real, 3},
     geometry::Geometry,
     alg::NelderMead,
     options::Options;
     θmax0::Real=0.025,
     verbose::Bool=false
 )
-    Nsols = size(Xgeo)[1]
-
-    X = zeros(2, Nsols, 4)
+    Nsols = size(Xinit)[2]
+    X = zeros(geometry.type, 2, Nsols, 4)
     
-   for i in 1:Nsols
+    for i in 1:Nsols
         if verbose
             println("Iteration $i")
         end
         X[1, i, :] .= find_restricted_minimum(
-            geometry, Xgeo[i, 1:2], alg, options; θmax0=θmax0, Nmax=50)
+            geometry, Xinit[1, i, 1:2], alg, options; θmax0=θmax0, Nmax=50)
+        # Flip polarisation sign
         geometry.params.s *= -1
         X[2, i, :] .= find_restricted_minimum(
-            geometry, Xgeo[i, 1:2], alg, options; θmax0=θmax0, Nmax=50)
+            geometry, Xinit[1, i, 1:2], alg, options; θmax0=θmax0, Nmax=50)
         geometry.params.s *= -1
-   end
-   return X
+    end
+    return X
 end
 
 
@@ -281,7 +281,7 @@ function solve_gshe(
     ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
     alg::NelderMead,
     options::Options;
-    θmax0::Real=0.025,
+    θmax0::Real=0.015,
     verbose=true,
     residuals_tolerance::Real=1e-2,
     integration_error::Real=1e-12,
@@ -292,14 +292,23 @@ function solve_gshe(
     Xspinhall = zeros(base_geometry.type, N, Nsols, 2, 4)
     geometries = [vary_ϵ(ϵ, base_geometry) for ϵ in ϵs]
 
+    # Initial direction where to search. We assume to be searching in increasing values of
+    # ϵ and iteratively update this to be the new found solution for previous ϵ.
+    Xinit = zeros(base_geometry.type, 2, Nsols, 2)
+    for i in 1:Nsols, s in 1:2
+        Xinit[s, i, :] .= Xgeo[i, 1:2]
+    end
+
     for (i, geometry) in enumerate(geometries)
         if verbose
             @printf "%.2f%%, ϵ=%.2e\n" (i / N *100) geometry.params.ϵ
             flush(stdout)
         end
 
-        Xspinhall[i, :, : ,:] .= solve_perturbed_config(
-            Xgeo, geometry, alg, options; θmax0=θmax0)
+        Xspinhall[i, :, : ,:] .= solve_gshe(Xinit, geometry, alg, options; θmax0=θmax0)
+        # Update Xinit
+        Xinit .= Xspinhall[i, :, :, 1:2]
+        
     end
     # Check we have no strange outliers
     check_perturbed_config!(Xspinhall, Xgeo, geometries, alg, options;
