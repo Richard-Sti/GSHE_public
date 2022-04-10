@@ -393,7 +393,7 @@ function solve_geodesics_from_geometries(
             flush(stdout)
         end
 
-        Xgeos[i] = find_minima(geometries[i], alg, options; Nsols=Nsols)
+        Xgeos[i] = find_geodesic_minima(geometries[i], alg, options; Nsols=Nsols)
     end
 
     return Xgeos

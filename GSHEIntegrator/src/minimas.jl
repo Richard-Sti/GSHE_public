@@ -7,9 +7,9 @@
         Nattempts::Integer=50
     )
 
-Find `Nsols` minima of a geodesic.
+Find `Nsols` minima of a geodesic for a given geometry.
 """
-function find_minima(
+function find_geodesic_minima(
     geometry::Geometry,
     alg::NelderMead,
     options::Options;
@@ -21,7 +21,7 @@ function find_minima(
     f(p::Vector{<:Real}) = floss(p, X)
     for i in 1:Nsols
         # Optionally pass previously found solutions into the loss func.
-        Xnew = find_minimum(f, geometry, alg, options; Nmax=Nattempts)
+        Xnew = find_unconstrained_minimum(f, geometry, alg, options; Nmax=Nattempts)
         # Terminate the search
         if Xnew === nothing
             @info ("Search terminated with $(i-1)/$Nsols solutions after "
@@ -41,7 +41,7 @@ end
 
 
 """
-    find_minimum(
+    find_unconstrained_minimum(
         floss::Function,
         geometry::Geometry,
         alg::NelderMead,
@@ -50,9 +50,10 @@ end
         atol::Real=1e-12
     )
 
-Find minimum of a geodesic function `floss(p::Vector{<:Real})`.
+Find minimum of a loss function ``floss`` whose argument is a length 2 vector of spherical
+angles.
 """
-function find_minimum(
+function find_unconstrained_minimum(
     floss::Function,
     geometry::Geometry,
     alg::NelderMead,
