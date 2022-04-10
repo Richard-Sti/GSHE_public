@@ -69,6 +69,28 @@ end
 
 
 """
+    vary_ϵ(ϵ::Real, geometry::Geometry)
+
+Copy geometry and replace its ϵ with a new value specified in the function input.
+"""
+function vary_ϵ(ϵ::Real, geometry::Geometry)
+    new_geometry = copy(geometry)
+    new_geometry.params.ϵ = ϵ
+    return new_geometry
+end
+
+
+"""
+    check_geometry_types(geometries::Vector{<:Geometry{<:Real}})
+
+Check that each geometry has the same data type.
+"""
+function check_geometry_types(geometries::Vector{<:Geometry{<:Real}})
+    dtype = geometries[1].type
+    @assert all([dtype == geo.type for geo in geometries]) "All geometry data types must be the same."
+end
+
+"""
     setup_geodesic_solver(geometry::Geometry)
 
 Setup the geodesic solver for a given geometry.
@@ -158,6 +180,41 @@ function setup_spinhall_loss(geometry::Geometry)
         return spinhall_loss(p, pgeo, θmax, solver, geometry)
     end
     return loss
+end
+
+
+"""
+    solve_geodesics_from_geometries(
+        geometries::Vector{<:Geometry{<:Real}},
+        alg::NelderMead,
+        options::Options;
+        Nsols::Integer=2,
+        verbose::Bool=true
+    )
+Find the geodesic solutions for a list of geometries.
+"""
+function solve_geodesics_from_geometries(
+    geometries::Vector{<:Geometry{<:Real}},
+    alg::NelderMead,
+    options::Options;
+    Nsols::Integer=2,
+    verbose::Bool=true
+)
+    check_geometry_types(geometries)
+    dtype = geometries[1].type
+
+    N = length(geometries)
+    Xgeos = Vector{Matrix{dtype}}(undef, N)
+    Threads.@threads for i in 1:N
+        if verbose
+            print("Solving geodesics for geometry $i/$N\n")
+            flush(stdout)
+        end
+
+        Xgeos[i] = find_geodesic_minima(geometries[i], alg, options; Nsols=Nsols)
+    end
+
+    return Xgeos
 end
 
 
@@ -253,6 +310,55 @@ end
 
 
 """
+    solve_perturbed_config(
+        Xgeos::Vector{<:Matrix{<:Real}},
+        geometries::Vector{<:Geometry{<:Real}},
+        ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+        alg::NelderMead,
+        options::Options;
+        θmax0::Real=0.025,
+        verbose::Bool=true,
+        residuals_tolerance::Real=1e-2,
+        integration_error::Real=1e-12,
+        Nmax::Integer=10
+    )
+Find the s = ± 2 perturbed solutions for each geodesic.
+"""
+function solve_perturbed_config(
+    Xgeos::Vector{<:Matrix{<:Real}},
+    geometries::Vector{<:Geometry{<:Real}},
+    ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+    alg::NelderMead,
+    options::Options;
+    θmax0::Real=0.025,
+    verbose::Bool=true,
+    residuals_tolerance::Real=1e-2,
+    integration_error::Real=1e-12,
+    Nmax::Integer=10
+)
+    @assert length(Xgeos) === length(geometries) "`Xgeos` and `geometries` must have the same length."
+    check_geometry_types(geometries)
+    dtype = geometries[1].type
+
+    Xspinhalls = Vector{Array{dtype, 4}}(undef, length(Xgeos))
+    Ngeo = length(geometries)
+
+    Threads.@threads for i in 1:Ngeo
+        if verbose
+            print("Solving perturbations for geometry $i/$Ngeo\n")
+            flush(stdout)
+        end
+        Xspinhalls[i] = solve_perturbed_config(Xgeos[i], geometries[i], ϵs, alg, options;
+            θmax0=θmax0, verbose=false, residuals_tolerance=residuals_tolerance,
+            integration_error=integration_error, Nmax=Nmax)
+    end
+
+    return Xspinhalls
+
+end
+
+
+"""
     check_perturbed_config!(
         Xspinhall::Array{<:Real, 4},
         Xgeo::Matrix{<:Real},
@@ -339,111 +445,4 @@ function check_perturbed_config!(
     end
 
     return nothing 
-end
-
-
-"""
-    vary_ϵ(ϵ::Real, geometry::Geometry)
-
-Copy geometry and replace its ϵ with a new value specified in the function input.
-"""
-function vary_ϵ(ϵ::Real, geometry::Geometry)
-    new_geometry = copy(geometry)
-    new_geometry.params.ϵ = ϵ
-    return new_geometry
-end
-
-
-"""
-    check_geometry_types(geometries::Vector{<:Geometry{<:Real}})
-
-Check that each geometry has the same data type.
-"""
-function check_geometry_types(geometries::Vector{<:Geometry{<:Real}})
-    dtype = geometries[1].type
-    @assert all([dtype == geo.type for geo in geometries]) "All geometry data types must be the same."
-end
-
-
-"""
-    solve_geodesics_from_geometries(
-        geometries::Vector{<:Geometry{<:Real}},
-        alg::NelderMead,
-        options::Options;
-        Nsols::Integer=2,
-        verbose::Bool=true
-    )
-Find the geodesic solutions for a list of geometries.
-"""
-function solve_geodesics_from_geometries(
-    geometries::Vector{<:Geometry{<:Real}},
-    alg::NelderMead,
-    options::Options;
-    Nsols::Integer=2,
-    verbose::Bool=true
-)
-    check_geometry_types(geometries)
-    dtype = geometries[1].type
-
-    N = length(geometries)
-    Xgeos = Vector{Matrix{dtype}}(undef, N)
-    Threads.@threads for i in 1:N
-        if verbose
-            print("Solving geodesics for geometry $i/$N\n")
-            flush(stdout)
-        end
-
-        Xgeos[i] = find_geodesic_minima(geometries[i], alg, options; Nsols=Nsols)
-    end
-
-    return Xgeos
-end
-
-
-"""
-    solve_perturbed_config(
-        Xgeos::Vector{<:Matrix{<:Real}},
-        geometries::Vector{<:Geometry{<:Real}},
-        ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
-        alg::NelderMead,
-        options::Options;
-        θmax0::Real=0.025,
-        verbose::Bool=true,
-        residuals_tolerance::Real=1e-2,
-        integration_error::Real=1e-12,
-        Nmax::Integer=10
-    )
-Find the s = ± 2 perturbed solutions for each geodesic.
-"""
-function solve_perturbed_config(
-    Xgeos::Vector{<:Matrix{<:Real}},
-    geometries::Vector{<:Geometry{<:Real}},
-    ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
-    alg::NelderMead,
-    options::Options;
-    θmax0::Real=0.025,
-    verbose::Bool=true,
-    residuals_tolerance::Real=1e-2,
-    integration_error::Real=1e-12,
-    Nmax::Integer=10
-)
-    @assert length(Xgeos) === length(geometries) "`Xgeos` and `geometries` must have the same length."
-    check_geometry_types(geometries)
-    dtype = geometries[1].type
-
-    Xspinhalls = Vector{Array{dtype, 4}}(undef, length(Xgeos))
-    Ngeo = length(geometries)
-
-    Threads.@threads for i in 1:Ngeo
-        if verbose
-            print("Solving perturbations for geometry $i/$Ngeo\n")
-            flush(stdout)
-        end
-        Xspinhalls[i] = solve_perturbed_config(Xgeos[i], geometries[i], ϵs, alg, options;
-            θmax0=θmax0, verbose=false, residuals_tolerance=residuals_tolerance,
-            integration_error=integration_error, Nmax=Nmax)
-    end
-
-    return Xspinhalls
-
 end
