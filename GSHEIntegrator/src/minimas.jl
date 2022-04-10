@@ -88,7 +88,7 @@ end
 """
     find_restricted_minimum(
         geometry::Geometry,
-        pfound::Vector{<:Real},
+        mu::Vector{<:Real},
         alg::NelderMead,
         options::Options;
         θmax0::Real=0.025,
@@ -96,11 +96,11 @@ end
         atol::Real=1e-12
     )
 
-Find a spin Hall minimum. Searches withing `θmax` angular distance of `pfound`.
+Find a spin Hall minimum. Searches withing `θmax` angular distance of `mu`.
 """
 function find_restricted_minimum(
     geometry::Geometry,
-    pfound::Vector{<:Real},
+    mu::Vector{<:Real},
     alg::NelderMead,
     options::Options;
     θmax0::Real=0.025,
@@ -113,20 +113,19 @@ function find_restricted_minimum(
         # Sample initial position and inv transform it
         p0 = rvs_sphere_y(θmax; type=geometry.type)
         @. p0 = atan_invtransform(p0, θmax)
-        f(p::Vector{<:Real}) = loss(p, pfound, θmax)
+        f(p::Vector{<:Real}) = loss(p, mu, θmax)
 
         opt = optimize(f, p0, alg, options)
         if isapprox(opt.minimum, 0.0, atol=atol)
             # Transform back to the default coordinate system
             x = opt.minimizer
             @. x = atan_transform(x, θmax)
-            rotate_from_y!(x, pfound)
+            rotate_from_y!(x, mu)
             push!(x, geometry.arrival_time, geometry.redshift)
             return x
         else
             θmax0 *= 1.25
         end
     end
-
     return nothing
 end
