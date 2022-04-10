@@ -7,12 +7,11 @@ The gravitational spin-Hall effect (GSHE) describes the frequency and spin-depen
 - [ ] When looping over arrays stop assuming $s=\pm 2$ when summarising results.
 - [ ] Add an example notebook to calculate the deviations.
 - [ ] Clean up some older code and think about Kerr-Schild coordinates
-- [ ] Redo again the outliers. Consider instead derivatives to make sure that the arrival time is continuous.
 
 
 ## Things to be resolved later
-- [ ] GW emitter anisotropy
-- [ ] JuliaSymbolics.jl to generate high-performance code from symbolic expressions? But the current code (ODEs themselves) is already very fast.
+- GW emitter anisotropy
+- JuliaSymbolics.jl to generate high-performance code from symbolic expressions? But the current code (ODEs themselves) is already very fast. Had a brief look at the package but didn't make much sense out of it.
 
 
 ## References

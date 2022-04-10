@@ -275,9 +275,10 @@ end
         options::Options;
         θmax0::Real=0.025,
         verbose=true,
-        residuals_tolerance::Real=1e-2,
+        normlinear_tol::Real=1e-1,
         integration_error::Real=1e-12,
         Nmax::Integer=10,
+        check_sols::Bool=true
     )
 
 Find the s = ± |s| GSHE trajectories for a given geodesic. Iterates over ϵ values.
@@ -291,9 +292,10 @@ function solve_gshe(
     options::Options;
     θmax0::Real=0.015,
     verbose=true,
-    residuals_tolerance::Real=1e-2,
+    normlinear_tol::Real=1e-1,
     integration_error::Real=1e-12,
     Nmax::Integer=10,
+    check_sols::Bool=true
 )
     @assert is_strictly_increasing(ϵs) "`ϵs` must be strictly increasing."
     N = length(ϵs)
@@ -320,9 +322,11 @@ function solve_gshe(
         
     end
     # Check we have no strange outliers
-    check_perturbed_config!(Xspinhall, Xgeo, geometries, alg, options;
-        θmax0=θmax0, residuals_tolerance=residuals_tolerance, integration_error=integration_error,
-        Nmax=Nmax)
+    if check_sols
+        check_perturbed_config!(Xspinhall, Xgeo, geometries, alg, options;
+            θmax0=θmax0, normlinear_tol=normlinear_tol, integration_error=integration_error,
+            Nmax=Nmax)
+    end
 
     return Xspinhall
 end
@@ -337,9 +341,10 @@ end
         options::Options;
         θmax0::Real=0.025,
         verbose::Bool=true,
-        residuals_tolerance::Real=1e-2,
+        normlinear_tol::Real=1e-1,
         integration_error::Real=1e-12,
-        Nmax::Integer=10
+        Nmax::Integer=10,
+        check_sols::Bool=true
     )
 Find the s = ± |s| GSHE solutions. Iterates over configurations.
 """
@@ -351,9 +356,10 @@ function solve_gshes(
     options::Options;
     θmax0::Real=0.025,
     verbose::Bool=true,
-    residuals_tolerance::Real=1e-2,
+    normlinear_tol::Real=1e-1,
     integration_error::Real=1e-12,
-    Nmax::Integer=10
+    Nmax::Integer=10,
+    check_sols::Bool=true
 )
     @assert length(Xgeos) === length(geometries) "`Xgeos` and `geometries` must have the same length."
     @assert is_strictly_increasing(ϵs) "`ϵs` must be strictly increasing."
@@ -369,12 +375,23 @@ function solve_gshes(
             flush(stdout)
         end
         Xspinhalls[i] = solve_gshe(Xgeos[i], geometries[i], ϵs, alg, options;
-            θmax0=θmax0, verbose=false, residuals_tolerance=residuals_tolerance,
-            integration_error=integration_error, Nmax=Nmax)
+            θmax0=θmax0, verbose=false, normlinear_tol=normlinear_tol,
+            integration_error=integration_error, Nmax=Nmax, check_sols=check_sols)
     end
 
     return Xspinhalls
 
+end
+
+
+"""
+    is_equally_spaced(x::Vector{<:Real})
+
+Check whether a vector is equally spaced up to some default tolerance.
+"""
+function is_equally_spaced(x::Vector{<:Real})
+    dx = [x[i+1] - x[i] for i in 1:length(x)-1]
+    return all(isapprox(dx[1], dx[i]) for i in 2:length(dx))
 end
 
 
@@ -386,14 +403,14 @@ end
         alg::NelderMead,
         options::Options;
         θmax0::Real=0.025,
-        residuals_tolerance::Real=1e-2,
+        normlinear_tol::Real=1e-1,
         integration_error::Real=1e-12,
         Nmax::Integer=10
     )
 
 Check the outliers of the Δt - ϵ relation between the s = ± 2 polarisations. Picks out
 the outliers with `LinRegOutliers.smr98` and checks whether they are above
-`residuals_tolerance`. If yes attempts to recalculate it for `Nmax` attempts. If no solution
+`normlinear_tol`. If yes attempts to recalculate it for `Nmax` attempts. If no solution
 is found replaces with NaNs.
 """
 function check_perturbed_config!(
@@ -403,64 +420,72 @@ function check_perturbed_config!(
     alg::NelderMead,
     options::Options;
     θmax0::Real=0.025,
-    residuals_tolerance::Real=1e-2,
+    normlinear_tol::Real=1e-1,
     integration_error::Real=1e-12,
     Nmax::Integer=10
 )
-    log_ϵs = log10.([geo.params.ϵ for geo in geometries])
+    ϵs = [geo.params.ϵ for geo in geometries]
+    log_ϵs = log10.(ϵs)
+
+    @assert is_strictly_increasing(log_ϵs) "ϵ must be strictly increasing."
+    if ~is_equally_spaced(log_ϵs)
+        @warn "ϵs are not logarithimically spaced. Skipping checks, proceed carefully."
+        return
+    end
+    flush(stdout)
+
     Nsols = size(Xgeo)[1]
-    df = DataFrame(x=log_ϵs, y=log_ϵs)
-    formula = @formula y ~ x
+    Nϵs = length(log_ϵs)
 
+    for igeo in 1:Nsols, s in 1:2, n in 1:(Nmax + 1)
+        y = abs.(Xspinhall[:, s, igeo, 3] .- Xgeo[igeo, 3])
+        y = y[y .> integration_error]
 
-    for igeo in 1:Nsols, j in 1:(Nmax + 1)
-        y = abs.(Xspinhall[:, 1, igeo, 3] - Xspinhall[:, 2, igeo, 3])
-        x, y = cut_below_integration_error(log_ϵs, y, integration_error)
+        outliers = Vector{Int64}()
 
-        df.x .= x
-        df.y .= log10.(y)
-        reg = createRegressionSetting(formula, df)
-        outliers= smr98(reg)["outliers"]
+        for i in 2:(Nϵs-1)
+            mu = (y[i + 1] + y[i - 1]) / 2
+            if abs(y[i] - mu) / ϵs[i] > normlinear_tol
+                push!(outliers, i)
+            end
+        end
 
         # If no outliers exit
         if length(outliers) == 0
             continue
         end
 
-        # Check the outliers residuals
-        # Fit LLSQ on non-outliers
-        mask = .~[(i in outliers) for i in 1:length(log_ϵs)]
-        fit = llsq(df.x[mask], df.y[mask])
-        # Calculate residuals
-        res = abs.(df.y[.~mask] .- (fit[1] .* df.x[.~mask] .+ fit[2]))
-        # Rule out small residuals
-        outliers = outliers[res .> residuals_tolerance]
-
-        # If all these outliers below tolerance exit the check
-        if length(outliers) == 0
-            continue
-        end
-
-        # If reached Nmax exit check
-        if j > Nmax
-            @warn "Failed to recalculate $(length(outliers)) outliers. Setting to NaN."
+        # Exit if too many attempts
+        if n == Nmax + 1
+            @warn ("Failed to recalculate outliers $outliers for igeo=$igeo, s=$s. "
+                   *"Setting to NaN, either inspect the solutions or increase `normlinear_tol`.")
             flush(stdout)
-            for k in outliers, s in [2, -2]
-                Xspinhall[k, s == 2 ? 1 : 2, igeo, :] .= NaN
+            for k in outliers
+                Xspinhall[k, s, igeo, :] .= NaN
             end
+            # Continue to the next upper level loop
             continue
         else
-            @info "Detected $(length(outliers)) outlier. Recalculating."
+            @info "Detected outliers $outliers for igeo=$igeo, s=$s. Attempting to recalculate."
             flush(stdout)
         end
 
-        for k in outliers, s in [2, -2]
-            s < 0 ? geometries[k].params.s *= -1 : nothing 
+        good_gshes = [i for i in 1:Nϵs if ~(i in outliers)]
+        # Ensure outliers are sorted
+        sort!(outliers)
+        for k in outliers
+            # Get the previous good solution
+            if k == 1
+                p0 = Xgeo[igeo, 1:2]
+            else
+                p0 = Xspinhall[argmin(abs.(good_gshes .- k)), s, igeo, 1:2]
+            end
 
-            Xspinhall[k, s == 2 ? 1 : 2, igeo, :] .= find_restricted_minimum(
-                geometries[k], Xgeo[igeo, 1:2], alg, options; θmax0=θmax0, Nmax=50)
-
-            s < 0 ? geometries[k].params.s *= -1 : nothing 
+            # s = 2 corresponds to the negative polarisation
+            s == 2 ? geometries[k].params.s *= -1 : nothing 
+            Xspinhall[k, s, igeo, :] .= find_restricted_minimum(
+                geometries[k], p0, alg, options; θmax0=θmax0, Nmax=50)
+            s == 2 ? geometries[k].params.s *= -1 : nothing 
         end
     end
 
