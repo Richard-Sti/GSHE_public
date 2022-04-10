@@ -184,7 +184,7 @@ end
 
 
 """
-    solve_geodesics_from_geometries(
+    solve_geodesics(
         geometries::Vector{<:Geometry{<:Real}},
         alg::NelderMead,
         options::Options;
@@ -193,7 +193,7 @@ end
     )
 Find the geodesic solutions for a list of geometries.
 """
-function solve_geodesics_from_geometries(
+function solve_geodesics(
     geometries::Vector{<:Geometry{<:Real}},
     alg::NelderMead,
     options::Options;
@@ -219,7 +219,7 @@ end
 
 
 """
-    solve_perturbed_config(
+    solve_gshe(
         Xgeo::Matrix{<:Real},
         geometry::Geometry,
         alg::NelderMead,
@@ -228,9 +228,10 @@ end
         verbose::Bool=false
     )
 
-Find the s = ± 2 spin-Hall perturbations for geodesics specified in `Xgeo`.
+Find the s = ± |s| GSHE solutions for a configuration and its (typically 2) geodesics at a fixed
+value of ϵ.
 """
-function solve_perturbed_config(
+function solve_gshe(
     Xgeo::Matrix{<:Real},
     geometry::Geometry,
     alg::NelderMead,
@@ -271,10 +272,10 @@ end
         Nmax::Integer=10,
     )
 
-Find the s = ± 2 spin-Hall perturbations for geodesics specified in `Xgeo`. Varies the
-geometry.
+Find the s = ± |s| GSHE trajectories for a given geodesic. Iterates over ϵ values.
+Checks whether the ϵ dependence is sensible.
 """
-function solve_perturbed_config(
+function solve_gshe(
     Xgeo::Matrix{<:Real},
     base_geometry::Geometry{<:Real},
     ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
@@ -310,7 +311,7 @@ end
 
 
 """
-    solve_perturbed_config(
+    solve_gshes(
         Xgeos::Vector{<:Matrix{<:Real}},
         geometries::Vector{<:Geometry{<:Real}},
         ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
@@ -322,9 +323,9 @@ end
         integration_error::Real=1e-12,
         Nmax::Integer=10
     )
-Find the s = ± 2 perturbed solutions for each geodesic.
+Find the s = ± |s| GSHE solutions. Iterates over configurations.
 """
-function solve_perturbed_config(
+function solve_gshes(
     Xgeos::Vector{<:Matrix{<:Real}},
     geometries::Vector{<:Geometry{<:Real}},
     ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
@@ -345,10 +346,10 @@ function solve_perturbed_config(
 
     Threads.@threads for i in 1:Ngeo
         if verbose
-            print("Solving perturbations for geometry $i/$Ngeo\n")
+            print("Solving GSHE, geometry $i/$Ngeo\n")
             flush(stdout)
         end
-        Xspinhalls[i] = solve_perturbed_config(Xgeos[i], geometries[i], ϵs, alg, options;
+        Xspinhalls[i] = solve_gshe(Xgeos[i], geometries[i], ϵs, alg, options;
             θmax0=θmax0, verbose=false, residuals_tolerance=residuals_tolerance,
             integration_error=integration_error, Nmax=Nmax)
     end
