@@ -100,3 +100,28 @@ def fd_to_td_fiducialshift(htilde, left_window=None, right_window=None,
     # Shift back forwards
     h.start_time -= tshift
     return h
+
+
+def waveform_to_strain(hp, hc, Fp, Fc):
+    """
+    Turn plus and cross waveforms into strain given some detector response
+    coefficients. Multiplise the polarisation waveform with its antenna
+    response and sums over the two states.
+
+    Arguments 
+    ---------
+    hp : :py:class:`pycbc.types.timeseries.TimeSeries`
+        Time-domain plus polarisation waveform.
+    hc : :py:class:`pycbc.types.timeseries.TimeSeries`
+        Time-domain cross polarisation waveform.
+    Fp : float
+        Plus polarisation sensitivity.
+    Fc : float
+        Cross polarisation sensitivity.
+
+    Returns
+    -------
+    strain : :py:class:`pycbc.types.timeseries.TimeSeries`
+        Time-domain detector strain.
+    """
+    return hp * Fp + hc * Fc

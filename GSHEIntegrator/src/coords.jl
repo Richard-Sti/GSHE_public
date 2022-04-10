@@ -41,12 +41,12 @@ end
 
 
 """
-    spherical_to_cartesian(X::Vector)
+    spherical_to_cartesian!(X::Vector, a::Real=0.0)
 
 Calculate the Cartesian coordinates (x, y, z) from spherical (θ, ϕ) or (r, θ, ϕ), depending
 on the input length.
 """
-function spherical_to_cartesian!(X::Vector{<:Real})
+function spherical_to_cartesian!(X::Vector{<:Real}, a::Real=0.0)
     if length(X) == 2
         θ, ϕ = X
         r = 1.0
@@ -54,19 +54,20 @@ function spherical_to_cartesian!(X::Vector{<:Real})
         r, θ, ϕ = X
     end
     sθ, cθ = sin(θ), cos(θ)
-    X[1] = r * cos(ϕ) * sθ
-    X[2] = r * sin(ϕ) * sθ
-    X[3] = r * cθ
+    rad = sqrt(r^2 + a^2)
+    X[1] = rad * cos(ϕ) * sθ
+    X[2] = rad * sin(ϕ) * sθ
+    X[3] = rad * cθ
 end
 
 
 """
-    spherical_to_cartesian(X::Vector{<:Real})
+    spherical_to_cartesian(X::Vector{<:Real}, a::Real=0.0)
 
 Calculate the Cartesian coordinates (x, y, z) from spherical (θ, ϕ) or (r, θ, ϕ), depending
 on the input length.
 """
-function spherical_to_cartesian(X::Vector{<:Real})
+function spherical_to_cartesian(X::Vector{<:Real}, a::Real=0.0)
     if length(X) == 2
         θ, ϕ = X
         r = 1.0
@@ -74,9 +75,10 @@ function spherical_to_cartesian(X::Vector{<:Real})
         r, θ, ϕ = X
     end
     r, sθ, cθ = r, sin(θ), cos(θ)
-    x = r * cos(ϕ) * sθ
-    y = r * sin(ϕ) * sθ
-    z = r * cθ
+    rad = sqrt(r^2 + a^2)
+    x = rad * cos(ϕ) * sθ
+    y = rad * sin(ϕ) * sθ
+    z = rad * cθ
     return [x, y, z]
 end
 

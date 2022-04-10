@@ -4,14 +4,16 @@ The gravitational spin-Hall effect (GSHE) describes the frequency and spin-depen
 
 
 ## TO-DO
-- [ ] When plotting time differences remove 0.0, if any (since we plot log).
 - [ ] When looping over arrays stop assuming $s=\pm 2$ when summarising results.
 - [ ] Add an example notebook to calculate the deviations.
-- [ ] Correct expression for calculating Cartesians in Boyer-Lindquist coordinates in Kerr (only relevant for plotting however).
+- [ ] Clean up some older code and think about Kerr-Schild coordinates
+- [ ] Redo again the outliers. Consider instead derivatives to make sure that the arrival time is continuous.
+- [ ] Redo again how new perturbed solutions are found -- set the previous value of ϵ as prior instead of the geodesic one
 
 
 ## Things to be resolved later
 - [ ] GW emitter anisotropy
+- [ ] JuliaSymbolics.jl to generate high-performance code from symbolic expressions? But the current code (ODEs themselves) is already very fast.
 
 
 ## References

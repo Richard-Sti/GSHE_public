@@ -1,4 +1,4 @@
-module GWBirefringence
+module GSHEIntegrator 
 
 export init_values
 export Params, Spherical_coords, Geometry

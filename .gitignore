@@ -3,5 +3,5 @@
 *.ipynb_checkpoints
 */__pycache__/
 *.vscode/
-*.ipynb
 *.jld2
+mathematica_export/*

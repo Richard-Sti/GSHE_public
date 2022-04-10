@@ -58,9 +58,9 @@ function setup_geometries(
     as::Union{Vector{T}, LinRange{T}},
     s::Integer=2
 ) where T<: Real
-    base_geometries = Vector{GWBirefringence.Geometry{type}}()
+    base_geometries = Vector{Geometry{type}}()
     for rs in rsource, θs in θsource, ϕs in ϕsource, ro in robs, θo in θobs, ϕo in ϕobs, a in as
-        geo = GWBirefringence.setup_geometry(type;
+        geo = setup_geometry(type;
             rsource=rs, θsource=θs, ϕsource=ϕs, robs=ro, θobs=θo, ϕobs=ϕo, a=a, ϵ=0.01, s=s)
         push!(base_geometries, geo)
     end
@@ -107,12 +107,12 @@ end
 
 
 """
-    setup_spinhall_solver(geometry::GWBirefringence.Geometry)
+    setup_spinhall_solver(geometry::Geometry)
 
 Setup the spin Hall trajectory solver for a given geometry without reference frame
 rotations.
 """
-function setup_spinhall_solver_norot(geometry::GWBirefringence.Geometry)
+function setup_spinhall_solver_norot(geometry::Geometry)
     # Get callbacks from upthere
     cb = get_callbacks(geometry)
     prob = ode_problem(spinhall_odes!, geometry)
@@ -127,12 +127,12 @@ end
 
 
 """
-    setup_spinhall_solver(geometry::GWBirefringence.Geometry)
+    setup_spinhall_solver(geometry::Geometry)
 
 Setup the spin Hall trajectory solver for a given geometry including reference frame
 rotations.
 """
-function setup_spinhall_solver(geometry::GWBirefringence.Geometry)
+function setup_spinhall_solver(geometry::Geometry)
     # Get callbacks from upthere
     cb = get_callbacks(geometry)
     prob = ode_problem(spinhall_odes!, geometry)
@@ -147,11 +147,11 @@ end
 
 
 """
-    setup_spinhall_loss(geometry::GWBirefringence.Geometry)
+    setup_spinhall_loss(geometry::Geometry)
 
 Setup the spin Hall trajectory loss function for a given geometry.
 """
-function setup_spinhall_loss(geometry::GWBirefringence.Geometry)
+function setup_spinhall_loss(geometry::Geometry)
     solver = setup_spinhall_solver(geometry)
     # Loss function, define with two methods
     function loss(p::Vector{<:Real}, pgeo::Vector{<:Real}, θmax::Real)
@@ -189,10 +189,10 @@ function solve_perturbed_config(
         if verbose
             println("Iteration $i")
         end
-        X[1, i, :] .= GWBirefringence.find_restricted_minimum(
+        X[1, i, :] .= find_restricted_minimum(
             geometry, Xgeo[i, 1:2], alg, options; θmax0=θmax0, Nmax=50)
         geometry.params.s *= -1
-        X[2, i, :] .= GWBirefringence.find_restricted_minimum(
+        X[2, i, :] .= find_restricted_minimum(
             geometry, Xgeo[i, 1:2], alg, options; θmax0=θmax0, Nmax=50)
         geometry.params.s *= -1
    end
@@ -298,7 +298,7 @@ function check_perturbed_config!(
 
         # If no outliers exit
         if length(outliers) == 0
-            break
+            continue
         end
 
         # Check the outliers residuals
@@ -312,7 +312,7 @@ function check_perturbed_config!(
 
         # If all these outliers below tolerance exit the check
         if length(outliers) == 0
-            break
+            continue
         end
 
         # If reached Nmax exit check
@@ -322,7 +322,7 @@ function check_perturbed_config!(
             for k in outliers, s in [2, -2]
                 Xspinhall[k, s == 2 ? 1 : 2, igeo, :] .= NaN
             end
-            break
+            continue
         else
             @info "Detected $(length(outliers)) outlier. Recalculating."
             flush(stdout)
@@ -331,7 +331,7 @@ function check_perturbed_config!(
         for k in outliers, s in [2, -2]
             s < 0 ? geometries[k].params.s *= -1 : nothing 
 
-            Xspinhall[k, s == 2 ? 1 : 2, igeo, :] .= GWBirefringence.find_restricted_minimum(
+            Xspinhall[k, s == 2 ? 1 : 2, igeo, :] .= find_restricted_minimum(
                 geometries[k], Xgeo[igeo, 1:2], alg, options; θmax0=θmax0, Nmax=50)
 
             s < 0 ? geometries[k].params.s *= -1 : nothing 
@@ -343,7 +343,7 @@ end
 
 
 """
-    vary_ϵ(ϵ::Real, geometry::GWBirefringence.Geometry)
+    vary_ϵ(ϵ::Real, geometry::Geometry)
 
 Copy geometry and replace its ϵ with a new value specified in the function input.
 """
@@ -393,7 +393,7 @@ function solve_geodesics_from_geometries(
             flush(stdout)
         end
 
-        Xgeos[i] = GWBirefringence.find_minima(geometries[i], alg, options; Nsols=Nsols)
+        Xgeos[i] = find_minima(geometries[i], alg, options; Nsols=Nsols)
     end
 
     return Xgeos

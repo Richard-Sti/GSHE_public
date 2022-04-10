@@ -1,7 +1,29 @@
 import numpy
 from scipy import constants as c
 from copy import deepcopy
+# Append the solar mass
 c.Msun = 1.989e30
+
+
+def coordinate_time_to_seconds(t, M):
+    r"""
+    Convert coordinate time (:math:`R_s=2`, :math:`c=1`)  to seconds by
+    multiplying it by a factor of :math:`R_s / c`.
+
+    Arguments
+    ---------
+    t : float
+        Coordinate time [natural units].
+    M : float
+        Background object mass [Msun].
+    
+    Returns
+    -------
+    t : float
+        Time [s].
+    """
+    Rs = 2 * c.G * c.Msun * M / c.c**2
+    return t * Rs / c.c
 
 
 def epsilon(f, M):

@@ -24,8 +24,8 @@ end
 
 function Base.copy(geometry::Geometry)
     T = geometry.type
-    source = GWBirefringence.Spherical_coords(@unpack t, r, θ, ϕ = geometry.source)
-    observer = GWBirefringence.Spherical_coords(@unpack t, r, θ, ϕ= geometry.observer)
-    params = GWBirefringence.Params(@unpack a, ϵ, s = geometry.params)
-    return GWBirefringence.Geometry{T}(source=source,observer=observer, params=params, type=T)
+    source = Spherical_coords(@unpack t, r, θ, ϕ = geometry.source)
+    observer = Spherical_coords(@unpack t, r, θ, ϕ= geometry.observer)
+    params = Params(@unpack a, ϵ, s = geometry.params)
+    return Geometry{T}(source=source,observer=observer, params=params, type=T)
 end

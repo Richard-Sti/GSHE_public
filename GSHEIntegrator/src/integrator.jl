@@ -1,5 +1,5 @@
 """
-    ffield_callback(geometry::GWBirefringence.geometry; interp_points::Integer=10)
+    ffield_callback(geometry::Geometry; interp_points::Integer=10)
 
 Far field callback, terminate integration when observer radius is reached.
 """
@@ -191,7 +191,7 @@ function spinhall_loss(
     geometry::Geometry;
     rtol::Float64=1e-10,
 )
-    px = GWBirefringence.atan_transform.(p, θmax)
+    px = atan_transform.(p, θmax)
     if ~angular_bounds(px, θmax)
         return Inf64
     end

@@ -106,7 +106,7 @@ function find_restricted_minimum(
     Nmax::Integer=500,
     atol::Real=1e-12
 )
-    loss = GWBirefringence.setup_spinhall_loss(geometry)
+    loss = setup_spinhall_loss(geometry)
     for i in 1:Nmax
         θmax = θmax_scaling(θmax0, geometry.params.ϵ)
         # Sample initial position and inv transform it
