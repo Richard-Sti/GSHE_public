@@ -5,3 +5,4 @@
 *.vscode/
 *.jld2
 mathematica_export/*
+notebooks/paper_plot.ipynb
