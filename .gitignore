@@ -7,3 +7,4 @@
 *.npy
 mathematica_export/*
 notebooks/paper_plot.ipynb
+notebooks/trajectories.ipynb
