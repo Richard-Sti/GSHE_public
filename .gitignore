@@ -4,5 +4,6 @@
 */__pycache__/
 *.vscode/
 *.jld2
+*.npy
 mathematica_export/*
 notebooks/paper_plot.ipynb
