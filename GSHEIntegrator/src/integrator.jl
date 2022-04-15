@@ -17,7 +17,7 @@ end
 Horizon callback, terminate integration if BH horizon is reached.
 """
 function horizon_callback(geometry::Geometry)
-    f(x, τ, integrator) = x[2] <= 2.0
+    f(x, τ, integrator) = x[2] <= 1 + sqrt(1 - geometry.params.a^2)
     terminate_affect!(integrator) = terminate!(integrator)
     return DiscreteCallback(f, terminate_affect!, save_positions=(false, false))
 end
