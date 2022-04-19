@@ -12,6 +12,9 @@ The gravitational spin-Hall effect (GSHE) describes the frequency and spin-depen
 ## Things to be resolved later
 - GW emitter anisotropy
 - JuliaSymbolics.jl to generate high-performance code from symbolic expressions? But the current code (ODEs themselves) is already very fast. Had a brief look at the package but didn't make much sense out of it.
+- Look into precompilation.
+- Why does the code sometimes struggle to find solutions? Too many iterations near the horizon?
+- Asymptotic behaviour far from source need better understood?
 
 
 ## References

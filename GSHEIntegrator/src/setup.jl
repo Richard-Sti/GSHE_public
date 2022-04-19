@@ -26,25 +26,27 @@ function setup_geometry(
     a::Real,
     s::Integer=2,
     ode_options::ODESolverOptions=ODESolverOptions(),
-    opt_options::OptimiserOptions=OptimiserOptions()
+    opt_options::OptimiserOptions=OptimiserOptions(),
+    postproc_options::PostprocOptions=PostprocOptions()
 )
     source = SphericalCoords{dtype}(r=rsource, θ=θsource, ϕ=ϕsource)
     observer = SphericalCoords{dtype}(r=robs, θ=θobs, ϕ=ϕobs)
     return Geometry{dtype}(dtype=dtype, source=source, observer=observer, s=s, a=a,
-                           ode_options=ode_options, opt_options=opt_options)
+                           ode_options=ode_options, opt_options=opt_options,
+                           postproc_options=postproc_options)
 end
 
 
 """
     setup_geometries(
         dtype::DataType=Float64;
-        rsource::Union{Vector{T}, LinRange{T}},
-        θsource::Union{Vector{T}, LinRange{T}},
-        ϕsource::Union{Vector{T}, LinRange{T}},
-        robs::Union{Vector{T}, LinRange{T}},
-        θobs::Union{Vector{T}, LinRange{T}},
-        ϕobs::Union{Vector{T}, LinRange{T}},
-        a::Union{Vector{T}, LinRange{T}},
+        rsource::Union{Vector{T}, LinRange{T}, T},
+        θsource::Union{Vector{T}, LinRange{T}, T},
+        ϕsource::Union{Vector{T}, LinRange{T}, T},
+        robs::Union{Vector{T}, LinRange{T}, T},
+        θobs::Union{Vector{T}, LinRange{T}, T},
+        ϕobs::Union{Vector{T}, LinRange{T}, T},
+        a::Union{Vector{T}, LinRange{T}, T},
         s::Integer=2,
         ode_options::ODESolverOptions=ODESolverOptions(),
         opt_options::OptimiserOptions=OptimiserOptions()
@@ -54,22 +56,24 @@ Setup a vector of geometries.
 """
 function setup_geometries(
     dtype::DataType=Float64;
-    rsource::Union{Vector{T}, LinRange{T}},
-    θsource::Union{Vector{T}, LinRange{T}},
-    ϕsource::Union{Vector{T}, LinRange{T}},
-    robs::Union{Vector{T}, LinRange{T}},
-    θobs::Union{Vector{T}, LinRange{T}},
-    ϕobs::Union{Vector{T}, LinRange{T}},
-    a::Union{Vector{T}, LinRange{T}},
+    rsource::Union{Vector{T}, LinRange{T}, T},
+    θsource::Union{Vector{T}, LinRange{T}, T},
+    ϕsource::Union{Vector{T}, LinRange{T}, T},
+    robs::Union{Vector{T}, LinRange{T}, T},
+    θobs::Union{Vector{T}, LinRange{T}, T},
+    ϕobs::Union{Vector{T}, LinRange{T}, T},
+    a::Union{Vector{T}, LinRange{T}, T},
     s::Integer=2,
     ode_options::ODESolverOptions=ODESolverOptions(),
-    opt_options::OptimiserOptions=OptimiserOptions()
+    opt_options::OptimiserOptions=OptimiserOptions(),
+    postproc_options::PostprocOptions=PostprocOptions()
 ) where T <: Real
     geometries = Vector{Geometry{dtype}}()
     for rs in rsource, θs in θsource, ϕs in ϕsource, ro in robs, θo in θobs, ϕo in ϕobs, ai in a
         geo = setup_geometry(dtype;
             rsource=rs, θsource=θs, ϕsource=ϕs, robs=ro, θobs=θo, ϕobs=ϕo, a=ai, s=s,
-            ode_options=ode_options, opt_options=opt_options)
+            ode_options=ode_options, opt_options=opt_options,
+            postproc_options=postproc_options)
         push!(geometries, geo)
     end
     return geometries
@@ -416,4 +420,35 @@ function grid_evaluate(f::Function, x::T, y::T) where T <: Union{Vector{<:Real},
 
     Z = transpose(reshape(Z, length(x), length(y)))
     return Z
+end
+
+
+"""
+    sort_configurations!(Xgeos)
+
+Sort the different configurations to achieve continuity when varying some extrinsic params.
+"""
+function sort_configurations!(Xgeos)
+    flip_geo = zero(Xgeos[1][1, :])
+
+    for i in 1:(length(Xgeos)-1)
+        Δσ = [angdist(Xgeos[i][1, 1:2], Xgeos[i+1][jj, 1:2]) for jj in 1:2]
+        Δt = [abs(Xgeos[i][1, 3] - Xgeos[i+1][jj, 3]) for jj in 1:2]
+
+        if (argmin(Δσ) != argmin(Δt))
+            @warn "Δσ and Δt do not match."
+            flush(stdout)
+        end
+
+        # In this case the geodesics match. Continue
+        if argmin(Δt) == 1
+            continue
+        end
+
+        # Flip the array rows
+        flip_geo .= Xgeos[i+1][1, :]
+        Xgeos[i+1][1,:] = Xgeos[i+1][2,:]
+        Xgeos[i+1][2,:] = flip_geo
+    end
+
 end
