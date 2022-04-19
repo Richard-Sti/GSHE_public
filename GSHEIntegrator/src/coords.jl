@@ -16,20 +16,7 @@ end
 """
     cartesian_to_spherical(X::Vector{<:Real})
 
-Calculate the spherical coordinates (r, θ, ϕ) from Cartesian (x, y,z).
-"""
-function cartesian_to_spherical!(X::Vector{<:Real})
-    x, y, z  = X
-    X[1] = sqrt(x^2 + y^2 + z^2)
-    X[2] = acos(z / r)
-    X[3] = azimuthal_angle(y, x)
-end
-
-
-"""
-    cartesian_to_spherical(X::Vector{<:Real})
-
-Calculate the spherical coordinates (r, θ, ϕ) from Cartesian (x, y,z).
+Calculate the spherical coordinates (r, θ, ϕ) from Cartesian (x, y,z). TODO: add Kerr spin
 """
 function cartesian_to_spherical(X::Vector{<:Real})
     x, y, z = X
@@ -40,24 +27,11 @@ function cartesian_to_spherical(X::Vector{<:Real})
 end
 
 
-"""
-    spherical_to_cartesian!(X::Vector, a::Real=0.0)
-
-Calculate the Cartesian coordinates (x, y, z) from spherical (θ, ϕ) or (r, θ, ϕ), depending
-on the input length.
-"""
-function spherical_to_cartesian!(X::Vector{<:Real}, a::Real=0.0)
-    if length(X) == 2
-        θ, ϕ = X
-        r = 1.0
-    else
-        r, θ, ϕ = X
-    end
-    sθ, cθ = sin(θ), cos(θ)
-    rad = sqrt(r^2 + a^2)
-    X[1] = rad * cos(ϕ) * sθ
-    X[2] = rad * sin(ϕ) * sθ
-    X[3] = rad * cθ
+function cartesian_to_spherical!(X::Vector{<:Real})
+    x, y, z  = X
+    X[1] = sqrt(x^2 + y^2 + z^2)
+    X[2] = acos(z / r)
+    X[3] = azimuthal_angle(y, x)
 end
 
 
@@ -65,33 +39,48 @@ end
     spherical_to_cartesian(X::Vector{<:Real}, a::Real=0.0)
 
 Calculate the Cartesian coordinates (x, y, z) from spherical (θ, ϕ) or (r, θ, ϕ), depending
-on the input length.
+on the input length, `a` is the Kerr spin parameter.
 """
 function spherical_to_cartesian(X::Vector{<:Real}, a::Real=0.0)
     if length(X) == 2
         θ, ϕ = X
-        r = 1.0
+        r = 1
     else
         r, θ, ϕ = X
     end
-    r, sθ, cθ = r, sin(θ), cos(θ)
-    rad = sqrt(r^2 + a^2)
-    x = rad * cos(ϕ) * sθ
-    y = rad * sin(ϕ) * sθ
-    z = rad * cθ
+    sθ = sin(θ)
+    radius = sqrt(r^2 + a^2)
+    x = radius * cos(ϕ) * sθ
+    y = radius * sin(ϕ) * sθ
+    z = radius * cos(θ)
     return [x, y, z]
 end
 
 
+function spherical_to_cartesian!(X::Vector{<:Real}, a::Real=0.0)
+    if length(X) == 2
+        θ, ϕ = X
+        r = 1
+    else
+        r, θ, ϕ = X
+    end
+    sθ = sin(θ)
+    radius = sqrt(r^2 + a^2)
+    X[1] = radius * cos(ϕ) * sθ
+    X[2] = radius * sin(ϕ) * sθ
+    X[3] = radius * cos(θ)
+end
+
+
 """
-    rvs_sphere(θmax::Real=π)
+    rvs_sphere(θmax::Real=π; dtype::DataType=Float64)
 
 Sample a uniform point on a sphere. Returns (θ, ϕ), such that 0 ≤ theta ≤ π , 0 ≤ ϕ  < 2π.
 If θmax ≤ π point will be sampled within θmax of the north pole.
 """
-function rvs_sphere(θmax::Real=π; type::DataType=Float64)
+function rvs_sphere(θmax::Real=π; dtype::DataType=Float64)
     # Sample within [0, 1] uniformly
-    sample = rand(type, 2)
+    sample = rand(dtype, 2)
     # if θmax is not π restrict it to a smaller range
     if θmax < π
         sample[1] *= (1 - cos(θmax)) / 2
@@ -104,12 +93,12 @@ end
 
 
 """
-    rvs_sphere_y(θmax::Real=π)
+    rvs_sphere_y(θmax::Real=π; dtype::DataType=Float64)
 
 Sample a point (θ, ϕ) within distance θmax of the y-axis (0, 1, 0).
 """
-function rvs_sphere_y(θmax::Real=π; type::DataType=Float64)
-    sample = rvs_sphere(θmax; type=type)
+function rvs_sphere_y(θmax::Real=π; dtype::DataType=Float64)
+    sample = rvs_sphere(θmax; dtype=dtype)
 
     θ, ϕ = sample
     sample[1] = acos(-sin(θ)*cos(ϕ))
@@ -128,22 +117,20 @@ spherical coordinates (θ, ϕ).
 function rotate_to_y(x::Vector{<:Real}, p::Vector{<:Real})
     ψ, ρ = p
     θ, ϕ = x
+    # Check data dtypes
+    dtype = typeof(ψ)
+    @assert all(isa(a, dtype) for a in [ρ, θ, ϕ]) "Inputs have mixed data dtypes."
+
     sψ, cψ = sin(ψ), cos(ψ)
     sθ, cθ = sin(θ), cos(θ)
     c_azim = cos(ρ - ϕ)
-    out = [0.0, 0.0]
+    out = dtype[0.0, 0.0]
     out[1] = acos(-c_azim * cψ * sθ + cθ * sψ)
     out[2] = azimuthal_angle(cθ * cψ + c_azim * sθ * sψ, sθ * sin(ρ - ϕ))
     return out
 end
 
 
-"""
-    rotate_to_y!(x::Vector{<:Real}, p::Vector{<:Real})
-
-Rotate `x` with a rotation that moves `p` to the y-axis. All vectors assumed to be given in
-spherical coordinates (θ, ϕ).
-"""
 function rotate_to_y!(x::Vector{<:Real}, p::Vector{<:Real})
     ψ, ρ = p
     θ, ϕ = x
@@ -164,12 +151,17 @@ to be given in spherical coordinates (θ, ϕ).
 function rotate_from_y(x::Vector{<:Real}, p::Vector{<:Real})
     ψ, ρ = p
     θ, ϕ = x
+
+    # Check data dtypes
+    dtype = typeof(ψ)
+    @assert all(isa(a, dtype) for a in [ρ, θ, ϕ]) "Inputs have mixed data dtypes."
+
     sψ, cψ = sin(ψ), cos(ψ)
     sρ, cρ = sin(ρ), cos(ρ)
     sθ, cθ = sin(θ), cos(θ)
     sϕ, cϕ = sin(ϕ), cos(ϕ)
 
-    out = [0.0, 0.0]
+    out = dtype[0.0, 0.0]
     out[1] = acos(cψ*sθ*sϕ + cθ*sψ)
     out[2] = azimuthal_angle(
         -cρ*cϕ*sθ + sρ*(-cθ*cψ + sθ*sϕ*sψ),
@@ -178,12 +170,6 @@ function rotate_from_y(x::Vector{<:Real}, p::Vector{<:Real})
 end
 
 
-"""
-    rotate_from_y!(x::Vector{<:Real}, p::Vector{<:Real})
-
-Rotate `x` with an inverse of a rotation that moves `p` to the y-axis. All vectors assumed
-to be given in spherical coordinates (θ, ϕ).
-"""
 function rotate_from_y!(x::Vector{<:Real}, p::Vector{<:Real})
     ψ, ρ = p
     θ, ϕ = x
@@ -199,10 +185,16 @@ end
 
 
 """
-    angdist(θ1::Real, ϕ1::Real, θ2::Real, ϕ2::Real)
-
-Calculate the angular distance between (θ1, ϕ1) and (θ2, ϕ2).
+    angdist(X1::Vector{<:Real}, X2::Vector{<:Real})
+Calculate the angular distance between X1 = (θ1, ϕ1) and X2 = (θ2,ϕ2).
 """
+function angdist(X1::Vector{<:Real}, X2::Vector{<:Real})
+    θ1, ϕ1 = X1
+    θ2, ϕ2 = X2
+    return angdist(θ1, ϕ1, θ2, ϕ2)
+end
+
+
 function angdist(θ1::Real, ϕ1::Real, θ2::Real, ϕ2::Real)
     dϕ = ϕ1 - ϕ2
     sθ1, sθ2 = sin(θ1), sin(θ2)
@@ -217,18 +209,6 @@ function angdist(θ1::Real, ϕ1::Real, θ2::Real, ϕ2::Real)
     y = cθ1 * cθ2 + sθ1 * sθ2 * cdϕ
 
     return atan(x, y)
-end
-
-
-"""
-    angdist(X1::Vector{<:Real}, X2::Vector{<:Real})
-
-Calculate the angular distance between `X1` and `X2` spherical vectors specified as (θ, ϕ).
-"""
-function angdist(X1::Vector{<:Real}, X2::Vector{<:Real})
-    θ1, ϕ1 = X1
-    θ2, ϕ2 = X2
-    return angdist(θ1, ϕ1, θ2, ϕ2)
 end
 
 

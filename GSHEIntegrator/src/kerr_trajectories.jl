@@ -1,12 +1,12 @@
 """
-    geodesic_odes!(dx::Vector{<:Real}, x::Vector{<:Real}, geometry::Geometry, τ::Real)
+    geodesic_odes!(dx::Vector{<:Real}, x::Vector{<:Real}, geometry::Geometry)
 
 Calculate the derivatives of ``x^μ`` and ``p_i`` with respect to the proper time, returned
 in this order. Expresssions are exported from Mathematica.
 """
-function geodesic_odes!(dx::Vector{<:Real}, x::Vector{<:Real}, geometry::Geometry, τ ::Real)
-    t, r, θ, ϕ, p_r, p_θ, p_ϕ = @view x[:]
-    @unpack a, s = geometry.params
+function geodesic_odes!(dx::Vector{<:Real}, x::Vector{<:Real}, geometry::Geometry)
+    r, θ, ϕ, p_r, p_θ, p_ϕ = @view x[2:end]
+    @unpack a = geometry
 
     s_θ, c_θ = sin(θ), cos(θ)
     s_2θ, c_2θ = sin(2θ), cos(2θ)
@@ -31,15 +31,27 @@ end
 
 
 """
-    spinhall_odes!(dx::Vector{<:Real}, x::Vector{<:Real}, geometry::Geometry, tau::τ)
+    gshe_odes!(
+        dx::Vector{<:Real},
+        x::Vector{<:Real},
+        geometry::Geometry,
+        ϵ::Real,
+        s::Integer
+    )
 
 Calculate the derivatives of ``x^μ`` and ``p_i`` with respect to the proper time, returned
 in this order. Expresssions are exported from Mathematica.
 """
-function spinhall_odes!(dx::Vector{<:Real}, x::Vector{<:Real}, geometry::Geometry, τ::Real)
-    t, r, θ, ϕ, p_r, p_θ, p_ϕ = @view x[:]
+function gshe_odes!(
+    dx::Vector{<:Real},
+    x::Vector{<:Real},
+    geometry::Geometry,
+    ϵ::Real,
+    s::Integer
+)
+    r, θ, ϕ, p_r, p_θ, p_ϕ = @view x[2:end]
     # Unpack the struct
-    @unpack a, ϵ, s = geometry.params
+    @unpack a = geometry
 
     s_θ, c_θ = sin(θ), cos(θ)
     s_2θ, c_2θ = sin(2θ), cos(2θ)

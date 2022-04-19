@@ -1,13 +1,16 @@
 """
-    ffield_callback(geometry::Geometry; interp_points::Integer=10)
+    ffield_callback(geometry::Geometry)
 
-Far field callback, terminate integration when observer radius is reached.
+Far field callback, terminate integration when observer radius R is reached and interpolate
+such that the last saved integration step is at R. Uses the default integrator's
+scheme.
 """
-function ffield_callback(geometry::Geometry; interp_points::Integer=10)
+function ffield_callback(geometry::Geometry)
     f(r, τ, integrator) = r - geometry.observer.r
     terminate_affect!(integrator) = terminate!(integrator)
-    return ContinuousCallback(f, terminate_affect!, interp_points=interp_points,
-                              save_positions=(false, false), idxs=2)
+    return ContinuousCallback(
+        f, terminate_affect!, interp_points=geometry.ode_options.interp_points,
+        save_positions=(false, false), idxs=2)
 end
 
 
@@ -17,107 +20,202 @@ end
 Horizon callback, terminate integration if BH horizon is reached.
 """
 function horizon_callback(geometry::Geometry)
-    f(x, τ, integrator) = x[2] <= 1 + sqrt(1 - geometry.params.a^2)
+    @unpack horizon_tol = geometry.ode_options
+    @assert horizon_tol >= 1 "Horizon tolerance must be greater or equal to 1."
+    R = 1 + horizon_tol * sqrt(1 - geometry.a^2)
+    f(x, τ, integrator) = x[2] <= R
     terminate_affect!(integrator) = terminate!(integrator)
     return DiscreteCallback(f, terminate_affect!, save_positions=(false, false))
 end
 
 
 """
-    get_callbacks(geometry::Geometry; interp_points::Integer=10)
+    poles_callback(geometry::Geometry)
 
-Get the far field and horizon callback set.
+Termination integration callback whenever the polar angle θ is within Δθ of
+either θ = 0 or θ = π.
 """
-function get_callbacks(geometry::Geometry; interp_points::Integer=10)
-    return CallbackSet(ffield_callback(geometry), horizon_callback(geometry))
+function poles_callback(geometry::Geometry)
+    θmin = geometry.ode_options.Δθ
+    θmax = π - θmin
+    f(x, τ, integrator) = (x[3] < θmin) | (x[3] > θmax)
+    terminate_affect!(integrator) = terminate!(integrator)
+    return DiscreteCallback(f, terminate_affect!, save_positions=(false, false))
 end
 
 
 """
-    init_values(p::Vector{<:Real}, geometry::Geometry)
+    max_Δϕ(geometry::Geometry)
 
-Calculate the vector [x^μ, p_i].
+Calculate Δϕ for a source and an observer for a solution that does not loop around the BH.
 """
-function init_values(p::Vector{<:Real}, geometry::Geometry)
+function max_Δϕ(geometry::Geometry)
+    ϕ1 = geometry.source.ϕ
+    ϕ2 = geometry.observer.ϕ
+
+    Δϕ = abs(ϕ2 - ϕ1)
+    if Δϕ < π
+        Δϕ = 2π - Δϕ
+    end
+
+    return Δϕ
+end
+
+
+"""
+    loop_callback(geometry::Geometry)
+
+Loop callback that terminates trajectories that loop around the origin.
+"""
+function loop_callback(geometry::Geometry)
+    f(x, τ, integrator) = abs(x[4] - geometry.source.ϕ) > 1.05*max_Δϕ(geometry)
+    terminate_affect!(integrator) = terminate!(integrator)
+    return DiscreteCallback(f, terminate_affect!, save_positions=(false, false))
+end
+
+
+"""
+    get_callbacks(geometry::Geometry)
+
+Get the far field, horizon, polar and loop callbacks.
+"""
+function get_callbacks(geometry::Geometry)
+    cbs = [ffield_callback(geometry), horizon_callback(geometry)]
+
+    if geometry.ode_options.no_loops
+        push!(cbs, loop_callback(geometry))
+    end
+
+    if geometry.ode_options.Δθ > 0
+        push!(cbs, poles_callback(geometry))
+    end
+    return CallbackSet(cbs...)
+end
+
+
+"""
+    init_values(init_direction::Vector{<:Real}, geometry::Geometry)
+
+Calculate the initial values [x^0, x^1, x^2, x^3, p_1, p_2, p_3] for a trajectory emitted
+by the source in a given initial direction.
+"""
+function init_values(init_direction::Vector{<:Real}, geometry::Geometry)
     @unpack t, r, θ, ϕ = geometry.source
-    ψ, ρ = p
-    p_r, p_θ, p_ϕ = pi0(ψ, ρ, geometry)
-    return [t, r, θ, ϕ, p_r, p_θ, p_ϕ]
+    return [[t,r, θ,ϕ]; initial_spatial_comomentum(init_direction, geometry)]
 end
 
 
 """
-    init_values(p::Vector{<:Real}, geometry::Geometry, pfound::Vector{<:Real})
+    init_values(
+        init_direction::Vector{<:Real},
+        geometry::Geometry,
+        prev_init_direction::Vector{<:Real}
+)
 
-Calculate the vector [x^μ, p_i]. Inverse rotates `p` from the y-axis (0, 1, 0) under a
-rotation that transformed `pfound` to the y-axis.
+Calculate the initial values [x^0, x^1, x^2, x^3, p_1, p_2, p_3] assuming that the initial
+direction was sampled near the positive y-axis. Thus inverse rotations it under a rotation
+that originally rotated the previvous initial direction to the positive y-axis.
 """
-function init_values(p::Vector{<:Real}, geometry::Geometry, pgeo::Vector{<:Real})
-    x = rotate_from_y(p, pgeo)
+function init_values(
+    init_direction::Vector{<:Real},
+    geometry::Geometry,
+    prev_init_direction::Vector{<:Real}
+)
+    # TODO: why not a bang here?
+    x = rotate_from_y(init_direction, prev_init_direction)
     return init_values(x, geometry)
 end
 
 
 """
     solve_geodesic(
-        p::Vector,
-        prob::ODEProblem,
+        init_direction::Vector{<:Real},
+        prob0::ODEProblem,
+        geometry::Geometry,
         cb::CallbackSet;
         save_everystep::Bool=false,
-        reltol::Float64=1e-12,
-        abstol::Float64=1e-12
     )
 
-Solve a geodesic problem, allows changing initial conditions `p` on the fly.
+Solve a geodesic problem for a given geometry and initial direction.
 """
 function solve_geodesic(
-    p::Vector{<:Real},
-    prob::ODEProblem,
+    init_direction::Vector{<:Real},
+    prob0::ODEProblem,
     geometry::Geometry,
     cb::CallbackSet;
     save_everystep::Bool=false,
-    reltol::Real=1e-14,
-    abstol::Real=1e-14
 )
-    re_prob = remake(prob, u0=init_values(p, geometry))
-    return solve(re_prob, Vern9(), callback=cb, save_everystep=save_everystep,
-                 reltol=reltol, abstol=abstol)
+    @unpack reltol, abstol, maxiters = geometry.ode_options
+
+    prob = remake(prob0, u0=init_values(init_direction, geometry))
+    return solve(prob, Vern9(), callback=cb, save_everystep=save_everystep, reltol=reltol,
+                 abstol=abstol, maxiters=maxiters)
 end
 
-"""
-    solve_spinhall(
-        p::Vector{<:Real},
-        prob::ODEProblem,
-        geometry::Geometry,
-        cb::CallbackSet,
-        pgeo::Vector{<:Real};
-        save_everystep::Bool=false,
-        reltol::Float64=1e-12,
-        abstol::Float64=1e-12
-)
 
-Solve a Spin-hall problem, allows changing initial conditions `p` on the fly.
-"""
-function solve_spinhall(
-    p::Vector{<:Real},
-    prob::ODEProblem,
-    geometry::Geometry,
-    cb::CallbackSet,
-    pgeo::Vector{<:Real};
-    save_everystep::Bool=false,
-    reltol::Float64=1e-14,
-    abstol::Float64=1e-14
+function solve_geodesic(
+    init_direction::Vector{<:Real},
+    geometry::Geometry;
+    save_everystep::Bool=false
 )
-    re_prob = remake(prob, u0=init_values(p, geometry, pgeo))
-    return solve(re_prob, Vern9(), callback=cb, save_everystep=save_everystep,
-                 reltol=reltol, abstol=abstol)
+    prob = geodesic_ode_problem(geometry)
+    cb = get_callbacks(geometry)
+    return solve_geodesic(init_direction, prob, geometry, cb; save_everystep=save_everystep)
+end
+
+
+"""
+    solve_gshe(
+        init_direction::Vector{<:Real},
+        prev_init_direction::Vector{<:Real},
+        prob0::ODEProblem,
+        geometry::Geometry,
+        cb::CallbackSet;
+        save_everystep::Bool=false,
+    )
+
+Solve a GSHE problem fora given geometry, initial direction and previous initial direction.
+Note that here the initial direction is in the reference frame where the previous initial
+direction is at the positive y-axis.
+"""
+function solve_gshe(
+    init_direction::Vector{<:Real},
+    prev_init_direction::Vector{<:Real},
+    prob0::ODEProblem,
+    geometry::Geometry,
+    cb::CallbackSet;
+    save_everystep::Bool=false,
+)
+    @unpack reltol, abstol, maxiters = geometry.ode_options
+    prob = remake(prob0, u0=init_values(init_direction, geometry, prev_init_direction))
+
+    return solve(prob, Vern9(), callback=cb, save_everystep=save_everystep, reltol=reltol,
+                 abstol=abstol, maxiters=maxiters)
+end
+
+
+function solve_gshe(
+    init_direction::Vector{<:Real},
+    geometry::Geometry,
+    ϵ::Real,
+    s::Integer;
+    save_everystep::Bool=false,
+)
+    prob = gshe_ode_problem(geometry, ϵ, s)
+    # Now set the initial conditions
+    prob = remake(prob, u0=init_values(init_direction, geometry))
+    cb = get_callbacks(geometry)
+    @unpack reltol, abstol, maxiters = geometry.ode_options
+
+    return solve(prob, Vern9(), callback=cb, save_everystep=save_everystep, reltol=reltol,
+                 abstol=abstol, maxiters=maxiters)
 end
 
 
 """
     angular_bounds(p::Vector{<:Real})
 
-Check whether `p = [θ, ϕ]` satisfies 0 ≤ θ ≤ π and 0 ≤ ϕ < 2π.
+Check whether p = (θ, ϕ) satisfies 0 ≤ θ ≤ π and 0 ≤ ϕ < 2π.
 """
 function angular_bounds(p::Vector{<:Real})
     return (0. ≤ p[1] ≤ π) & (0. ≤ p[2]  < 2π)
@@ -125,109 +223,94 @@ end
 
 
 """
-    angular_bounds(p::Vector{<:Real}, θmax::Real)
+    angular_bounds_y(p::Vector{<:Real}, θmax::Real)
 
-Check whether `p = [θ, ϕ]` satisfies 0 ≤ θ ≤ π and 0 ≤ ϕ < 2π and whether the angular
-distance of `p` from the Cartesian point (0, 1, 0) is less than θmax.
+Check whether p = (θ, ϕ) satisfies 0 ≤ θ ≤ π and 0 ≤ ϕ < 2π and whether the angular
+distance of p from the Cartesian point (0, 1, 0) is less than θmax.
 """
-function angular_bounds(p::Vector{<:Real}, θmax::Real)
-    return (acos(sin(p[1])*sin(p[2])) ≤ θmax) & angular_bounds(p)
+function angular_bounds_y(p::Vector{<:Real}, θmax::Real)
+    return (acos(sin(p[1])*sin(p[2])) ≤ θmax) && angular_bounds(p)
 end
 
 
 """
-    loss(
-        p::Vector{<:Real},
-        Xfound::Union{Vector{Vector{<:Real}}, Nothing},
-        fsolve::Function,
-        geometry::Geometry;
-        rtol::Float64=1e-10,
+    geodesic_loss(
+        init_direction::Vector{<:Real},
+        solver::Function,
+        geometry::Geometry,
+        init_directions_found::Union{Vector{<:Vector{<:Real}}, Nothing}=nothing,
     )
 
-Calculate the angular loss of a geodesic, `fsolve` expected to take
-only `p` as input. Checks whether initial condition close to any of `Xfound`.
+Calculate the angular loss function of a geodesic, whose solution is calculated via
+`solver`, which is expected to take only the initial direction as an argument. If close to
+any previously found initial directions returns infinity.
 """
 function geodesic_loss(
-    p::Vector{<:Real},
-    pfound::Union{Vector{<:Vector{<:Real}}, Nothing},
-    fsolve::Function,
-    geometry::Geometry;
-    rtol::Float64=1e-10,
+    init_direction::Vector{<:Real},
+    solver::Function,
+    geometry::Geometry,
+    init_directions_found::Union{Vector{<:Vector{<:Real}}, Nothing}=nothing,
 )
     # Check angular bounds
-    if ~angular_bounds(p)
+    if ~angular_bounds(init_direction)
         return Inf64
     end
-
     # If initial condition too close to old init. conds. do not integrate
-    if pfound !== nothing && minimum([angdist(p, x) for x in pfound]) < rtol
+    @unpack angdist_to_old = geometry.opt_options
+    is_first = init_directions_found === nothing
+    if ~is_first && minimum([angdist(init_direction, x) for x in init_directions_found]) < angdist_to_old
         return Inf64
     end
 
-    sol = fsolve(p)
-    # Check that the radial distance is within tolerance
-    return obs_angdist(sol[:, 1], sol[:, end], geometry; rtol=rtol)
+    sol = solver(init_direction)
+    return obs_angdist(sol[:, 1], sol[:, end], geometry)
 end
 
 
 """
-    spinhall_loss(
-        p::Vector{<:Real},
-        pgeo::Vector{<:Real},
-        θmax::Real,
-        fsolve::Function,
-        geometry::Geometry;
-        rtol::Float64=1e-10,
+    gshe_loss(
+        init_direction::Vector{<:Real},
+        prev_init_direction::Vector{<:Real},
+        solver::Function,
+        geometry::Geometry,
+        θmax::Real
     )
 
-Calculate the angular loss of a Spin-hall trajectory, searches for a solution
-that is within `θmax` of a geodesic solution `pgeo`.
+Calculate the angular loss of a GSHE trajectory, with the initial direction being near the
+positive y-axis. Uses `prev_init_direction` to return to the original reference frame.
 """
-function spinhall_loss(
-    p::Vector{<:Real},
-    pgeo::Vector{<:Real},
-    θmax::Real,
-    fsolve::Function,
-    geometry::Geometry;
-    rtol::Float64=1e-10,
+function gshe_loss(
+    init_direction::Vector{<:Real},
+    prev_init_direction::Vector{<:Real},
+    solver::Function,
+    geometry::Geometry,
+    θmax::Real
 )
-    px = atan_transform.(p, θmax)
-    if ~angular_bounds(px, θmax)
+    px = atan_transform.(init_direction, θmax)
+    if ~angular_bounds_y(px, θmax)
         return Inf64
     end
-    sol = fsolve(px, pgeo)
-    return obs_angdist(sol[:, 1], sol[:, end], geometry; rtol=rtol)
+    sol = solver(px, prev_init_direction)
+    return obs_angdist(sol[:, 1], sol[:, end], geometry)
 end
 
 
 """
-    obs_angdist(
-        x0::Vector{<:Real},
-        xf::Vector{<:Real},
-        geometry::Geometry;
-        rtol::Float64=1e-10
-    )
+    obs_angdist(x0::Vector{<:Real}, xf::Vector{<:Real}, geometry::Geometry)
 
-Calculate the angular distance between (θ, ϕ) and the observer. Ensures that
-the solution's radius is within tolerance close to the observer's radius.
+Calculate the angular distance an integration solution and the observer when the solution
+reaches the observer radius. If it is not returns infinity.
 """
-function obs_angdist(
-    x0::Vector{<:Real},
-    xf::Vector{<:Real},
-    geometry::Geometry;
-    rtol::Float64=1e-10
-)
+function obs_angdist(x0::Vector{<:Real}, xf::Vector{<:Real}, geometry::Geometry)
     r, θ, ϕ = xf[2:4]
     # Did the trajectory hit the BH horizon?
-    if ~isapprox(r, geometry.observer.r, rtol=rtol)
+    @unpack radius_reltol = geometry.opt_options
+    if ~isapprox(r, geometry.observer.r, rtol=radius_reltol)
         return Inf64
     end
-    # Parametrise the time in the observer's proper time
-    a = geometry.params.a
-    geometry.arrival_time = static_observer_proper_time(xf, a)
-    # Calculate gravitational redshift
-    geometry.redshift = obs_redshift(x0, xf, a)
 
+    geometry.arrival_time = static_observer_proper_time(xf, geometry.a)
+    geometry.redshift = obs_redshift(x0, xf, geometry.a)
     return angdist(θ, ϕ, geometry.observer.θ, geometry.observer.ϕ)
 end
 
@@ -249,4 +332,28 @@ ODE probelem with specified initial conditins.
 """
 function ode_problem(odes!::Function, geometry::Geometry, x0::Vector{<:Real})
     return ODEProblem{true}(odes!, x0, (0.0, 100.0geometry.observer.r), geometry)
+end
+
+
+function geodesic_ode_problem(geometry::Geometry)
+    function odes!(dx::Vector{<:Real}, x::Vector{<:Real}, geometry::Geometry, tau::Real)
+        return geodesic_odes!(dx, x, geometry)
+    end
+
+    return ode_problem(odes!, geometry)
+end
+
+
+function gshe_ode_problem(geometry::Geometry, ϵ::Real, s::Integer)
+    if ~isa(ϵ, geometry.dtype)
+        @warn "Casting ϵ from $(typeof(ϵ)) to $(geometry.dtype)."
+        ϵ = geometry.dtype(ϵ)
+    end
+
+    function odes!(dx::Vector{<:Real}, x::Vector{<:Real}, geometry::Geometry, tau::Real)
+        return gshe_odes!(dx, x, geometry, ϵ, s)
+    end
+
+    return ode_problem(odes!, geometry)
+
 end

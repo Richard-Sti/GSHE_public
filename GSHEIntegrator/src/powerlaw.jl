@@ -1,7 +1,7 @@
 """
     average(x::Vector{<:Real})
 
-Calculate the average of a vector `x`.
+Calculate the average of a 1-dimensional vector.
 """
 function average(x::Vector{<:Real})
     return sum(x) / length(x)
@@ -11,29 +11,28 @@ end
 """
     std(x::Vector{<:Real})
 
-Calculate the standard deviation of a vector `x`.
+Calculate the standard deviation of a 1-dimensional vector.
 """
 function std(x::Vector{<:Real})
     mu = average(x)
-    return average((x .- mu).^2)^0.5
+    return sqrt(average((x .- mu).^2))
 end
 
 
 """
     bootstrap_powerlaw(
         x::Vector{<:Real},
-        y::Vector{<:Real}; 
-        Nboots::Int64=1000,
+        y::Vector{<:Real};
+        Nboots::Integer=1000,
         integration_error::Real=1e-12
     )
 
-Calculate the bootstrap mean and standard deviation on the function :math:`f(x) = α x^β`.
-The output rows give, respectively, the mean and standard deviation of α and β.
+Calculate the bootstrap mean and standard deviation on the function f(x) = α x^β.
 """
 function bootstrap_powerlaw(
     x::Vector{<:Real},
-    y::Vector{<:Real}; 
-    Nboots::Int64=1000,
+    y::Vector{<:Real},
+    Nboots::Integer=1000,
     integration_error::Real=1e-12
 )
     # Initial checks
@@ -52,14 +51,15 @@ function bootstrap_powerlaw(
         res[i, :] .= llsq(x[mask], y[mask])
     end
 
-    stats = zeros(2, 2)
-    stats[1, :] .= average(res[:, 1]), std(res[:, 1])
-    stats[2, :] .= average(res[:, 2]), std(res[:, 2])
-    # Exponeniate the intercept
-    stats[2, 1] = 10^stats[2, 1]
-    # Propagate the error -- CHECK THIS
-    stats[2, 2] = stats[2,2] * stats[2, 1] * log(10)
-    return stats
+    out = Dict("alpha" => [average(res[:, 1]), std(res[:, 1])],
+               "beta" => [average(res[:, 2]), std(res[:, 2])])
+
+    # Exponenitate the intercept
+    out["beta"][1] = 10^out["beta"][1]
+    # TODO: check the error propagation
+    out["beta"][2] = out["beta"][2] * out["beta"][1] * log(10)
+
+    return out
 end
 
 
@@ -70,8 +70,8 @@ end
         integration_error::Real=1e-12
     )
 
-Remove elements from `x` and `y` satisfying |`y`| < `integration_error` and return the
-(new) `x` and and `y`.
+Remove elements from x and y satisfying |y| < integration_error and return the
+(new) x and and y.
 """
 function cut_below_integration_error(
     x::Vector{<:Real},
@@ -90,21 +90,22 @@ end
 """
     fit_Δts(ϵs::Vector{<:Real}, Xspinhall::Array{<:Real, 4})
 
-Fit the spin-Hall s=±2 time of arrival differences as a function of ϵ for each geodesic.
-Array indices represent first the geodesic, mean value of α and β, and third their
-standard deviatations, respectively.
-"""
-function fit_Δts(ϵs::Vector{<:Real}, Xspinhall::Array{<:Real, 4})
-    Ngeo = size(Xspinhall)[3]
-    Δt = zeros(size(Xspinhall)[1])
 
-    X = zeros(Ngeo, 2, 2)
-    for igeo in 1:Ngeo
-        xplus = @view Xspinhall[:, 1, igeo, 3]
-        xminus = @view Xspinhall[:, 2, igeo, 3]
-        Δt .= abs.(xplus - xminus)
-        X[igeo, :, :] .= bootstrap_powerlaw(ϵs, Δt)
+Fit a power law to the difference between the circular polarisation GSHE time of arrival as
+a function of ϵ for each geodesic. Returns a vector whose elements are the fits to each
+original geodesic.
+"""
+function fit_Δts(ϵs::Vector{<:Real}, Xgshe::Array{<:Real, 4}, geometry::Geometry)
+    @unpack Nboots, integration_error = geometry.postproc_options
+    Ngeos = size(Xgshe)[1]
+    Δt = zeros(size(Xgshe)[3])
+
+    X = Any[]
+    for n in 1:Ngeos
+        Δt .= abs.(Xgshe[n, 1, :, 3] - Xgshe[n, 2, :, 3])
+        push!(X, bootstrap_powerlaw(ϵs, Δt, Nboots, integration_error))
     end
+
     return X
 end
 
@@ -112,18 +113,29 @@ end
 """
     fit_Δts(ϵs::Vector{<:Real}, Xgeo::Matrix{<:Real}, Xspinhall::Array{<:Real, 4})
 
-Fit the time of arrival difference between the spin Hall solution and the geodesic as a
-function of ϵ for s = ± 2. Array indices represent the geodesic, polarisation, mean value
-of α and β, and third their standard deviatations, respectively.
+Fit a power law to the difference between the circular GSHE time of arrival and a geodesic
+time of arrival. Retuns a nested vector, the outer elements are for the corresponding
+geodesics and the inner elements for the ± s polarisation states.
 """
-function fit_Δts(ϵs::Vector{<:Real}, Xgeo::Matrix{<:Real}, Xspinhall::Array{<:Real, 4})
-    Ngeo = size(Xspinhall)[3]
-    Δt = zeros(size(Xspinhall)[1])
+function fit_Δts(
+    ϵs::Vector{<:Real},
+    Xgshe::Array{<:Real, 4},
+    Xgeo::Matrix{<:Real},
+    geometry::Geometry
+)
+    Ngeos = size(Xgeo)[1]
+    @assert Ngeos == size(Xgshe)[1]
+    @unpack Nboots, integration_error = geometry.postproc_options
 
-    X = zeros(Ngeo, 2, 2, 2)
-    for igeo in 1:Ngeo, s in [2, -2]
-        Δt .= abs.(Xspinhall[:, s === 2 ? 1 : 2, igeo, 3] .- Xgeo[igeo, 3])
-        X[igeo, s === 2 ? 1 : 2, :, :] .= bootstrap_powerlaw(ϵs, Δt)
+    X = Any[]
+    Δt = zeros(size(Xgshe)[3])
+    for n in 1:Ngeos
+        Xs = Any[]
+        for s in 1:2
+            Δt .= abs.(Xgshe[n, s, :, 3] .- Xgeo[n, 3])
+            push!(Xs, bootstrap_powerlaw(ϵs, Δt, Nboots, integration_error))
+        end
+        push!(X, Xs)
     end
     return X
 end

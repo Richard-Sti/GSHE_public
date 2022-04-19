@@ -1,31 +1,52 @@
-@with_kw mutable struct Params{T <: Real}
-    a::T
-    ϵ::T
-    s::T
-end
-
-
-@with_kw mutable struct Spherical_coords{T <: Real} <: Number
+@with_kw mutable struct SphericalCoords{T <: Real} <: Number
     t::T = 0.0
     r::T
     θ::T
     ϕ::T
 end
 
-@with_kw mutable struct Geometry{T <: Real}
-    source::Spherical_coords{T}
-    observer::Spherical_coords{T}
-    params::Params{T}
-    type::DataType
-    arrival_time::T = 0.0
-    redshift::T = 0.0
+@with_kw mutable struct ODESolverOptions
+    reltol::Real=1e-14
+    abstol::Real=1e-14
+    maxiters::Integer=1000
+    interp_points::Integer=10
+    Δθ::Real=0.005π
+    horizon_tol::Real=1.05
+    no_loops::Bool=true
+
+end
+
+@with_kw mutable struct OptimiserOptions
+    radius_reltol::Real=1e-10
+    angdist_to_old::Real=1e-10
+    Nattempts_geo::Integer=250
+    Nattempts_gshe::Integer=250
+    loss_atol::Real=1e-12
+    optim_options::Options=Options(
+        iterations=1000, g_abstol=1e-14, g_reltol=1e-14, outer_g_abstol=1e-14,
+        outer_g_reltol=1e-14)
+    alg::NelderMead=NelderMead()
+    θmax0::Real=0.025
+end
+
+@with_kw mutable struct PostprocOptions
+    integration_error::Real=1e-12
+    check_gshe_sols::Bool=true
+    average_tol::Real=1e-1
+    Ncorrect::Integer=10
+    Nboots::Integer=1000
 end
 
 
-function Base.copy(geometry::Geometry)
-    T = geometry.type
-    source = Spherical_coords(@unpack t, r, θ, ϕ = geometry.source)
-    observer = Spherical_coords(@unpack t, r, θ, ϕ= geometry.observer)
-    params = Params(@unpack a, ϵ, s = geometry.params)
-    return Geometry{T}(source=source,observer=observer, params=params, type=T)
+@with_kw mutable struct Geometry{T <: Real}
+    dtype::DataType
+    source::SphericalCoords{T}
+    observer::SphericalCoords{T}
+    s::Integer = 2
+    a::T
+    arrival_time::T = 0.0
+    redshift::T = 0.0
+    ode_options::ODESolverOptions=ODESolverOptions()
+    opt_options::OptimiserOptions=OptimiserOptions()
+    postproc_options::PostprocOptions=PostprocOptions()
 end
