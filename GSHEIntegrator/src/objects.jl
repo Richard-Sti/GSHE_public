@@ -8,9 +8,9 @@ end
 @with_kw mutable struct ODESolverOptions
     reltol::Real=1e-14
     abstol::Real=1e-14
-    maxiters::Integer=1000
+    maxiters::Integer=2500
     interp_points::Integer=10
-    Δθ::Real=0.005π
+    Δθ::Real=0.0025π
     horizon_tol::Real=1.05
     no_loops::Bool=true
 
@@ -35,6 +35,7 @@ end
     average_tol::Real=1e-1
     Ncorrect::Integer=10
     Nboots::Integer=1000
+    minpoints::Integer=12
 end
 
 
@@ -42,6 +43,7 @@ end
     dtype::DataType
     source::SphericalCoords{T}
     observer::SphericalCoords{T}
+    direction_coords::Symbol=:spherical
     s::Integer = 2
     a::T
     arrival_time::T = 0.0

@@ -9,6 +9,7 @@
         ϕobs::Real,
         a::Real,
         s::Integer=2,
+        direction_coords::Symbol=:spherical,
         ode_options::ODESolverOptions=ODESolverOptions(),
         opt_options::OptimiserOptions=OptimiserOptions()
     )
@@ -25,15 +26,19 @@ function setup_geometry(
     ϕobs::Real,
     a::Real,
     s::Integer=2,
+    direction_coords::Symbol=:spherical,
     ode_options::ODESolverOptions=ODESolverOptions(),
     opt_options::OptimiserOptions=OptimiserOptions(),
     postproc_options::PostprocOptions=PostprocOptions()
 )
+    coords_choices = [:spherical, :shadow, :shadowpos]
+    @assert direction_coords in coords_choices "`direction_coords` must be one of `$coords_choices`"
+
     source = SphericalCoords{dtype}(r=rsource, θ=θsource, ϕ=ϕsource)
     observer = SphericalCoords{dtype}(r=robs, θ=θobs, ϕ=ϕobs)
     return Geometry{dtype}(dtype=dtype, source=source, observer=observer, s=s, a=a,
-                           ode_options=ode_options, opt_options=opt_options,
-                           postproc_options=postproc_options)
+                           direction_coords=direction_coords, ode_options=ode_options,
+                           opt_options=opt_options, postproc_options=postproc_options)
 end
 
 
@@ -48,6 +53,7 @@ end
         ϕobs::Union{Vector{T}, LinRange{T}, T},
         a::Union{Vector{T}, LinRange{T}, T},
         s::Integer=2,
+        direction_coords::Symbol=:spherical,
         ode_options::ODESolverOptions=ODESolverOptions(),
         opt_options::OptimiserOptions=OptimiserOptions()
     ) where T <: Real
@@ -64,6 +70,7 @@ function setup_geometries(
     ϕobs::Union{Vector{T}, LinRange{T}, T},
     a::Union{Vector{T}, LinRange{T}, T},
     s::Integer=2,
+    direction_coords::Symbol=:spherical,
     ode_options::ODESolverOptions=ODESolverOptions(),
     opt_options::OptimiserOptions=OptimiserOptions(),
     postproc_options::PostprocOptions=PostprocOptions()
@@ -72,8 +79,8 @@ function setup_geometries(
     for rs in rsource, θs in θsource, ϕs in ϕsource, ro in robs, θo in θobs, ϕo in ϕobs, ai in a
         geo = setup_geometry(dtype;
             rsource=rs, θsource=θs, ϕsource=ϕs, robs=ro, θobs=θo, ϕobs=ϕo, a=ai, s=s,
-            ode_options=ode_options, opt_options=opt_options,
-            postproc_options=postproc_options)
+            direction_coords=direction_coords, ode_options=ode_options,
+            opt_options=opt_options, postproc_options=postproc_options)
         push!(geometries, geo)
     end
     return geometries
@@ -418,7 +425,7 @@ function grid_evaluate(f::Function, x::T, y::T) where T <: Union{Vector{<:Real},
         Z[k] = f(grid[k, :])
     end
 
-    Z = transpose(reshape(Z, length(x), length(y)))
+    Z = reshape(Z, length(x), length(y))
     return Z
 end
 

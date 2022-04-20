@@ -22,7 +22,7 @@ Horizon callback, terminate integration if BH horizon is reached.
 function horizon_callback(geometry::Geometry)
     @unpack horizon_tol = geometry.ode_options
     @assert horizon_tol >= 1 "Horizon tolerance must be greater or equal to 1."
-    R = 1 + horizon_tol * sqrt(1 - geometry.a^2)
+    R = horizon_tol * (1 + sqrt(1 - geometry.a^2))
     f(x, τ, integrator) = x[2] <= R
     terminate_affect!(integrator) = terminate!(integrator)
     return DiscreteCallback(f, terminate_affect!, save_positions=(false, false))
@@ -186,6 +186,8 @@ function solve_gshe(
     cb::CallbackSet;
     save_everystep::Bool=false,
 )
+    @assert ~(geometry.direction_coords in shadow_coords) "Shadow coords not supported."
+
     @unpack reltol, abstol, maxiters = geometry.ode_options
     prob = remake(prob0, u0=init_values(init_direction, geometry, prev_init_direction))
 
@@ -201,6 +203,7 @@ function solve_gshe(
     s::Integer;
     save_everystep::Bool=false,
 )
+    @assert ~(geometry.direction_coords in shadow_coords) "Shadow coords not supported."
     prob = gshe_ode_problem(geometry, ϵ, s)
     # Now set the initial conditions
     prob = remake(prob, u0=init_values(init_direction, geometry))
@@ -234,6 +237,16 @@ end
 
 
 """
+    shadow_bounds(p::Vector{<:Real})
+
+Ensure that -1 ≤ k2, k3 ≤ k3 and that k2^2 + k3^2 ≤ 1.
+"""
+function shadow_bounds(p::Vector{<:Real})
+    return (-1 ≤ p[1] ≤ 1) && (-1 ≤ p[2] ≤ 1) && (p[1]^2 + p[2]^2) ≤ 1
+end
+
+
+"""
     geodesic_loss(
         init_direction::Vector{<:Real},
         solver::Function,
@@ -251,10 +264,15 @@ function geodesic_loss(
     geometry::Geometry,
     init_directions_found::Union{Vector{<:Vector{<:Real}}, Nothing}=nothing,
 )
-    # Check angular bounds
-    if ~angular_bounds(init_direction)
+    # Check angular or shadow bounds
+    if geometry.direction_coords == :spherical && ~angular_bounds(init_direction)
         return Inf64
+    elseif geometry.direction_coords in shadow_coords && ~shadow_bounds(init_direction)
+        return Inf64
+    else
+        nothing
     end
+
     # If initial condition too close to old init. conds. do not integrate
     @unpack angdist_to_old = geometry.opt_options
     is_first = init_directions_found === nothing
@@ -263,6 +281,8 @@ function geodesic_loss(
     end
 
     sol = solver(init_direction)
+    # println("HMM")
+    # # @show sol[:, end]
     return obs_angdist(sol[:, 1], sol[:, end], geometry)
 end
 

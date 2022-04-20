@@ -9,7 +9,7 @@ def gshe_to_circular(hcirc_tilde, time_delay):
     r"""
     Apply GSHE correction to a null geodesic frequency-domain waveform in the
     circular basis.
-    
+
     Arguments
     ---------
     hcirc_tilde : :py:class:`pycbc.types.frequencyseries.FrequencySeries`
@@ -17,7 +17,7 @@ def gshe_to_circular(hcirc_tilde, time_delay):
     time_delay : :py:func:`time_delay(f)`
         Observer time delay [s] of the particular circular polarisation whose
         only argument is frequeyncy [Hz]. Must act on arrays.
-    
+
     Returns
     -------
     hcirc_tilde_gshe : :py:class:`pycbc.types.frequencyseries.FrequencySeries`
@@ -64,7 +64,7 @@ def gshe_to_linear(hptilde, hctilde, right_time_delay, left_time_delay):
     # Inverse transform back to the linear basis
     return circular_to_linear(hrtilde_gshe, hltilde_gshe)
 
-    
+
 def fd_to_td_fiducialshift(htilde, left_window=None, right_window=None,
                            tshift=-1):
     """

@@ -6,11 +6,22 @@ Calculate the initial covectors [p_1, p_2, p_3] for a given initial direction an
 function initial_spatial_comomentum(k::Vector{<:Real}, geometry::Geometry)
     @unpack r, θ = geometry.source
     a = geometry.a
-    ψ, ρ = k
     v3 = tetrad_boosting(r, geometry)
     s_θ, c_θ = sin(θ), cos(θ)
-    return [sqrt((a^2*c_θ^2 + r^2)/(a^2 + r*(r - 2)))*sin(ψ)*cos(ρ), sqrt(a^2*c_θ^2 + r^2)*sin(ρ)*sin(ψ), s_θ*(a*s_θ*v3*sqrt(a^2 + r*(r - 2))*cos(ψ) + a*s_θ*sqrt(a^2 + r*(r - 2)) + (a^2 + r^2)*(v3 + cos(ψ)))/sqrt(-(v3^2 - 1)*(a^2*c_θ^2 + r^2))]
 
+
+    if geometry.direction_coords == :spherical
+        ψ, ρ = k
+        return [sqrt((a^2*c_θ^2 + r^2)/(a^2 + r*(r - 2)))*sin(ψ)*cos(ρ), sqrt(a^2*c_θ^2 + r^2)*sin(ρ)*sin(ψ), s_θ*(a*s_θ*v3*sqrt(a^2 + r*(r - 2))*cos(ψ) + a*s_θ*sqrt(a^2 + r*(r - 2)) + (a^2 + r^2)*(v3 + cos(ψ)))/sqrt(-(v3^2 - 1)*(a^2*c_θ^2 + r^2))]
+    elseif geometry.direction_coords == :shadow
+        k2, k3 = k
+        return [-sqrt(-(a^2*c_θ^2 + r^2)*(k2^2 + k3^2 - 1)/(a^2 + r*(r - 2))), k2*sqrt(a^2*c_θ^2 + r^2), s_θ*(a*k3*s_θ*v3*sqrt(a^2 + r*(r - 2)) + a*s_θ*sqrt(a^2 + r*(r - 2)) + (a^2 + r^2)*(k3 + v3))/sqrt(-(v3^2 - 1)*(a^2*c_θ^2 + r^2))]
+    elseif geometry.direction_coords == :shadowpos
+        k2, k3 = k
+        return [sqrt(-(a^2*c_θ^2 + r^2)*(k2^2 + k3^2 - 1)/(a^2 + r*(r - 2))), k2*sqrt(a^2*c_θ^2 + r^2), s_θ*(a*k3*s_θ*v3*sqrt(a^2 + r*(r - 2)) + a*s_θ*sqrt(a^2 + r*(r - 2)) + (a^2 + r^2)*(k3 + v3))/sqrt(-(v3^2 - 1)*(a^2*c_θ^2 + r^2))]
+    else
+        return NaN
+    end
 end
 
 

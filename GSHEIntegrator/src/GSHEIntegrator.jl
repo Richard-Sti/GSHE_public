@@ -14,6 +14,9 @@ export setup_geometry, setup_geometries, setup_geodesic_solver, setup_geodesic_l
     setup_gshe_solver, setup_gshe_loss, solve_geodesics, solve_gshe, solve_gshes,
     check_gshes!
 
+
+shadow_coords = [:shadow, :shadowpos]
+
 import Parameters: @with_kw, @unpack
 import Optim: NelderMead, Options, optimize
 import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,

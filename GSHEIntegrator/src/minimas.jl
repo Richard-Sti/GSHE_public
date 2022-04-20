@@ -28,6 +28,8 @@ Find the minimum of a geodesic `loss` on the surface of a sphere. Attempts many 
 a desired loss is found. Starts eachs attempt with randomly sampled position on the sky.
 """
 function find_geodesic_minimum(loss::Function, geometry::Geometry)
+    @assert ~(geometry.direction_coords in shadow_coords) "Shadow minimum finder not supported."
+
     @unpack Nattempts_geo, loss_atol, alg, optim_options = geometry.opt_options
     for __ in 1:Nattempts_geo
         opt = optimize(loss, rvs_sphere(dtype=geometry.dtype), alg, optim_options)
@@ -68,6 +70,8 @@ function find_restricted_minimum(
     s::Integer,
     prev_init_direction::Vector{<:Real}
 )
+    @assert ~(geometry.direction_coords in shadow_coords) "Shadow minimum finder not supported."
+
     @unpack alg, optim_options, θmax0, loss_atol, Nattempts_gshe = geometry.opt_options
     loss = setup_gshe_loss(geometry, ϵ, s)
     for i in 1:Nattempts_gshe

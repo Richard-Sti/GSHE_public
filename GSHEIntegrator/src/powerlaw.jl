@@ -27,17 +27,24 @@ end
         integration_error::Real=1e-12
     )
 
-Calculate the bootstrap mean and standard deviation on the function f(x) = α x^β.
+Calculate the bootstrap mean and standard deviation on the function f(x) = β x^α.
 """
 function bootstrap_powerlaw(
     x::Vector{<:Real},
     y::Vector{<:Real},
     Nboots::Integer=1000,
-    integration_error::Real=1e-12
+    integration_error::Real=1e-12,
+    minpoints::Integer=6
 )
     # Initial checks
     @assert length(x) == length(y) "`x` and `y` must have equal length."
     x, y = cut_below_integration_error(x, y, integration_error)
+
+    if length(x) < minpoints
+        return Dict("alpha" => [NaN, NaN],
+                    "beta" => [NaN, NaN])
+    end
+
 
     x .= log10.(x)
     y .= log10.(y)
@@ -96,14 +103,14 @@ a function of ϵ for each geodesic. Returns a vector whose elements are the fits
 original geodesic.
 """
 function fit_Δts(ϵs::Vector{<:Real}, Xgshe::Array{<:Real, 4}, geometry::Geometry)
-    @unpack Nboots, integration_error = geometry.postproc_options
+    @unpack Nboots, integration_error, minpoints = geometry.postproc_options
     Ngeos = size(Xgshe)[1]
     Δt = zeros(size(Xgshe)[3])
 
     X = Any[]
     for n in 1:Ngeos
         Δt .= abs.(Xgshe[n, 1, :, 3] - Xgshe[n, 2, :, 3])
-        push!(X, bootstrap_powerlaw(ϵs, Δt, Nboots, integration_error))
+        push!(X, bootstrap_powerlaw(ϵs, Δt, Nboots, integration_error, minpoints))
     end
 
     return X
@@ -125,7 +132,7 @@ function fit_Δts(
 )
     Ngeos = size(Xgeo)[1]
     @assert Ngeos == size(Xgshe)[1]
-    @unpack Nboots, integration_error = geometry.postproc_options
+    @unpack Nboots, integration_error, minpoints = geometry.postproc_options
 
     X = Any[]
     Δt = zeros(size(Xgshe)[3])
@@ -133,7 +140,7 @@ function fit_Δts(
         Xs = Any[]
         for s in 1:2
             Δt .= abs.(Xgshe[n, s, :, 3] .- Xgeo[n, 3])
-            push!(Xs, bootstrap_powerlaw(ϵs, Δt, Nboots, integration_error))
+            push!(Xs, bootstrap_powerlaw(ϵs, Δt, Nboots, integration_error, minpoints))
         end
         push!(X, Xs)
     end
