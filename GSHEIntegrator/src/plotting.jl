@@ -156,7 +156,7 @@ function plot_gshe_trajectories!(
     for n in 1:Ngeos, sx in 1:2, i in 1:Nϵs
         X = cartesian_trajectory(Xgshe[n, sx, i, 1:2], geometry, false,
                                  ϵs[i], sx == 1 ? s : -s)
-        Plots.plot!(fig, X[1,:], X[2, :], X[3, :], label=nothing, color=cols[i], lw=0.25)
+        Plots.plot!(fig, X[1,:], X[2, :], X[3, :], label=nothing, color=cols[i])
     end
 
     return fig
