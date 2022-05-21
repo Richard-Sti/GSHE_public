@@ -145,11 +145,11 @@ function solve_geodesic(
     cb::CallbackSet;
     save_everystep::Bool=false,
 )
-    @unpack reltol, abstol, maxiters = geometry.ode_options
+    @unpack reltol, abstol, maxiters, verbose = geometry.ode_options
 
     prob = remake(prob0, u0=init_values(init_direction, geometry))
     return solve(prob, Vern9(), callback=cb, save_everystep=save_everystep, reltol=reltol,
-                 abstol=abstol, maxiters=maxiters)
+                 abstol=abstol, maxiters=maxiters, verbose=verbose)
 end
 
 
@@ -188,11 +188,11 @@ function solve_gshe(
 )
     @assert ~(geometry.direction_coords in shadow_coords) "Shadow coords not supported."
 
-    @unpack reltol, abstol, maxiters = geometry.ode_options
+    @unpack reltol, abstol, maxiters, verbose = geometry.ode_options
     prob = remake(prob0, u0=init_values(init_direction, geometry, prev_init_direction))
 
     return solve(prob, Vern9(), callback=cb, save_everystep=save_everystep, reltol=reltol,
-                 abstol=abstol, maxiters=maxiters)
+                 abstol=abstol, maxiters=maxiters, verbose=verbose)
 end
 
 
@@ -247,6 +247,33 @@ end
 
 
 """
+    geodesic_init_bounds(p::Vector{<:Real}, geometry::Geometry)
+
+Return whether the initial conditions (ψ, ρ) or (x, y) of a geodesic are in bounds.
+"""
+function is_in_geodesic_init_bounds(p::Vector{<:Real}, geometry::Geometry)
+    if geometry.direction_coords == :spherical && ~angular_bounds(p)
+        return false
+    elseif geometry.direction_coords in shadow_coords && ~shadow_bounds(p)
+        return false
+    else
+        return true
+    end
+end
+
+
+"""
+    arrival_stats!(geometry::Geometry, x0::Vector{<:Real}, xf::Vector{<:Real})
+
+Calculate the arrival proper time and gravitational redshift and store it in geometry.
+"""
+function arrival_stats!(geometry::Geometry, x0::Vector{<:Real}, xf::Vector{<:Real})
+    geometry.arrival_time = static_observer_proper_time(xf, geometry.a)
+    geometry.redshift = obs_redshift(x0, xf, geometry.a)
+end
+
+
+"""
     geodesic_loss(
         init_direction::Vector{<:Real},
         solver::Function,
@@ -264,26 +291,38 @@ function geodesic_loss(
     geometry::Geometry,
     init_directions_found::Union{Vector{<:Vector{<:Real}}, Nothing}=nothing,
 )
-    # Check angular or shadow bounds
-    if geometry.direction_coords == :spherical && ~angular_bounds(init_direction)
+
+    if ~is_in_geodesic_init_bounds(init_direction, geometry)
         return Inf64
-    elseif geometry.direction_coords in shadow_coords && ~shadow_bounds(init_direction)
-        return Inf64
-    else
-        nothing
     end
 
     # If initial condition too close to old init. conds. do not integrate
-    @unpack angdist_to_old = geometry.opt_options
+    @unpack angdist_to_old, τ_to_old = geometry.opt_options
     is_first = init_directions_found === nothing
     if ~is_first && minimum([angdist(init_direction, x) for x in init_directions_found]) < angdist_to_old
         return Inf64
     end
 
     sol = solver(init_direction)
-    # println("HMM")
-    # # @show sol[:, end]
-    return obs_angdist(sol[:, 1], sol[:, end], geometry)
+    x0 = sol[:, 1]
+    xf = sol[:, end]
+
+    r = xf[2]
+    # Check if arrived at the observer radius
+    if ~is_at_robs(r, geometry)
+        geometry.arrival_time = NaN
+        geometry.redshift = NaN
+        return Inf64
+    end
+    arrival_stats!(geometry, x0, xf)
+
+    # Additionaly check that arrival time is sufficiently different
+    τ = geometry.arrival_time
+    if ~is_first && minimum(abs(τ - Xgeo[3]) for Xgeo in init_directions_found) < τ_to_old
+        return Inf64
+    end
+
+    return obs_angdist(xf, geometry)
 end
 
 
@@ -311,26 +350,50 @@ function gshe_loss(
         return Inf64
     end
     sol = solver(px, prev_init_direction)
-    return obs_angdist(sol[:, 1], sol[:, end], geometry)
+    # Calculate the arrival stats
+    x0 = sol[:, 1]
+    xf = sol[:, end]
+
+    r = xf[2]
+    # Check if arrived at the observer radius
+    if ~is_at_robs(r, geometry)
+        geometry.arrival_time = NaN
+        geometry.redshift = NaN
+        return Inf64
+    end
+    arrival_stats!(geometry, x0, xf)
+
+    return obs_angdist(xf, geometry)
 end
 
 
 """
-    obs_angdist(x0::Vector{<:Real}, xf::Vector{<:Real}, geometry::Geometry)
+    is_at_robs(r, geometry)
+
+Check whether r is approximately equal to the observer's radius.
+"""
+function is_at_robs(r, geometry)
+    @unpack radius_reltol = geometry.opt_options
+    if isapprox(r, geometry.observer.r, rtol=radius_reltol)
+        return true
+    else
+        return false
+    end
+end
+
+
+"""
+    obs_angdist(xf::Vector{<:Real}, geometry::Geometry)
 
 Calculate the angular distance an integration solution and the observer when the solution
 reaches the observer radius. If it is not returns infinity.
 """
-function obs_angdist(x0::Vector{<:Real}, xf::Vector{<:Real}, geometry::Geometry)
+function obs_angdist(xf::Vector{<:Real}, geometry::Geometry)
     r, θ, ϕ = xf[2:4]
-    # Did the trajectory hit the BH horizon?
-    @unpack radius_reltol = geometry.opt_options
-    if ~isapprox(r, geometry.observer.r, rtol=radius_reltol)
+    if ~is_at_robs(r, geometry)
         return Inf64
     end
 
-    geometry.arrival_time = static_observer_proper_time(xf, geometry.a)
-    geometry.redshift = obs_redshift(x0, xf, geometry.a)
     return angdist(θ, ϕ, geometry.observer.θ, geometry.observer.ϕ)
 end
 

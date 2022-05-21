@@ -26,6 +26,7 @@ import Plots
 import Meshes
 import MultivariateStats: llsq
 import Printf: @printf, @sprintf
+import Random: shuffle!
 
 include("./objects.jl")
 include("./integrator.jl")
@@ -36,5 +37,9 @@ include("./minimas.jl")
 include("./plotting.jl")
 include("./setup.jl")
 include("./powerlaw.jl")
+include("./outliers.jl")
+include("./shoot_timing.jl")
+include("./grid.jl")
+include("./io.jl")
 
 end

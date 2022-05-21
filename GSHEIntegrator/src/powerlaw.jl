@@ -74,7 +74,9 @@ end
     cut_below_integration_error(
         x::Vector{<:Real},
         y::Vector{<:Real},
-        integration_error::Real=1e-12
+        integration_error::Real=1e-12;
+        return_mask::Bool=false,
+        verbose::Bool=true
     )
 
 Remove elements from x and y satisfying |y| < integration_error and return the
@@ -83,33 +85,77 @@ Remove elements from x and y satisfying |y| < integration_error and return the
 function cut_below_integration_error(
     x::Vector{<:Real},
     y::Vector{<:Real},
-    integration_error::Real=1e-12
+    integration_error::Real=1e-12;
+    mask_only::Bool=false,
+    verbose::Bool=true
 )
     mask = abs.(y) .> integration_error
     N = sum(.~mask)
-    if N > 0
+    if verbose && N > 0
         @info "$N element(s) x=$(x[.~mask]) y=$(y[.~mask]) below integration error $integration_error. Removing."
     end
-    return x[mask], y[mask]
+    if mask_only
+        return mask
+    end
+        return x[mask], y[mask]
 end
 
 
 """
-    fit_Δts(ϵs::Vector{<:Real}, Xspinhall::Array{<:Real, 4})
+    fit_Δts(ϵs::Vector{<:Real}, Xgshe::Array{<:Real, 3}, geometry::Geometry)
+
+Fit a power law to the difference between the GSHE time of arrivals as a function of ϵ for
+a specific geodesic.
+"""
+function fit_Δts(ϵs::Vector{<:Real}, Xgshe::Array{<:Real, 3}, geometry::Geometry)
+    @unpack Nboots, integration_error, minpoints = geometry.postproc_options
+    Δt = abs.(Xgshe[1, :, 3] - Xgshe[2, :, 3])
+    return bootstrap_powerlaw(ϵs, Δt, Nboots, integration_error, minpoints)
+end
 
 
-Fit a power law to the difference between the circular polarisation GSHE time of arrival as
-a function of ϵ for each geodesic. Returns a vector whose elements are the fits to each
-original geodesic.
+"""
+    fit_Δts(ϵs::Vector{<:Real}, Xgshe::Array{<:Real, 4}, geometry::Geometry)
+
+Fit a power law to the difference between the GSHE time of arrivals as a function of ϵ for
+geodesics. Returns a vector of fits.
 """
 function fit_Δts(ϵs::Vector{<:Real}, Xgshe::Array{<:Real, 4}, geometry::Geometry)
-    @unpack Nboots, integration_error, minpoints = geometry.postproc_options
-    Ngeos = size(Xgshe)[1]
-    Δt = zeros(size(Xgshe)[3])
+    Ngeos = size(Xgshe, 1)
 
     X = Any[]
     for n in 1:Ngeos
-        Δt .= abs.(Xgshe[n, 1, :, 3] - Xgshe[n, 2, :, 3])
+        push!(X, fit_Δts(ϵs, Xgshe[n, :, :, :], geometry))
+    end
+
+    return X
+end
+
+
+"""
+    fit_Δts(
+        ϵs::Vector{<:Real},
+        Xgshe::Array{<:Real, 3},
+        Xgeo::Vector{<:Real},
+        geometry::Geometry
+    )
+
+Fit a power law to the difference between the GSHE and a geodesic time of arrival of a
+specific geodesic. The vector elements correspond to the fits for the ± |s| polarisation
+states.
+"""
+function fit_Δts(
+    ϵs::Vector{<:Real},
+    Xgshe::Array{<:Real, 3},
+    Xgeo::Vector{<:Real},
+    geometry::Geometry
+)
+    @unpack Nboots, integration_error, minpoints = geometry.postproc_options
+    Δt = zeros(size(Xgshe, 2))
+    X = Any[]
+
+    for s in 1:2
+        Δt .= abs.(Xgshe[s, :, 3] .- Xgeo[3])
         push!(X, bootstrap_powerlaw(ϵs, Δt, Nboots, integration_error, minpoints))
     end
 
@@ -118,11 +164,16 @@ end
 
 
 """
-    fit_Δts(ϵs::Vector{<:Real}, Xgeo::Matrix{<:Real}, Xspinhall::Array{<:Real, 4})
+    function fit_Δts(
+        ϵs::Vector{<:Real},
+        Xgshe::Array{<:Real, 4},
+        Xgeo::Matrix{<:Real},
+        geometry::Geometry
+    )
 
-Fit a power law to the difference between the circular GSHE time of arrival and a geodesic
-time of arrival. Retuns a nested vector, the outer elements are for the corresponding
-geodesics and the inner elements for the ± s polarisation states.
+Fit a power law to the difference between the GSHE and a geodesic time of arrival. Returns
+a nested vector, the outer elements are for the corresponding geodesics and the inner
+elements for the ± |s| polarisation states.
 """
 function fit_Δts(
     ϵs::Vector{<:Real},
@@ -132,17 +183,10 @@ function fit_Δts(
 )
     Ngeos = size(Xgeo)[1]
     @assert Ngeos == size(Xgshe)[1]
-    @unpack Nboots, integration_error, minpoints = geometry.postproc_options
 
     X = Any[]
-    Δt = zeros(size(Xgshe)[3])
     for n in 1:Ngeos
-        Xs = Any[]
-        for s in 1:2
-            Δt .= abs.(Xgshe[n, s, :, 3] .- Xgeo[n, 3])
-            push!(Xs, bootstrap_powerlaw(ϵs, Δt, Nboots, integration_error, minpoints))
-        end
-        push!(X, Xs)
+        push!(X, fit_Δts(ϵs, Xgshe[n, :, :, :], Xgeo[n, :], geometry))
     end
     return X
 end

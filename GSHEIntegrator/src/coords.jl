@@ -92,6 +92,19 @@ function rvs_sphere(θmax::Real=π; dtype::DataType=Float64)
 end
 
 
+function rvs_sphere_restricted(Δθ::Real=0.0, Δϕ::Real=0.0; dtype::DataType=Float64)
+    sample = rand(dtype, 2)
+
+    sample[1] = acos(2*(sample[1] - 0.5) * abs(cos(Δθ)))
+    sample[2] = sample[2] * (2π - 2*Δϕ) + Δϕ
+    return sample
+end
+
+function rvs_sphere_restricted(N::Integer, Δθ::Real=0.0, Δϕ::Real=0.0; dtype::DataType=Float64)
+    return mapreduce(permutedims, vcat, [rvs_sphere_restricted(Δθ, Δϕ; dtype=dtype) for i in 1:N])
+end
+
+
 """
     rvs_sphere_y(θmax::Real=π; dtype::DataType=Float64)
 

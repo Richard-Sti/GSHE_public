@@ -126,7 +126,7 @@ function plot_geodesics!(fig::Plots.Plot, Xgeo::Matrix{<:Real}, geometry::Geomet
     Ngeos = size(Xgeo)[1]
     for n in 1:Ngeos
         X = cartesian_trajectory(Xgeo[n, 1:2], geometry, true)
-        Plots.plot!(fig, X[1,:], X[2, :], X[3, :];label=nothing)
+        Plots.plot!(fig, X[1,:], X[2, :], X[3, :];label=nothing, lw=1, ls=:dash)
     end
     return fig
 end
@@ -154,9 +154,12 @@ function plot_gshe_trajectories!(
 
     cols = Plots.palette(:rainbow, Nϵs)
     for n in 1:Ngeos, sx in 1:2, i in 1:Nϵs
+        if any(isnan.(Xgshe[n, sx, i, :]))
+            continue
+        end
         X = cartesian_trajectory(Xgshe[n, sx, i, 1:2], geometry, false,
                                  ϵs[i], sx == 1 ? s : -s)
-        Plots.plot!(fig, X[1,:], X[2, :], X[3, :], label=nothing, color=cols[i])
+        Plots.plot!(fig, X[1,:], X[2, :], X[3, :], label=nothing, color=cols[i],lw=0.5)
     end
 
     return fig
