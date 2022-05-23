@@ -10,3 +10,6 @@ notebooks/paper_plot.ipynb
 notebooks/trajectories*.ipynb
 *.txt
 *.z
+*.out
+*.sh
+runs/test.ipynb

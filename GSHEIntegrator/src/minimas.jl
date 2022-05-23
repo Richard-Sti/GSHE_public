@@ -91,8 +91,6 @@ function find_restricted_minimum(
         if opt.minimum < min_loss
             min_loss = opt.minimum
         end
-        @show min_loss
-        flush(stdout)
         if isapprox(opt.minimum, 0.0, atol=loss_atol)
             # Transform back to the default coordinate system
             @. opt.minimizer = atan_transform(opt.minimizer, θmax)

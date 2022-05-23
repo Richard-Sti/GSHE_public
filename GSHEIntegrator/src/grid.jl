@@ -83,7 +83,7 @@ function grid_evaluate_timing(
     N = size(directions, 1)
     # Initialise the output arrays
     Xgeos = fill(NaN, N, 4)
-    Xgshes = fill(NaN, N, 2, length(ϵs), 4)
+    Xgshes = fill(NaN, N, 2, length(ϵs), 5)
 
     # Optionally check which x^2 + y^2 > 1 and do not calculate those
     if from_shadow

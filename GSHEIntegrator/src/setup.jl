@@ -219,12 +219,21 @@ end
 
 
 """
-    sort_configurations!(Xgeos::Vector{<:Matrix{<:Real}})
+    sort_configurations!(
+        Xgeos::Vector{<:Matrix{<:Real}},
+        Xgshes::Union{Vector{<:Array{<:Real, 4}}, Nothing}=nothing
+    )
 
-Sort the different configurations to achieve continuity when varying some extrinsic paramater.
+Sort the different configurations to achieve continuity when varying an extrinsic paramater.
 """
-function sort_configurations!(Xgeos::Vector{<:Matrix{<:Real}})
+function sort_configurations!(
+    Xgeos::Vector{<:Matrix{<:Real}},
+    Xgshes::Union{Vector{<:Array{<:Real, 4}}, Nothing}=nothing
+)
     flip_geo = zero(Xgeos[1][1, :])
+    if ~isnothing(Xgshes)
+        flip_gshe = zero(Xgshes[1][1, :, :, :])
+    end
 
     for i in 1:(length(Xgeos)-1)
         Δσ = [angdist(Xgeos[i][1, 1:2], Xgeos[i+1][jj, 1:2]) for jj in 1:2]
@@ -243,7 +252,14 @@ function sort_configurations!(Xgeos::Vector{<:Matrix{<:Real}})
         # Flip the array rows
         flip_geo .= Xgeos[i+1][1, :]
         Xgeos[i+1][1,:] = Xgeos[i+1][2,:]
-        Xgeos[i+1][2,:] = flip_geo
+        Xgeos[i+1][2,:] .= flip_geo
+        # Optionalli flip GSHE
+        if ~isnothing(Xgshes)
+            flip_gshe .= Xgshes[i+1][1, :, :, :]
+            Xgshes[i+1][1, :, :, :] = Xgshes[i+1][2,:, :, :]
+            Xgshes[i+1][2, :, :, :] .= flip_gshe
+        end
+
     end
 
 end

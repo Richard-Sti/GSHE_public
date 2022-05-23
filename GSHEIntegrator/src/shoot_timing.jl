@@ -93,7 +93,7 @@ function time_direction!(
     push!(init_direction, τ, z)
 
     if isnan(θobs) || isnan(ϕobs) || any(isnan.(init_direction))
-        Xgshe = fill!(Array{geometry.dtype, 3}(undef, 2, length(ϵs), 4), NaN)
+        Xgshe = fill!(Array{geometry.dtype, 3}(undef, 2, length(ϵs), 5), NaN)
     else
         Xgshe = time_gshe(init_direction, θobs, ϕobs, geometry, ϵs, verbose)
     end

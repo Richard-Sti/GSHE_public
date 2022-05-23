@@ -18,3 +18,20 @@ function save_geometry_info(cdir::String, runID::String, geometry::Geometry, msg
         println(f, geometry.opt_options)
     end
 end
+
+
+"""
+    save_config_info(config::Dict{Symbol, Any})
+
+Save information about the configuration file.
+"""
+function save_config_info(config::Dict{Symbol, Any})
+    fpath = joinpath(checkpointdir(config), "Description.txt")
+    open(fpath, "w") do f
+        for (key, value) in config
+            println(f, "$key:")
+            println(f, value)
+            println(f, "\n")
+        end
+    end
+end
