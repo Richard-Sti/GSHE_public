@@ -13,3 +13,4 @@ notebooks/trajectories*.ipynb
 *.out
 *.sh
 runs/test.ipynb
+data/
