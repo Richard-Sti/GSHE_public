@@ -20,7 +20,7 @@ end
 
 
 config = Dict(
-    :runID => "10",
+    :runID => "12",
     :cdir => "/mnt/extraspace/rstiskalek/gshe",
     :msg => "Geodesic shooting. Ignore observer angular position.",
     :varparam => [:dir1, :dir2],
@@ -31,14 +31,13 @@ config = Dict(
     :robs => 100.0,
     :θobs => π/2,
     :ϕobs => 1π,
-    :dir1 => LinRange(-1, 1, 200),
-    :dir2 => LinRange(-1, 1, 200),
+    :dir1 => LinRange(-1, 1, 250),
+    :dir2 => LinRange(-1, 1, 250),
     :from_shadow => true,
     :increasing_ϵ => false,
     :s => 2,
     :a => 0.99,
     :opt_options => GSHEIntegrator.OptimiserOptions(Ninit=51, Nconsec=30),
-    :ode_options => GSHEIntegrator.ODESolverOptions(Δθ=0.0001, horizon_tol=1.005, maxiters=7500),
     :fit_gshe_gshe => false,
     :dtype => Float64
     )
