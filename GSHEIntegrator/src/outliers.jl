@@ -101,8 +101,9 @@ end
 
 """
     check_gshes!(
-        Xgshe::Array{<:Real, 3},
+        Xgshe::Matrix{<:Real},
         Xgeo::Vector{<:Real},
+        s::Integer,
         geometry::Geometry,
         ϵs::Union{Vector{<:Real}, LinRange{<:Real}}
     )
@@ -110,76 +111,97 @@ end
 Checks for outliers in the GSHE to geodesic time delay, if any attempts to recalculate them.
 """
 function check_gshes!(
-    Xgshe::Array{<:Real, 3},
+    Xgshe::Matrix{<:Real},
     Xgeo::Vector{<:Real},
+    s::Integer,
     geometry::Geometry,
     ϵs::Union{Vector{<:Real}, LinRange{<:Real}}
 )
     log_ϵs = log10.(ϵs)
     @assert is_strictly_increasing(log_ϵs) "ϵ must be strictly increasing."
     flush(stdout)
-    N = length(log_ϵs)
+    N = length(ϵs)
+    nloops = Xgeo[6]
 
-    @unpack integration_error, R2tol, Ncorrect = geometry.postproc_options
-    @unpack gshe_convergence_verbose = geometry.opt_options
-    for s in 1:2
-        for k in 1:(Ncorrect + 1)
-            Δts = abs.(Xgshe[s, :, 3] .- Xgeo[3])
-            # TODO don't need log_ϵs here
-            mask = cut_below_integration_error(log_ϵs, Δts; mask_only=true, verbose=false)
-            # Set anything below the integration error to NaN
-            Δts[.~mask] .= NaN
+    @unpack integration_error, R2tol, Ncorrect, check_verbose = geometry.postproc_options
+    for k in 1:(Ncorrect + 1)
+        Δts = abs.(Xgshe[:, 3] .- Xgeo[3])
+        # TODO don't need log_ϵs here
+        mask = cut_below_integration_error(log_ϵs, Δts; mask_only=true, verbose=false)
+        # Set anything below the integration error to NaN
+        Δts[.~mask] .= NaN
 
-            # Calculate the outliers
-            outliers = find_outliers_llsq(log_ϵs, log10.(Δts), R2tol)
-            # Get the GSHE sols that are not NaNs and not outliers
-            good_gshes = [i for i in 1:N if (~isnan(Δts[i]) && ~(i in outliers))]
+        # Calculate the outliers
+        outliers = find_outliers_llsq(log_ϵs, log10.(Δts), R2tol)
+        # Get the GSHE sols that are not NaNs and not outliers
+        good_gshes = [i for i in 1:N if (~isnan(Δts[i]) && ~(i in outliers))]
 
-            # If no outliers exit the correcting attempts
-            if length(outliers) == 0
-                break
+        # If no outliers exit the correcting attempts
+        if length(outliers) == 0
+            break
+        end
+
+        # Exit if too many attempts
+        if k == Ncorrect + 1
+            if check_verbose
+                @warn ("Failed to recalculate outliers $outliers for s=$s. "
+                       *"Setting to NaN, either inspect the solutions or increase `R2tol`.")
+                flush(stdout)
             end
 
-            # Exit if too many attempts
-            if k == Ncorrect + 1
-                if gshe_convergence_verbose
-                    @warn ("Failed to recalculate outliers $outliers for s=$s. "
-                           *"Setting to NaN, either inspect the solutions or increase `R2tol`.")
-                    flush(stdout)
+            # Set the values it failed to recalculate to NaNs
+            for j in outliers
+                Xgshe[j, :] .= NaN
+            end
+            # Exit
+            break
+        end
+
+        # Ensure outliers are sorted
+        sort!(outliers)
+        for outlier in outliers
+            # Get the previous good solution. Begin by proposing the geodesic direction
+            p0 = Xgeo[1:2]
+            for jj in reverse(1:outlier)
+                # If reversed to 1 do not execute the code below
+                if jj == 1
+                    break
                 end
 
-                # Set the values it failed to recalculate to NaNs
-                for j in outliers
-                    Xgshe[s, j, :] .= NaN
+                # If the previous point is not a good one continue
+                if ~(jj - 1 in good_gshes)
+                    continue
                 end
-                # Exit
-                break
+                # Propose the previous point as initial direction
+                p0 = Xgshe[jj - 1, 1:2]
             end
 
-            # Ensure outliers are sorted
-            sort!(outliers)
-            for outlier in outliers
-                # Get the previous good solution. Begin by proposing the geodesic direction
-                p0 = Xgeo[1:2]
-                for jj in reverse(1:outlier)
-                    # If reversed to 1 do not execute the code below
-                    if jj == 1
-                        break
-                    end
-
-                    # If the previous point is not a good one continue
-                    if ~(jj - 1 in good_gshes)
-                        continue
-                    end
-                    # Propose the previous point as initial direction
-                    p0 = Xgshe[s, jj - 1, 1:2]
-                end
-
-                Xgshe[s, outlier, :] .= find_restricted_minimum(
-                    geometry, ϵs[outlier], s == 1 ? geometry.s : -geometry.s, p0)
-            end
+            Xgshe[outlier, :] .= find_consecutive_minimum(geometry, ϵs[outlier], s, p0, nloops)
         end
     end
 
     return nothing
+end
+
+
+"""
+    check_geodesics(Xgeo::Matrix{<:Real}, geometry::Geometry)
+
+Check that the geodesics of the decreasing search are in agreement.
+"""
+function check_geodesics(Xgeo::Matrix{<:Real}, geometry::Geometry)
+
+    @unpack geodesics_Δσ, geodesics_Δt, check_verbose = geometry.postproc_options
+
+    Δσ = GSHEIntegrator.angdist(Xgeo[1, 1:2], Xgeo[2, 1:2])
+    Δt = abs(Xgeo[1, 3] - Xgeo[2, 3])
+
+    if Δσ < geodesics_Δσ && Δt < geodesics_Δt
+        return Xgeo[1, :]
+    else
+        if check_verbose
+            println("Geodesics from downwards ϵ ladder did not converge, Δσ = $Δσ, Δt = $Δt"); flush(stdout)
+        end
+        return fill(NaN, size(Xgeo, 2))
+    end
 end

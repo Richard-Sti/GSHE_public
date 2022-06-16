@@ -63,9 +63,8 @@ function bootstrap_powerlaw(
 
     # Exponenitate the intercept
     out["beta"][1] = 10^out["beta"][1]
-    # TODO: check the error propagation
-    out["beta"][2] = out["beta"][2] * out["beta"][1] * log(10)
-
+    # And propagate the uncertainty
+    out["beta"][2] = log(10) * out["beta"][1] * out["beta"][2]
     return out
 end
 
@@ -125,10 +124,33 @@ function fit_Δts(ϵs::Vector{<:Real}, Xgshe::Array{<:Real, 4}, geometry::Geomet
 
     X = Any[]
     for n in 1:Ngeos
-        push!(X, fit_Δts(ϵs, Xgshe[n, :, :, :], geometry))
+        push!(X, fit_Δts(ϵs, Xgshe[n, ..], geometry))
     end
 
     return X
+end
+
+
+"""
+    fit_Δts(
+        ϵs::Vector{<:Real},
+        Xgshe::Matrix{<:Real, 2},
+        Xgeo::Vector{<:Real},
+        geometry::Geometry
+    )
+
+Fit a power law to the difference between the GSHE of a given polarisation and a geodesic time
+of arrival of a specific geodesic.
+"""
+function fit_Δts(
+    ϵs::Vector{<:Real},
+    Xgshe::Matrix{<:Real},
+    Xgeo::Vector{<:Real},
+    geometry::Geometry
+)
+    @unpack Nboots, integration_error, minpoints = geometry.postproc_options
+    Δt = abs.(Xgshe[:, 3] .- Xgeo[3])
+    return bootstrap_powerlaw(ϵs, Δt, Nboots, integration_error, minpoints)
 end
 
 
@@ -150,16 +172,7 @@ function fit_Δts(
     Xgeo::Vector{<:Real},
     geometry::Geometry
 )
-    @unpack Nboots, integration_error, minpoints = geometry.postproc_options
-    Δt = zeros(size(Xgshe, 2))
-    X = Any[]
-
-    for s in 1:2
-        Δt .= abs.(Xgshe[s, :, 3] .- Xgeo[3])
-        push!(X, bootstrap_powerlaw(ϵs, Δt, Nboots, integration_error, minpoints))
-    end
-
-    return X
+    return [fit_Δts(ϵs, Xgshe[s, ..], Xgeo, geometry) for s in 1:2]
 end
 
 
@@ -186,7 +199,7 @@ function fit_Δts(
 
     X = Any[]
     for n in 1:Ngeos
-        push!(X, fit_Δts(ϵs, Xgshe[n, :, :, :], Xgeo[n, :], geometry))
+        push!(X, fit_Δts(ϵs, Xgshe[n, ..], Xgeo[n, :], geometry))
     end
     return X
 end

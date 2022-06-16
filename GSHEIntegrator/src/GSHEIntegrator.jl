@@ -30,6 +30,7 @@ import MultivariateStats: llsq
 import Printf: @printf, @sprintf
 import Random: shuffle!
 import NPZ: npzwrite, npzread
+using EllipsisNotation
 
 include("./objects.jl")
 include("./integrator.jl")
@@ -45,5 +46,6 @@ include("./shoot_timing.jl")
 include("./grid.jl")
 include("./io.jl")
 include("./mpi_support.jl")
+include("./solver.jl")
 
 end

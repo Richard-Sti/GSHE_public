@@ -1,102 +1,129 @@
 """
-    time_geodesic(
+    time_initial!(
         init_direction::Vector{<:Real},
+        ϵ::Real,
+        s::Integer,
         geometry::Geometry,
         from_shadow::Bool=true
     )
 
-Time a specific geodesic as a function of the initial direction. Returns τ, the time when
-the geodesic intersects the observer sphere, z, the gravitational redshift, θ and ϕ, the
-angles where the geodesic intersects the observer sphere.
+Time an initial direction and record where it hits a sphere of observer's radius. If ϵ is
+non-zero then do this for the specified polarisation. If the BH horizon is hit returns NaNs.
 """
-function time_geodesic(
+function time_initial!(
     init_direction::Vector{<:Real},
+    ϵ::Real,
+    s::Integer,
     geometry::Geometry,
     from_shadow::Bool=true
 )
     if from_shadow
         x, y = init_direction
+        # Check the radius, though it might have already been checked elsewhere.
+        if x^2 + y^2 > 1
+            return push!(init_direction, NaN, NaN, NaN, NaN, NaN, NaN)
+        end
         init_direction[1] = acos(y)
         init_direction[2] = π + asin(x / sqrt(1 - y^2))
     end
+
     # If initial conditions out of bounds return NaNs
-    if ~is_in_geodesic_init_bounds(init_direction, geometry)
-        return NaN, NaN, NaN, NaN
+    if ~in_bounds(init_direction, geometry)
+        return push!(init_direction, NaN, NaN, NaN, NaN, NaN, NaN)
     end
 
     # Integrate the geodesic
-    sol = solve_geodesic(init_direction, geometry)
+    sol = solve_problem(init_direction, geometry, ϵ, s)
     x0 = sol[:, 1]
-    xf = sol[:, 2]
-
+    xf = sol[:, end]
     r, θ, ϕ = xf[2:4]
 
     if ~is_at_robs(r, geometry)
-        return NaN, NaN, NaN, NaN
+        return push!(init_direction, NaN, NaN, NaN, NaN, NaN, NaN)
     end
+
     # Calculate the observer proper arrival time and redshift
     τ = static_observer_proper_time(xf, geometry.a)
     z = obs_redshift(x0, xf, geometry.a)
-    return τ, z, θ, ϕ
+    nloops = numloops(x0[4], xf[4])
+    push!(init_direction, τ, z, 0.0, θ, ϕ, nloops)
 end
 
 
 """
     time_gshe(
-        Xgeo::Vector{<:Real},
-        θ::Real,
-        ϕ::Real,
+        X0::Vector{<:Real},
         geometry::Geometry,
         ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+        s::Integer,
+        increasing_ϵ::Bool,
         verbose::Bool=true
     )
 
-Given Xgeo finds GSHE initial conditions that intersect the observer sphere at θ, ϕ.
+Time the GSHE trajectories that reach a specific point on a distant sphere.
 """
 function time_gshe(
-    Xgeo::Vector{<:Real},
-    θ::Real,
-    ϕ::Real,
+    X0::Vector{<:Real},
     geometry::Geometry,
     ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+    s::Integer,
+    increasing_ϵ::Bool,
     verbose::Bool=true
 )
-    # Set the geometry θ and ϕ where the geodesic ended up
-    geometry.observer.θ = θ
-    geometry.observer.ϕ = ϕ
+    # Set the geometry θ and ϕ where the geodesic ended up. First pop ϕ!
+    nloops = pop!(X0)
+    geometry.observer.ϕ = pop!(X0)
+    geometry.observer.θ = pop!(X0)
+    push!(X0, nloops)
 
-    return solve_gshe(Xgeo, geometry, ϵs, verbose=verbose)
+    if increasing_ϵ
+        Xgeo = X0
+        Xgshe = solve_increasing(X0, geometry, s, ϵs; verbose=verbose)
+    else
+        Xgeo, Xgshe = solve_decreasing(X0, geometry, s, ϵs; verbose=verbose)
+    end
+
+    return Xgeo, Xgshe
+
 end
 
 
 """
-    time_direction!(
+    time_direction(
         init_direction::Vector{<:Real},
         geometry::Geometry,
-        ϵs::Union{Vector{<:Real}, LinRange{<:Real}}
+        s::Integer,
+        ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+        increasing_ϵ::Bool,
         from_shadow::Bool=true;
         verbose::Bool=true
     )
 
-Time a direction. Shoots a geodesic in a specific direction and finds GSHE solutions that
-intersect where the geodesic intersects the observer sphere.
+Time a direction. Shoots a trajectory in a specific direction and finds the GSHE solutions
+that intersect the same point. If increasing_ϵ is true the initial trajectory is geodesic,
+otherwise it is the one of the maximum ϵ.
 """
-function time_direction!(
+function time_direction(
     init_direction::Vector{<:Real},
     geometry::Geometry,
+    s::Integer,
     ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+    increasing_ϵ::Bool,
     from_shadow::Bool=true;
     verbose::Bool=true
 )
-    # Figure out where the geodesic intersects the observer radius
-    τ, z, θobs, ϕobs = time_geodesic(init_direction, geometry, from_shadow)
-    push!(init_direction, τ, z)
+    init_direction = copy(init_direction)
+    time_initial!(init_direction, increasing_ϵ ? 0 : ϵs[end], s, geometry, from_shadow)
 
-    if isnan(θobs) || isnan(ϕobs) || any(isnan.(init_direction))
-        Xgshe = fill!(Array{geometry.dtype, 3}(undef, 2, length(ϵs), 5), NaN)
+    if any(isnan.(init_direction))
+        # Pop the two angular locations
+        pop!(init_direction), pop!(init_direction)
+        fill!(init_direction, NaN)
+        Xgeo = init_direction
+        Xgshe = fill!(Matrix{geometry.dtype}(undef, length(ϵs), 6), NaN)
     else
-        Xgshe = time_gshe(init_direction, θobs, ϕobs, geometry, ϵs, verbose)
+        Xgeo, Xgshe = time_gshe(init_direction, geometry, ϵs, s, increasing_ϵ, verbose)
     end
 
-    return init_direction, Xgshe
+    return Xgeo, Xgshe
 end

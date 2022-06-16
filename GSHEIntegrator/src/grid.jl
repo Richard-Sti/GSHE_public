@@ -73,6 +73,8 @@ which θ, ϕ it intersects the observer sphere and calculates the GSHE delays to
 function grid_evaluate_timing(
     directions::Matrix{<:Real},
     ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+    s::Integer,
+    increasing_ϵ::Bool,
     geometry::Geometry,
     from_shadow::Bool=true;
     direction_verbose::Bool=true,
@@ -82,8 +84,8 @@ function grid_evaluate_timing(
 
     N = size(directions, 1)
     # Initialise the output arrays
-    Xgeos = fill(NaN, N, 4)
-    Xgshes = fill(NaN, N, 2, length(ϵs), 5)
+    Xgeos = fill(NaN, N, 5)
+    Xgshes = fill(NaN, N, length(ϵs), 5)
 
     # Optionally check which x^2 + y^2 > 1 and do not calculate those
     if from_shadow
@@ -109,10 +111,10 @@ function grid_evaluate_timing(
             flush(stdout)
         end
 
-        Xgeo, Xgshe = time_direction!(
-            directions[n, :], deepcopy(geometry), ϵs, from_shadow; verbose=gshe_verbose)
-        Xgeos[n, :] .= Xgeo
-        Xgshes[n, :, :, :] .= Xgshe
+        Xgeo, Xgshe = time_direction(
+            directions[n, :], deepcopy(geometry), s, ϵs, increasing_ϵ, from_shadow; verbose=gshe_verbose)
+        Xgeos[n, ..] .= Xgeo
+        Xgshes[n, ..] .= Xgshe
     end
 
     return Xgeos, Xgshes
@@ -124,12 +126,14 @@ end
         xs::Union{Vector{<:Real}, LinRange{<:Real}},
         ys::Union{Vector{<:Real}, LinRange{<:Real}},
         ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+        s::Integer,
+        increasing_ϵ::Bool,
         geometry::Geometry,
         from_shadow::Bool=true;
         direction_verbose::Bool=true,
         gshe_verbose::Bool=false
     )
-Evaluate time delays for given directions. For each direction shoots a geodesic, notes at
+Evaluate time delays for given directions. For each direction shoots a trajectory, notes at
 which θ, ϕ it intersects the observer sphere and calculates the GSHE delays to that point.
 
 Creates a meshgrid from `xs` and `ys`.
@@ -138,6 +142,8 @@ function grid_evaluate_timing(
     xs::Union{Vector{<:Real}, LinRange{<:Real}},
     ys::Union{Vector{<:Real}, LinRange{<:Real}},
     ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+    s::Integer,
+    increasing_ϵ::Bool,
     geometry::Geometry,
     from_shadow::Bool=true;
     direction_verbose::Bool=true,
@@ -145,7 +151,7 @@ function grid_evaluate_timing(
 )
     grid = make_2dmesh(xs, ys)
     return grid_evaluate_timing(
-        grid, ϵs, geometry, from_shadow;
+        grid, ϵs, s, increasing_ϵ, geometry, from_shadow;
         direction_verbose=direction_verbose, gshe_verbose=gshe_verbose
         )
 end

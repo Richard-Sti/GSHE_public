@@ -34,8 +34,10 @@ config = Dict(
     :dir1 => LinRange(-1, 1, 200),
     :dir2 => LinRange(-1, 1, 200),
     :from_shadow => true,
+    :increasing_ϵ => false,
+    :s => 2,
     :a => 0.99,
-    :opt_options => GSHEIntegrator.OptimiserOptions(Nattempts_geo=51, Nattempts_gshe=30),
+    :opt_options => GSHEIntegrator.OptimiserOptions(Ninit=51, Nconsec=30),
     :ode_options => GSHEIntegrator.ODESolverOptions(Δθ=0.0001, horizon_tol=1.005, maxiters=7500),
     :fit_gshe_gshe => false,
     :dtype => Float64
@@ -65,8 +67,8 @@ elseif rank == 0
     master_process(tasks, comm, verbose=true)
     # Once all tasks have been delegated sort the geodesics
     println("Collecting results."); flush(stdout)
-    MPI_collect_shooting(config)
+    GSHEIntegrator.MPI_collect_shooting(config)
 else
-    f(task::Vector) = MPI_solve_shooting(task..., config)
+    f(task::Vector) = GSHEIntegrator.MPI_solve_shooting(task..., config)
     worker_process(f, comm)
 end
