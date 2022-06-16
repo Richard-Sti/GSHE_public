@@ -140,8 +140,8 @@ function MPI_solve_shooting(i::Integer, j::Integer, config::Dict{Symbol, Any})
     y = config[:dir2][j]
 
     if config[:from_shadow] && (x^2 + y^2) > 1
-        Xgeo = fill(NaN, 5)
-        Xgshe = fill(NaN, length(config[:ϵs]), 5)
+        Xgeo = fill(NaN, 6)
+        Xgshe = fill(NaN, length(config[:ϵs]), 6)
     else
         geometry = GSHEIntegrator.setup_geometry(-1, config)
         Xgeo, Xgshe = GSHEIntegrator.time_direction(
@@ -169,8 +169,8 @@ function MPI_collect_shooting(config::Dict{Symbol, Any})
     Nx = length(xs)
     Ny = length(ys)
     directions = fill(NaN, Nx * Ny, 2)
-    Xgeos = fill(NaN, Nx * Ny, 5)
-    Xgshes = fill(NaN, Nx * Ny, length(config[:ϵs]), 5)
+    Xgeos = fill(NaN, Nx * Ny, 6)
+    Xgshes = fill(NaN, Nx * Ny, length(config[:ϵs]), 6)
 
     k = 1
     for i in 1:Nx
