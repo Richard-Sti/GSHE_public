@@ -69,7 +69,7 @@ end
 
 Ratio of wavelength as observed by a static observer at `x0` and `xf`.
 
-TODO: fix this
+TODO: check this
 """
 function obs_redshift(x0::Vector{<:Real}, xf::Vector{<:Real}, a::Real)
     ωsource = obs_frequency(x0, a)
@@ -126,4 +126,20 @@ function kerr_BL(r::Real, θ::Real, a::Real)
             0    grr  0   0
             0     0   Σ   0
             gtϕ   0   0  gϕϕ]
+end
+
+
+"""
+    ϕkilling(x::Vector{<:Real}, geometry::Geometry, ϵ::Real, s::Integer)
+
+Calculate the ϕ Killing conservation scalar.
+"""
+function ϕkilling(x::Vector{<:Real}, geometry::Geometry, ϵ::Real, s::Integer)
+    a = geometry.a
+    r, θ = x[2:3]
+    p_r, p_θ, p_ϕ = x[5:7]
+    s_θ, c_θ, c_2θ = sin(θ), cos(θ), cos(2θ)
+    v3 = tetrad_boosting(r, geometry)
+    p_t = time_comomentum(x, a)
+    return p_ϕ + s^2*s_θ*ϵ*(c_θ*p_r*(2*a*s_θ*v3*sqrt((a^2*c_θ^2 + r^2)^3*(a^2 + r^2 - 2*r)) + sqrt(a^2*c_θ^2 + r^2)*(2*a^4*c_θ^2 + a^2*r^2*(c_2θ + 3) + 4*a^2*r*s_θ^2 + 2*r^4))*(a^2 + r^2 - 2*r) - 2*p_θ*s_θ*(a*s_θ*v3*sqrt((a^2*c_θ^2 + r^2)*(a^2 + r^2 - 2*r))*(a^2*c_θ^2*r - a^2*c_θ^2 + r^3 + r^2) + r*(a^2*c_θ^2 + r^2)^(3/2)*(a^2 + r^2 - 2*r)))/(2*(a^2*c_θ^2 + r^2)^2*(p_t*s_θ*(a*s_θ*v3*sqrt((a^2*c_θ^2 + r^2)*(a^2 + r^2 - 2*r)) + (a^2 + r^2)*sqrt(a^2*c_θ^2 + r^2)) + p_ϕ*(a*s_θ*sqrt(a^2*c_θ^2 + r^2) + v3*sqrt((a^2*c_θ^2 + r^2)*(a^2 + r^2 - 2*r)))))
 end

@@ -142,7 +142,7 @@ function setup_initial_loss(geometry::Geometry, ϵ::Real, s::Integer)
         init_direction::Vector{<:Real},
         init_directions_found::Union{Vector{<:Vector{<:Real}}, Nothing}=nothing,
     )
-        return initial_loss(init_direction, solver, geometry, init_directions_found)
+        return initial_loss(init_direction, solver, geometry, ϵ, s, init_directions_found)
     end
 
     return loss
@@ -150,15 +150,15 @@ end
 
 
 """
-    setup_gshe_loss(geometry::Geometry, ϵ::Real, s::Integer, nloops::Real)
+    setup_consecutive_loss(geometry::Geometry, ϵ::Real, s::Integer, nloops::Real)
 
-Setup the spin Hall trajectory loss function for a given geometry.
+Setup a consecutive loss.
 """
 function setup_consecutive_loss(geometry::Geometry, ϵ::Real, s::Integer, nloops::Real)
     solver = setup_consecutive_solver(geometry, ϵ, s)
     # Loss function, define with two methods
     function loss(init_direction::Vector{<:Real}, prev_init_direction::Vector{<:Real}, θmax::Real)
-        return consecutive_loss(init_direction, prev_init_direction, solver, geometry, θmax, nloops)
+        return consecutive_loss(init_direction, prev_init_direction, solver, geometry, θmax, nloops, ϵ, s)
     end
     return loss
 end
@@ -338,8 +338,8 @@ function fit_timing(
     for i in 1:Nconfs
         α, β = fit_timing(ϵs, Xgeos[i, :, :], Xgshes[i, :, :, :, :], geometries[i];
                           fit_gshe_gshe=fit_gshe_gshe)
-        αs[i, :, :, :] .= α
-        βs[i, :, :, :] .= β
+        αs[i, ..] .= α
+        βs[i, ..] .= β
     end
 
     return αs, βs

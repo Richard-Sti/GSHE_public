@@ -8,7 +8,7 @@ function find_initial_minima(geometry::Geometry, ϵ::Real, s::Integer, Nsols::In
     X = [find_initial_minimum(loss, geometry)]
 
     if isnothing(X[1])
-        return fill(NaN, Nsols, 6)
+        return fill!(zeros(geometry.dtype, 7), NaN)
     end
 
     for i in 2:Nsols
@@ -16,7 +16,7 @@ function find_initial_minima(geometry::Geometry, ϵ::Real, s::Integer, Nsols::In
         # Terminate the search
         if isnothing(Xnew)
             @info "Initial search terminated with $(i-1)/$Nsols solutions."
-            push!(X, [NaN, NaN, NaN, NaN, NaN, NaN])
+            push!(X, fill!(zeros(geometry.dtype, 7), NaN))
             break
         end
         push!(X, Xnew)
@@ -38,7 +38,7 @@ function find_initial_minimum(loss::Function, geometry::Geometry)
     for i in 1:Ninit
         opt = optimize(loss, rvs_sphere(dtype=geometry.dtype), alg, optim_options)
         if isapprox(opt.minimum, 0.0, atol=loss_atol)
-            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum, geometry.nloops)
+            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum, geometry.nloops, geometry.ϕkilling)
             return opt.minimizer
         end
     end
@@ -48,12 +48,24 @@ end
 
 
 """
+    getθmax(relθmax::Real, ϵ::Real, ϵ0::Real,  nloops::Real)
+
+Get the search radius as a function of ϵ and nloops. This is an empirical relation.
+"""
+function getθmax(relθmax::Real, ϵ::Real, ϵ0::Real,  nloops::Real)
+    return relθmax * (ϵ > 0 ? ϵ : ϵ0) / sqrt(nloops + 0.25)
+end
+
+
+"""
     find_consecutive_minimum(
         geometry::Geometry,
         ϵ::Real,
         s::Integer,
-        prev_init_direction::Vector{<:Real}
-        nloops::Integer
+        prev_init_direction::Vector{<:Real},
+        ϵ0::Real,
+        nloops::Real,
+        prevϕkill::Real
     )
 
 Find a trajectory to the observer (GSHE or geodesic) that is sufficiently close to previous
@@ -64,38 +76,42 @@ function find_consecutive_minimum(
     ϵ::Real,
     s::Integer,
     prev_init_direction::Vector{<:Real},
-    nloops::Real
+    ϵ0::Real,
+    nloops::Real,
 )
     @assert ~(geometry.direction_coords in shadow_coords) "Shadow minimum finder not supported."
 
     if any(isnan.(prev_init_direction))
         @warn "Skipping as `prev_init_direction` contains NaNs."
-        return fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 4), NaN)
+        return fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 5), NaN)
     end
 
-    @unpack alg, optim_options, θmax0, loss_atol, Nconsec, gshe_convergence_verbose = geometry.opt_options
+    @unpack alg, optim_options, relθmax, loss_atol, Nconsec, gshe_convergence_verbose = geometry.opt_options
+    θmax = getθmax(relθmax, ϵ, ϵ0, nloops)
     loss = setup_consecutive_loss(geometry, ϵ, s, nloops)
     min_loss = Inf64
     for i in 1:Nconsec
         # Sample initial position and inv transform it
-        p0 = rvs_sphere_y(θmax0; dtype=geometry.dtype)
-        @. p0 = atan_invtransform(p0, θmax0)
+        p0 = rvs_sphere_y(θmax; dtype=geometry.dtype)
+        @. p0 = atan_invtransform(p0, θmax)
 
-        opt = optimize(p -> loss(p, prev_init_direction, θmax0), p0, alg, optim_options)
+        opt = optimize(p -> loss(p, prev_init_direction, θmax), p0, alg, optim_options)
         # Update the minimum loss
         if opt.minimum < min_loss
             min_loss = opt.minimum
         end
         if isapprox(opt.minimum, 0.0, atol=loss_atol)
             # Transform back to the default coordinate system
-            @. opt.minimizer = atan_transform(opt.minimizer, θmax0)
+            @. opt.minimizer = atan_transform(opt.minimizer, θmax)
             rotate_from_y!(opt.minimizer, prev_init_direction)
-            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum, geometry.nloops)
+            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum, geometry.nloops, geometry.ϕkilling)
 
             return opt.minimizer
         else
-            # Try bumping up the initial restricted area
-            θmax0 *= 1.25
+            # Bump up the search radius but keep it restricted to some max value.
+            if θmax < 0.15π * ((ϵ > 0 ? ϵ : ϵ0) / 0.1)
+                θmax *= 2
+            end
         end
     end
 
@@ -105,7 +121,7 @@ function find_consecutive_minimum(
     end
 
     # Return a vector of NaNs and put the min loss there as well
-    out = fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 4), NaN)
+    out = fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 5), NaN)
     out[5] = min_loss
     return out
 end

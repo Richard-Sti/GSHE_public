@@ -1,25 +1,4 @@
 """
-    average(x::Vector{<:Real})
-
-Calculate the average of a 1-dimensional vector.
-"""
-function average(x::Vector{<:Real})
-    return sum(x) / length(x)
-end
-
-
-"""
-    std(x::Vector{<:Real})
-
-Calculate the standard deviation of a 1-dimensional vector.
-"""
-function std(x::Vector{<:Real})
-    mu = average(x)
-    return sqrt(average((x .- mu).^2))
-end
-
-
-"""
     bootstrap_powerlaw(
         x::Vector{<:Real},
         y::Vector{<:Real};
@@ -58,8 +37,8 @@ function bootstrap_powerlaw(
         res[i, :] .= llsq(x[mask], y[mask])
     end
 
-    out = Dict("alpha" => [average(res[:, 1]), std(res[:, 1])],
-               "beta" => [average(res[:, 2]), std(res[:, 2])])
+    out = Dict("alpha" => [mean(res[:, 1]), std(res[:, 1])],
+               "beta" => [mean(res[:, 2]), std(res[:, 2])])
 
     # Exponenitate the intercept
     out["beta"][1] = 10^out["beta"][1]

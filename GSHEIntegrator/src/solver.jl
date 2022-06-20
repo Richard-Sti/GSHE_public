@@ -1,19 +1,11 @@
 """
-    solve_initial(
-        geometry::Geometry{<:Real},
-        ϵ::Real,
-        Nsols::Integer=2
-    )
+    solve_initial(geometry::Geometry{<:Real}, ϵ::Real, Nsols::Integer=2)
 
 Find the initial (unrestricted) initial shooting direction either for GSHE or geodesics,
 depending on ϵ for a single geometry. If ϵ = 0 the output shape is
 (Nsols, 6), otherwise (Nsols, 2, 6).
 """
-function solve_initial(
-    geometry::Geometry{<:Real},
-    ϵ::Real,
-    Nsols::Integer=2
-)
+function solve_initial(geometry::Geometry{<:Real}, ϵ::Real, Nsols::Integer=2)
     Xright = find_initial_minima(geometry, ϵ, geometry.s, Nsols)
 
     if ϵ == 0
@@ -27,10 +19,10 @@ function solve_initial(
     if Nsols == 2
         # Function that gives 2 if i = 1 and 2 if i = 1
         f(i::Integer) = i == 1 ? 2 : 1
-        Δt = average([abs(Xright[i, 3] - Xleft[i, 3]) for i in 1:2])
-        Δtflip = average([abs(Xright[i, 3] - Xleft[f(i), 3]) for i in 1:2])
-        Δσ = average([angdist(Xright[i, 1:2], Xleft[i, 1:2]) for i in 1:2])
-        Δσflip = average([angdist(Xright[i, 1:2], Xleft[f(i), 1:2]) for i in 1:2])
+        Δt = mean([abs(Xright[i, 3] - Xleft[i, 3]) for i in 1:2])
+        Δtflip = mean([abs(Xright[i, 3] - Xleft[f(i), 3]) for i in 1:2])
+        Δσ = mean([angdist(Xright[i, 1:2], Xleft[i, 1:2]) for i in 1:2])
+        Δσflip = mean([angdist(Xright[i, 1:2], Xleft[f(i), 1:2]) for i in 1:2])
 
         toflip = Δσ > Δσflip
 
@@ -106,6 +98,7 @@ function solve_decreasing(
     s::Integer,
     ϵs::Union{Vector{<:Real}, LinRange{<:Real}};
     verbose::Bool=true,
+    force_nocheck::Bool=false
 )
 
 Solve GSHE trajectories for a given geodesic and polarisation, starting from the highest ϵ
@@ -118,56 +111,47 @@ function solve_decreasing(
     s::Integer,
     ϵs::Union{Vector{<:Real}, LinRange{<:Real}};
     verbose::Bool=true,
+    force_nocheck::Bool=false
 )
     @assert is_strictly_increasing(ϵs) "`ϵs` must be strictly increasing."
     Nϵs = length(ϵs)
-    X = zeros(geometry.dtype, Nϵs, length(Xmax))
-    fill!(X, NaN)
+    X = fill!(zeros(geometry.dtype, Nϵs, length(Xmax)), NaN)
     # Assign to the highest ϵ the Xmax value
     X[Nϵs, :] .= Xmax
     nloops = Xmax[6]
 
     # We loop over the ϵs in reverse
     for (i, ϵ) in enumerate(reverse(ϵs))
-        # Status printing
-        if verbose
-            @printf "%.2f%%, ϵ=%.2e\n" (i / Nϵs * 100) ϵ; flush(stdout)
-        end
+        verbose && @printf "%.2f%%, ϵ=%.2e\n" (i / Nϵs * 100) ϵ; flush(stdout)
 
         # Make sure the looping index points to the right places (since we reverse ϵs)
         # So that i = Nϵs, Nϵs - 1, ... , 1
         i = 1 + Nϵs - i
-
         # Continue to next ϵ if the highest ϵ
-        if i == Nϵs
-            continue
-        end
+        i == Nϵs && continue
 
-        # Find the next high ϵ that has a solution, at most at the next 5 higher sols
-        for k in (i + 1):min(i + 1 + 5, Nϵs)
+        # Find the next high ϵ that has a solution, at most at the next 10 higher sols
+        for k in (i + 1):min(i + 1 + 10, Nϵs)
             p0 = X[k, 1:2]
             if ~any(isnan.(p0))
-                X[i, :] .= find_consecutive_minimum(geometry, ϵ, s, p0, nloops)
+                X[i, :] .= find_consecutive_minimum(geometry, ϵ, s, p0, ϵs[k], nloops)
                 break
             end
         end
-
     end
 
-    # Now find the geodesic solution. Loop through the min 5 ϵs
-    Xgeo = zeros(geometry.dtype, length(Xmax))
-    fill!(Xgeo, NaN)
-    for k in 1:min(5, Nϵs)
+    # Now find the geodesic solution. Loop through the min 10 ϵs
+    Xgeo = fill!(zeros(geometry.dtype, length(Xmax)), NaN)
+    for k in 1:min(10, Nϵs)
         p0 = X[k, 1:2]
         if ~any(isnan.(p0))
-            Xgeo[:] .= find_consecutive_minimum(geometry, 0, 2, p0, nloops)
+            Xgeo[:] .= find_consecutive_minimum(geometry, 0, 2, p0, ϵs[k], nloops)
             break
         end
     end
 
-    # Check that the GSHE look OK
-    if geometry.postproc_options.check_sols
-        check_gshes!(X, Xgeo, s, geometry, ϵs)
+    if ~force_nocheck && geometry.postproc_options.check_sols
+        check_solutions!(X, Xgeo, s, geometry, ϵs, false)
     end
 
     return Xgeo, X
@@ -197,8 +181,8 @@ function _solve_decreasing(
 
     for (sx, s) in enumerate([+geometry.s, -geometry.s])
         Xgeo, Xgshe = solve_decreasing(Xmax[sx, :], geometry, s, ϵs; verbose=verbose)
-        Xgeos[sx, ..] = Xgeo
-        Xgshes[sx, ..] = Xgshe
+        Xgeos[sx, ..] .= Xgeo
+        Xgshes[sx, ..] .= Xgshe
     end
 
     return Xgeos, Xgshes
@@ -236,9 +220,7 @@ function solve_decreasing(
         Xgeo = check_geodesics(Xgeo, geometry)
         # Check if the geodesics agreed. If not attempt to recalculate
         if any(isnan.(Xgeo))
-            if check_verbose
-                println("Downwards geodesics do not agree, recalculating attempt $i/$Ncorrect."); flush(stdout)
-            end
+            check_verbose && println("Geodesics do not agree, recalculating $i/$Ncorrect."); flush(stdout)
             Xgeo, Xgshe = _solve_decreasing(Xmax, geometry, ϵs; verbose=verbose)
         else
             break
@@ -272,10 +254,7 @@ function solve_decreasing(
 
 
     for n in 1:Ngeos
-        if verbose
-            println("n = $n")
-            flush(stdout)
-        end
+        verbose && println("n = $n"); flush(stdout)
 
         Xgeo, Xgshe = solve_decreasing(Xmax[n, ..], geometry, ϵs; verbose=verbose)
         Xgeos[n, ..] .= Xgeo
@@ -312,19 +291,12 @@ function solve_decreasing(
     Xgshes = Vector{Array{geometries[1].dtype, 4}}(undef, Nconfs)
     Xgeos = Vector{Matrix{geometries[1].dtype}}(undef, Nconfs)
 
-    if configuration_verbose
-        println("Solving GSHE for $Nconfs configurations.")
-        flush(stdout)
-    end
+    configuration_verbose && println("Solving GSHE for $Nconfs configurations."); flush(stdout)
 
-   Threads.@threads for i in shuffled_iterators(Nconfs)
-        if configuration_verbose
-            println("Solving GSHE for geometry $i/$Nconfs")
-            flush(stdout)
-        end
+    Threads.@threads for i in shuffled_iterators(Nconfs)
+        configuration_verbose && println("Solving GSHE for geometry $i/$Nconfs"); flush(stdout)
 
-        Xgeos[i], Xgshes[i] = solve_decreasing(Xmaxs[i, ..], geometries[i], ϵs;
-                                               verbose=perturbation_verbose)
+        Xgeos[i], Xgshes[i] = solve_decreasing(Xmaxs[i, ..], geometries[i], ϵs; verbose=perturbation_verbose)
     end
 
     return toarray(Xgeos), toarray(Xgshes)
@@ -352,39 +324,35 @@ function solve_increasing(
 )
     @assert is_strictly_increasing(ϵs) "`ϵs` must be strictly increasing."
     Nϵs = length(ϵs)
-    Xgshe = zeros(geometry.dtype, Nϵs, length(Xgeo))
-    fill!(Xgshe, NaN)
+    Xgshe = fill!(zeros(geometry.dtype, Nϵs, length(Xgeo)), NaN)
     nloops = Xgeo[6]
 
     for (i, ϵ) in enumerate(ϵs)
-        if verbose
-            @printf "%.2f%%, ϵ=%.2e\n" (i / Nϵs * 100) ϵ
-            flush(stdout)
-        end
+        verbose && @printf "%.2f%%, ϵ=%.2e\n" (i / Nϵs * 100) ϵ; flush(stdout)
 
         # Loop over the previously found solutions in reverse. Look up to the previous
-        # 5 solutions.
-        for k in reverse(max(i - 5, 1):i)
+        # 10 solutions.
+        for k in reverse(max(i - 10, 1):i)
             # If previous GSHE solution available and is not NaN set it as
             # initial direction.
             if k > 1
                 p0 = Xgshe[k - 1, 1:2]
                 if ~any(isnan.(p0))
-                    Xgshe[i, :] .= find_consecutive_minimum(geometry, ϵ, s, p0, nloops)
+                    Xgshe[i, :] .= find_consecutive_minimum(geometry, ϵ, s, p0, ϵs[k - 1], nloops)
                     break
                 end
             end
 
             # For the first GSHE set the geodesic solution as initial direction
             if k == 1
-                Xgshe[i, :] .= find_consecutive_minimum(geometry, ϵ, s, Xgeo[1:2], nloops)
+                Xgshe[i, :] .= find_consecutive_minimum(geometry, ϵ, s, Xgeo[1:2], 0, nloops)
             end
         end
 
     end
 
     if geometry.postproc_options.check_sols
-        check_gshes!(Xgshe, Xgeo, s, geometry, ϵs)
+        check_solutions!(Xgshe, Xgeo, s, geometry, ϵs, true)
     end
 
     return Xgshe
@@ -442,10 +410,7 @@ function solve_increasing(
     Xgshe = zeros(geometry.dtype, Ngeos, 2, Nϵs, size(Xgeo, 2))
 
     for n in 1:Ngeos
-        if verbose
-            println("n = $n")
-            flush(stdout)
-        end
+        verbose && println("n = $n"); flush(stdout)
 
         Xgshe[n, ..] .= solve_increasing(Xgeo[n, :], geometry, ϵs; verbose=verbose)
     end
@@ -479,16 +444,11 @@ function solve_increasing(
     check_geometry_dtypes(geometries)
     Xgshes = Vector{Array{geometries[1].dtype, 4}}(undef, Nconfs)
 
-    if configuration_verbose
-        println("Solving GSHE for $Nconfs configurations.")
-        flush(stdout)
-    end
+    configuration_verbose && println("Solving GSHE for $Nconfs configurations."); flush(stdout)
 
     Threads.@threads for i in shuffled_iterators(Nconfs)
-        if configuration_verbose
-            println("Solving GSHE for geometry $i/$Nconfs")
-            flush(stdout)
-        end
+        configuration_verbose && println("Solving GSHE for geometry $i/$Nconfs"); flush(stdout)
+
         Xgshes[i] = solve_increasing(Xgeos[i, ..], geometries[i], ϵs; verbose=perturbation_verbose)
     end
 
@@ -520,7 +480,7 @@ function solve_full(
     X0 = solve_initial(geometry, increasing_ϵ ? 0 : ϵs[end], Nsols)
     # In case of any NaNs initially just return NaN
     if any(isnan.(X0))
-        return X0, fill(NaN, Nsols, 2, length(ϵs), 6)
+        return X0, fill(NaN, Nsols, 2, length(ϵs), 7)
     end
 
     # Calculate the whole thing
@@ -574,7 +534,7 @@ function solve_full(
     # Put into arrays and optionally sort
     Xgeos = toarray(Xgeos)
     Xgshes = toarray(Xgshes)
-    tosort && Nsols > 1 ? sort_configurations!(Xgeos, Xgshes) : nothing
+    tosort && Nsols > 1 && sort_configurations!(Xgeos, Xgshes)
 
     return Xgeos, Xgshes
 end

@@ -272,15 +272,31 @@ end
 
 
 """
-    arrival_stats!(geometry::Geometry, x0::Vector{<:Real}, xf::Vector{<:Real})
+    arrival_stats!(geometry::Geometry, x0::Vector{<:Real}, xf::Vector{<:Real}, ϵ::Real, s::Integer)
 
 Calculate the arrival proper time, gravitational redshift, num of azimuthal loops and store it
 in geometry.
 """
-function arrival_stats!(geometry::Geometry, x0::Vector{<:Real}, xf::Vector{<:Real})
+function arrival_stats!(geometry::Geometry, x0::Vector{<:Real}, xf::Vector{<:Real}, ϵ::Real, s::Integer)
     geometry.arrival_time = static_observer_proper_time(xf, geometry.a)
     geometry.redshift = obs_redshift(x0, xf, geometry.a)
     geometry.nloops = numloops(x0[4], xf[4])
+    geometry.ϕkilling = ϕkilling(xf, geometry, ϵ, s)
+end
+
+
+"""
+    is_at_robs(r, geometry)
+
+Check whether r is approximately equal to the observer's radius.
+"""
+function is_at_robs(r::Real, geometry::Geometry)
+    @unpack radius_reltol = geometry.opt_options
+    if isapprox(r, geometry.observer.r, rtol=radius_reltol)
+        return true
+    else
+        return false
+    end
 end
 
 
@@ -290,6 +306,8 @@ end
         solver::Function,
         geometry::Geometry,
         init_directions_found::Union{Vector{<:Vector{<:Real}}, Nothing}=nothing,
+        ϵ::Real,
+        s::Integer
     )
 
 Calculate the angular loss of a solver (GSHE or geodesic), which is expected to take only
@@ -300,6 +318,8 @@ function initial_loss(
     init_direction::Vector{<:Real},
     solver::Function,
     geometry::Geometry,
+    ϵ::Real,
+    s::Integer,
     init_directions_found::Union{Vector{<:Vector{<:Real}}, Nothing}=nothing,
 )
 
@@ -324,7 +344,7 @@ function initial_loss(
         geometry.redshift = NaN
         return Inf64
     end
-    arrival_stats!(geometry, x0, xf)
+    arrival_stats!(geometry, x0, xf, ϵ, s)
 
     # Additionaly check that arrival time is sufficiently different. Might have to be turned
     # off for Schwarzschild.
@@ -345,6 +365,8 @@ end
         geometry::Geometry,
         θmax::Real
         nloops::Real
+    ϵ::Real,
+    s::Integer
     )
 
 Calculate the angular loss of a solver. The initial direction is first arctan transformed to
@@ -358,7 +380,9 @@ function consecutive_loss(
     solver::Function,
     geometry::Geometry,
     θmax::Real,
-    nloops::Real
+    nloops::Real,
+    ϵ::Real,
+    s::Integer
 )
     # Transform back to angles and ensure in bounds
     px = atan_transform.(init_direction, θmax)
@@ -375,24 +399,10 @@ function consecutive_loss(
         geometry.redshift = NaN
         return Inf64
     end
-    arrival_stats!(geometry, x0, xf)
+    arrival_stats!(geometry, x0, xf, ϵ, s)
 
-    return obs_angdist(xf, geometry) + abs(geometry.nloops - nloops)*2π
-end
-
-
-"""
-    is_at_robs(r, geometry)
-
-Check whether r is approximately equal to the observer's radius.
-"""
-function is_at_robs(r, geometry)
-    @unpack radius_reltol = geometry.opt_options
-    if isapprox(r, geometry.observer.r, rtol=radius_reltol)
-        return true
-    else
-        return false
-    end
+    # Calculate the loss
+    return obs_angdist(xf, geometry) + 2π * abs(geometry.nloops - nloops)
 end
 
 
