@@ -109,7 +109,7 @@ function find_consecutive_minimum(
             return opt.minimizer
         else
             # Bump up the search radius but keep it restricted to some max value.
-            if θmax < 0.15π * ((ϵ > 0 ? ϵ : ϵ0) / 0.1)
+            if θmax < 0.3π * ((ϵ > 0 ? ϵ : ϵ0) / 0.1)
                 θmax *= 2
             end
         end
