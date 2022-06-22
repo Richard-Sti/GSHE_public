@@ -198,13 +198,19 @@ function MPI_collect_shooting(config::Dict{Symbol, Any}, remove::Bool=false)
     # Fit α and β
     geometry = GSHEIntegrator.setup_geometry(-1, config)
 
-    GSHEIntegrator.fit_timing(config[:ϵs], Xgeos, Xgshes, geometry)
+    αs, βs = GSHEIntegrator.fit_timing(config[:ϵs], Xgeos, Xgshes, geometry)
+    npzwrite(joinpath(cdir, "alphas.npy"), αs)
+    npzwrite(joinpath(cdir, "betas.npy"), βs)
 
     # Remove intermediary results
     if remove
         for i in 1:Nx, j in 1:Ny
-            rm(joinpath(cdir, "$(i)_$(j)_Xgeo.npy"))
-            rm(joinpath(cdir, "$(i)_$(j)_Xgshe.npy"))
+            fpathgeo = joinpath(cdir, "$(i)_$(j)_Xgeo.npy")
+            fpathgshe = joinpath(cdir, "$(i)_$(j)_Xgshe.npy")
+            if isfile(fpathgeo) && isfile(fpathgshe)
+                rm(joinpath(cdir, "$(i)_$(j)_Xgeo.npy"))
+                rm(joinpath(cdir, "$(i)_$(j)_Xgshe.npy"))
+            end
         end
     end
 
