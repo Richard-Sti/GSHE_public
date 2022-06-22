@@ -28,7 +28,7 @@ end
         iterations=1000, g_abstol=1e-14, g_reltol=1e-14, outer_g_abstol=1e-14,
         outer_g_reltol=1e-14)
     alg::NelderMead=NelderMead()
-    relθmax::Real=0.1
+    relθmax::Real=0.13
     gshe_convergence_verbose::Bool=false
 end
 
@@ -37,7 +37,7 @@ end
     check_sols::Bool=true
     verbose::Bool=false
     R2tol::Real=0.005
-    Ncorr::Integer=2
+    Ncorr::Integer=1
     Nboots::Integer=1000
     minpoints::Integer=6
     expslope::Real=2

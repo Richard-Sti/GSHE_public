@@ -130,8 +130,8 @@ function solve_decreasing(
         # Continue to next ϵ if the highest ϵ
         i == Nϵs && continue
 
-        # Find the next high ϵ that has a solution, at most at the next 10 higher sols
-        for k in (i + 1):min(i + 1 + 10, Nϵs)
+        # Find the next high ϵ that has a solution, at most at the next 5 higher sols
+        for k in (i + 1):min(i + 1 + 5, Nϵs)
             p0 = X[k, 1:2]
             if ~any(isnan.(p0))
                 X[i, :] .= find_consecutive_minimum(geometry, ϵ, s, p0, ϵs[k], nloops)
@@ -140,9 +140,9 @@ function solve_decreasing(
         end
     end
 
-    # Now find the geodesic solution. Loop through the min 10 ϵs
+    # Now find the geodesic solution. Loop through the min 5 ϵs
     Xgeo = fill!(zeros(geometry.dtype, length(Xmax)), NaN)
-    for k in 1:min(10, Nϵs)
+    for k in 1:min(5, Nϵs)
         p0 = X[k, 1:2]
         if ~any(isnan.(p0))
             Xgeo[:] .= find_consecutive_minimum(geometry, 0, 2, p0, ϵs[k], nloops)
@@ -331,8 +331,8 @@ function solve_increasing(
         verbose && @printf "%.2f%%, ϵ=%.2e\n" (i / Nϵs * 100) ϵ; flush(stdout)
 
         # Loop over the previously found solutions in reverse. Look up to the previous
-        # 10 solutions.
-        for k in reverse(max(i - 10, 1):i)
+        # 5 solutions.
+        for k in reverse(max(i - 5, 1):i)
             # If previous GSHE solution available and is not NaN set it as
             # initial direction.
             if k > 1
