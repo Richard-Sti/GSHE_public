@@ -155,11 +155,11 @@ end
 
 
 """
-    MPI_collect_shooting(config::Dict{Symbol, Any})
+    MPI_collect_shooting(config::Dict{Symbol, Any}, remove::Bool=false)
 
 Collect the MPI shooting results and fit α and β.
 """
-function MPI_collect_shooting(config::Dict{Symbol, Any})
+function MPI_collect_shooting(config::Dict{Symbol, Any}, remove::Bool=false)
     # Unpack either k_x and k_y or ψ and ρ
     xs = config[:dir1]
     ys = config[:dir2]
@@ -172,13 +172,22 @@ function MPI_collect_shooting(config::Dict{Symbol, Any})
     Xgeos = fill(NaN, Nx * Ny, 7)
     Xgshes = fill(NaN, Nx * Ny, length(config[:ϵs]), 7)
 
+    # How often do checkpoint
+    N = Nx * Ny
+    checklength = N ÷ 100
     k = 1
     for i in 1:Nx
         for j in 1:Ny
+            k % checklength == 0 && println("Loaded $(k / N * 100)%"); flush(stdout)
             directions[k, 1] = xs[i]
             directions[k, 2] = ys[i]
-            Xgeos[k, ..] .= npzread(joinpath(cdir, "$(i)_$(j)_Xgeo.npy"))
-            Xgshes[k, ..] .= npzread(joinpath(cdir, "$(i)_$(j)_Xgshe.npy"))
+
+            fpathgeo = joinpath(cdir, "$(i)_$(j)_Xgeo.npy")
+            fpathgshe = joinpath(cdir, "$(i)_$(j)_Xgshe.npy")
+            if isfile(fpathgeo) && isfile(fpathgshe)
+                Xgeos[k, ..] .= npzread(fpathgeo)
+                Xgshes[k, ..] .= npzread(fpathgshe)
+            end
             k += 1
         end
     end
@@ -188,15 +197,15 @@ function MPI_collect_shooting(config::Dict{Symbol, Any})
 
     # Fit α and β
     geometry = GSHEIntegrator.setup_geometry(-1, config)
-    αs, βs = GSHEIntegrator.fit_timing(config[:ϵs], Xgeos, Xgshes, geometry)
 
-    npzwrite(joinpath(cdir, "alphas.npy"), αs)
-    npzwrite(joinpath(cdir, "betas.npy"), βs)
+    GSHEIntegrator.fit_timing(config[:ϵs], Xgeos, Xgshes, geometry)
 
     # Remove intermediary results
-    for i in 1:Nx, j in 1:Ny
-        rm(joinpath(cdir, "$(i)_$(j)_Xgeo.npy"))
-        rm(joinpath(cdir, "$(i)_$(j)_Xgshe.npy"))
+    if remove
+        for i in 1:Nx, j in 1:Ny
+            rm(joinpath(cdir, "$(i)_$(j)_Xgeo.npy"))
+            rm(joinpath(cdir, "$(i)_$(j)_Xgshe.npy"))
+        end
     end
 
 end
