@@ -30,6 +30,7 @@ end
     alg::NelderMead=NelderMead()
     relθmax::Real=0.13
     gshe_convergence_verbose::Bool=false
+    Δσmult::Real=1.5
 end
 
 @with_kw mutable struct PostprocOptions

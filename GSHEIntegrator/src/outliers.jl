@@ -243,11 +243,13 @@ function check_solutions!(
                 iters = reverse(1:outlier - 1)
                 dir = Xgeo[1:2]
                 ϵ0 = 0
+                nrepeats = Xgeo[8]
             else
                 # Search from above the outlier
                 iters = outlier + 1:length(ϵs) - 1
                 dir = Xgshe[end, 1:2]
                 ϵ0 = ϵs[end]
+                nrepeats = Xgshe[end, 8]
             end
 
 
@@ -255,10 +257,11 @@ function check_solutions!(
                 if jj in inliers
                     dir .= Xgshe[jj, 1:2]
                     ϵ0 = ϵs[jj]
+                    nrepeats = Xgshe[jj, 8]
                     break
                 end
             end
-            Xgshe[outlier, :] .= find_consecutive_minimum(geometry, ϵs[outlier], s, dir, ϵ0, nloops)
+            Xgshe[outlier, :] .= find_consecutive_minimum(geometry, ϵs[outlier], s, dir, ϵ0, nloops, nrepeats)
 
             # Move the newly calculated outlier to inliers
             if ~any(isnan.(Xgshe[outlier, 1:2]))

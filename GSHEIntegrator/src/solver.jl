@@ -134,7 +134,7 @@ function solve_decreasing(
         for k in (i + 1):min(i + 1 + 5, Nϵs)
             p0 = X[k, 1:2]
             if ~any(isnan.(p0))
-                X[i, :] .= find_consecutive_minimum(geometry, ϵ, s, p0, ϵs[k], nloops)
+                X[i, :] .= find_consecutive_minimum(geometry, ϵ, s, p0, ϵs[k], nloops, X[k, 8])
                 break
             end
         end
@@ -145,7 +145,7 @@ function solve_decreasing(
     for k in 1:min(5, Nϵs)
         p0 = X[k, 1:2]
         if ~any(isnan.(p0))
-            Xgeo[:] .= find_consecutive_minimum(geometry, 0, 2, p0, ϵs[k], nloops)
+            Xgeo[:] .= find_consecutive_minimum(geometry, 0, 2, p0, ϵs[k], nloops, X[k, 8])
             break
         end
     end
@@ -338,14 +338,14 @@ function solve_increasing(
             if k > 1
                 p0 = Xgshe[k - 1, 1:2]
                 if ~any(isnan.(p0))
-                    Xgshe[i, :] .= find_consecutive_minimum(geometry, ϵ, s, p0, ϵs[k - 1], nloops)
+                    Xgshe[i, :] .= find_consecutive_minimum(geometry, ϵ, s, p0, ϵs[k - 1], nloops, Xgshe[k - 1, 8])
                     break
                 end
             end
 
             # For the first GSHE set the geodesic solution as initial direction
             if k == 1
-                Xgshe[i, :] .= find_consecutive_minimum(geometry, ϵ, s, Xgeo[1:2], 0, nloops)
+                Xgshe[i, :] .= find_consecutive_minimum(geometry, ϵ, s, Xgeo[1:2], 0, nloops, Xgeo[8])
             end
         end
 
@@ -480,7 +480,7 @@ function solve_full(
     X0 = solve_initial(geometry, increasing_ϵ ? 0 : ϵs[end], Nsols)
     # In case of any NaNs initially just return NaN
     if any(isnan.(X0))
-        return X0, fill(NaN, Nsols, 2, length(ϵs), 7)
+        return X0, fill(NaN, Nsols, 2, length(ϵs), 8)
     end
 
     # Calculate the whole thing

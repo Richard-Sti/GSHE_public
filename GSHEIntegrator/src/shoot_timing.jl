@@ -21,7 +21,7 @@ function time_initial!(
         x, y = init_direction
         # Check the radius, though it might have already been checked elsewhere.
         if x^2 + y^2 > 1
-            return push!(init_direction, fill!(zeros(geometry.dtype, 7), NaN)...)
+            return push!(init_direction, fill!(zeros(geometry.dtype, 8), NaN)...)
         end
         init_direction[1] = acos(y)
         init_direction[2] = π + asin(x / sqrt(1 - y^2))
@@ -29,7 +29,7 @@ function time_initial!(
 
     # If initial conditions out of bounds return NaNs
     if ~in_bounds(init_direction, geometry)
-        return push!(init_direction, fill!(zeros(geometry.dtype, 7), NaN)...)
+        return push!(init_direction, fill!(zeros(geometry.dtype, 8), NaN)...)
     end
 
     # Integrate the geodesic
@@ -38,7 +38,7 @@ function time_initial!(
     xf = sol[:, end]
 
     if ~is_at_robs(xf[2], geometry)
-        return push!(init_direction, fill!(zeros(geometry.dtype, 7), NaN)...)
+        return push!(init_direction, fill!(zeros(geometry.dtype, 8), NaN)...)
     end
 
     # Calculate the observer proper arrival time and redshift
@@ -73,7 +73,7 @@ function time_gshe(
     nloops = pop!(X0)
     geometry.observer.ϕ = pop!(X0)
     geometry.observer.θ = pop!(X0)
-    push!(X0, nloops, ϕkill)
+    push!(X0, nloops, ϕkill, 0)
 
     if increasing_ϵ
         Xgeo = X0
@@ -119,7 +119,7 @@ function time_direction(
         pop!(init_direction), pop!(init_direction)
         fill!(init_direction, NaN)
         Xgeo = init_direction
-        Xgshe = fill!(Matrix{geometry.dtype}(undef, length(ϵs), 7), NaN)
+        Xgshe = fill!(Matrix{geometry.dtype}(undef, length(ϵs), 8), NaN)
     else
         Xgeo, Xgshe = time_gshe(init_direction, geometry, ϵs, s, increasing_ϵ, verbose)
     end

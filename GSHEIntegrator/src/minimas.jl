@@ -8,7 +8,7 @@ function find_initial_minima(geometry::Geometry, ϵ::Real, s::Integer, Nsols::In
     X = [find_initial_minimum(loss, geometry)]
 
     if isnothing(X[1])
-        return fill!(zeros(geometry.dtype, 7), NaN)
+        return fill!(zeros(geometry.dtype, 8), NaN)
     end
 
     for i in 2:Nsols
@@ -16,7 +16,7 @@ function find_initial_minima(geometry::Geometry, ϵ::Real, s::Integer, Nsols::In
         # Terminate the search
         if isnothing(Xnew)
             @info "Initial search terminated with $(i-1)/$Nsols solutions."
-            push!(X, fill!(zeros(geometry.dtype, 7), NaN))
+            push!(X, fill!(zeros(geometry.dtype, 8), NaN))
             break
         end
         push!(X, Xnew)
@@ -38,7 +38,7 @@ function find_initial_minimum(loss::Function, geometry::Geometry)
     for i in 1:Ninit
         opt = optimize(loss, rvs_sphere(dtype=geometry.dtype), alg, optim_options)
         if isapprox(opt.minimum, 0.0, atol=loss_atol)
-            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum, geometry.nloops, geometry.ϕkilling)
+            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum, geometry.nloops, geometry.ϕkilling, i)
             return opt.minimizer
         end
     end
@@ -65,7 +65,7 @@ end
         prev_init_direction::Vector{<:Real},
         ϵ0::Real,
         nloops::Real,
-        prevϕkill::Real
+        prevrepeats::Real
     )
 
 Find a trajectory to the observer (GSHE or geodesic) that is sufficiently close to previous
@@ -78,16 +78,17 @@ function find_consecutive_minimum(
     prev_init_direction::Vector{<:Real},
     ϵ0::Real,
     nloops::Real,
+    prevrepeats::Real
 )
     @assert ~(geometry.direction_coords in shadow_coords) "Shadow minimum finder not supported."
 
     if any(isnan.(prev_init_direction))
         @warn "Skipping as `prev_init_direction` contains NaNs."
-        return fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 5), NaN)
+        return fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 6), NaN)
     end
 
-    @unpack alg, optim_options, relθmax, loss_atol, Nconsec, gshe_convergence_verbose = geometry.opt_options
-    θmax = getθmax(relθmax, ϵ, ϵ0, nloops)
+    @unpack alg, optim_options, relθmax, loss_atol, Nconsec, gshe_convergence_verbose, Δσmult = geometry.opt_options
+    θmax = getθmax(relθmax, ϵ, ϵ0, nloops) * Δσmult^(prevrepeats > 5 ? 5 : prevrepeats)
     loss = setup_consecutive_loss(geometry, ϵ, s, nloops)
     min_loss = Inf64
     for i in 1:Nconsec
@@ -104,13 +105,14 @@ function find_consecutive_minimum(
             # Transform back to the default coordinate system
             @. opt.minimizer = atan_transform(opt.minimizer, θmax)
             rotate_from_y!(opt.minimizer, prev_init_direction)
-            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum, geometry.nloops, geometry.ϕkilling)
+            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum,
+                  geometry.nloops, geometry.ϕkilling, i)
 
             return opt.minimizer
         else
             # Bump up the search radius but keep it restricted to some max value.
-            if θmax < 0.3π * ((ϵ > 0 ? ϵ : ϵ0) / 0.1)
-                θmax *= 2
+            if θmax < 0.45π * ((ϵ > 0 ? ϵ : ϵ0) / 0.1)
+                θmax *= Δσmult
             end
         end
     end
@@ -121,7 +123,7 @@ function find_consecutive_minimum(
     end
 
     # Return a vector of NaNs and put the min loss there as well
-    out = fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 5), NaN)
+    out = fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 6), NaN)
     out[5] = min_loss
     return out
 end
