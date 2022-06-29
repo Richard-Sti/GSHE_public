@@ -1,5 +1,4 @@
 from copy import deepcopy
-import numpy
 from pycbc.waveform.utils import apply_fd_time_shift, fd_to_td
 
 from .utils import mixing, linear_to_circular, circular_to_linear
@@ -108,7 +107,7 @@ def waveform_to_strain(hp, hc, Fp, Fc):
     coefficients. Multiplise the polarisation waveform with its antenna
     response and sums over the two states.
 
-    Arguments 
+    Arguments
     ---------
     hp : :py:class:`pycbc.types.timeseries.TimeSeries`
         Time-domain plus polarisation waveform.

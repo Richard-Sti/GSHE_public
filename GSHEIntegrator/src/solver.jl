@@ -122,7 +122,10 @@ function solve_decreasing(
 
     # We loop over the ϵs in reverse
     for (i, ϵ) in enumerate(reverse(ϵs))
-        verbose && @printf "%.2f%%, ϵ=%.2e\n" (i / Nϵs * 100) ϵ; flush(stdout)
+        if verbose
+            @printf "%.2f%%, ϵ=%.2e " (i / Nϵs * 100) ϵ
+            flush(stdout)
+        end
 
         # Make sure the looping index points to the right places (since we reverse ϵs)
         # So that i = Nϵs, Nϵs - 1, ... , 1
@@ -209,18 +212,18 @@ function solve_decreasing(
 )
     Xgeo, Xgshe = _solve_decreasing(Xmax, geometry, ϵs; verbose=verbose)
 
-    @unpack check_sols, check_verbose, Ncorrect = geometry.postproc_options
+    @unpack check_sols, verbose, Ncorr = geometry.postproc_options
     if ~check_sols
         # Live dangerously and just return one geodesic
         return Xgeo[1, :], Xgshe
     end
 
     # Check that the geodesic ladder converged
-    for i in 1:Ncorrect
+    for i in 1:Ncorr
         Xgeo = check_geodesics(Xgeo, geometry)
         # Check if the geodesics agreed. If not attempt to recalculate
         if any(isnan.(Xgeo))
-            check_verbose && println("Geodesics do not agree, recalculating $i/$Ncorrect."); flush(stdout)
+            verbose && println("Geodesics do not agree, recalculating $i/$Ncorr."); flush(stdout)
             Xgeo, Xgshe = _solve_decreasing(Xmax, geometry, ϵs; verbose=verbose)
         else
             break
@@ -328,7 +331,7 @@ function solve_increasing(
     nloops = Xgeo[6]
 
     for (i, ϵ) in enumerate(ϵs)
-        verbose && @printf "%.2f%%, ϵ=%.2e\n" (i / Nϵs * 100) ϵ; flush(stdout)
+        verbose && @printf "%.2f%%, ϵ=%.2e " (i / Nϵs * 100) ϵ; flush(stdout)
 
         # Loop over the previously found solutions in reverse. Look up to the previous
         # 5 solutions.

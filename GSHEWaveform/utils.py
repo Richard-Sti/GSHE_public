@@ -2,6 +2,7 @@ import numpy
 from scipy import constants as c
 from scipy.interpolate import interp1d
 from copy import deepcopy
+import matplotlib as mpl
 # Append the solar mass
 c.Msun = 1.989e30
 
@@ -46,6 +47,27 @@ def epsilon_from_freq(f, M):
     return c.c**3 / (c.G * c.Msun) / M / f
 
 
+def M_from_epsfreq(eps, f):
+    r"""
+    Calculate the background mass :math:`M` in units of solar mass from
+    :math:`\epsilon` and :math:`f` in units of seconds. This is the inverse of
+    :py:func:`epsilon_from_freq`.
+
+    Arguments
+    ---------
+    eps: float
+        Perturbation strength parameter.
+    f: float
+        Frequency [Hz].
+
+    Returns
+    -------
+    M: float
+        Background mass [Msun].
+    """
+    return c.c**3 / (c.G * c.Msun) / (eps * f)
+
+
 def time_delay_analytical(f, M, alpha, beta):
     r"""
     Calculate the analytical time delay :math:`\Delta \tau(f)`.
@@ -56,9 +78,9 @@ def time_delay_analytical(f, M, alpha, beta):
         Frequency [Hz]
     M: float
         Background mass [Msun]
-    alpha: float
-        Power law proportionality constant [s]
     beta: float
+        Power law proportionality constant [s]
+    alpha: float
         Power law slope.
 
     Returns
@@ -66,9 +88,16 @@ def time_delay_analytical(f, M, alpha, beta):
     time_delay: float
         Time delay [s]
     """
-    return numpy.piecewise(
-        f, [f <= 0, f > 0],
-        [1e16, lambda x: alpha * epsilon_from_freq(x, M)**beta])
+    # Dimension-full beta in seconds
+    dimbeta = coordinate_time_to_seconds(beta, M)
+    delay = lambda x: dimbeta * epsilon_from_freq(x, M)**alpha
+
+    if isinstance(f, (float, int)):
+        return delay(f)
+    # Lists have to be converted to arrays
+    if isinstance(f, list):
+        f = numpy.asarray(f, dtype=float)
+    return numpy.piecewise(f, [f <= 0, f > 0], [1e16, delay])
 
 
 def linear_to_circular(plus, cross):
@@ -163,10 +192,12 @@ class GSHEtoGeodesicDelayInterpolator:
     ---------
     epsilons : 1-dimensional array
         Values of :math:`\epsilon` at which the time delay was calculated.
-    Xgshe : 4-dimensional array
-        Array containing the GSHE arrival times, as outputted from Julia.
-    Xgeo : 3-dimensional array
+    Xgshe : 2- or 4-dimensional array
+        Array containing the GSHE arrival times, as outputted from Julia. If
+        both `n` and `s` are not `None` then must be 4-dimensional.
+    Xgeo : 1- or 3-dimensional array
         Array containing the geodesic arrival times, as outputted from Julia.
+        If both `n` and `s` are not `None` then must be 4-dimensional.
     n : int
         The geodesic index.
     s : int
@@ -175,9 +206,11 @@ class GSHEtoGeodesicDelayInterpolator:
         Background mass [Msun]
     """
 
-    def __init__(self, epsilons, Xgshe, Xgeo, n, s, M):
-
-        dt = Xgshe[n, s, :, 2] - Xgeo[n, 2]
+    def __init__(self, epsilons, Xgshe, Xgeo, M, n=None, s=None):
+        if n is None and s is None:
+            dt = Xgshe[:, 2] - Xgeo[2]
+        else:
+            dt = Xgshe[n, s, :, 2] - Xgeo[n, 2]
         # Get the sign and check all equal
         sign = numpy.sign(dt)
         assert numpy.alltrue(sign[0] == sign[1:])
@@ -210,3 +243,33 @@ class GSHEtoGeodesicDelayInterpolator:
                 delay = self.sign * 1e16
         return delay
 
+
+def setmplstyle(fpath=None):
+    """
+    Set the matplotlib style. If `fpath` is `None` uses the default style.
+
+    Arguments
+    ---------
+    fpath: str, optional
+        Path to the style text file.
+    """
+    if fpath is None:
+        mpl.rcParams.update(mpl.rcParamsDefault)
+    else:
+        mpl.style.use(fpath)
+
+
+def ylabel_withoffset(ax, label):
+    """
+    Draw the y-label of the given axis with its offset.
+
+    Arguments
+    ---------
+    ax: py:class:`matplotlib.axes._subplots.AxesSubplot`
+        Matplotlib axis.
+    label: str
+        They y-axis label.
+    """
+    ax.yaxis.offsetText.set_visible(False)
+    offset = ax.yaxis.get_major_formatter().get_offset()
+    ax.set_ylabel(r"{} {}".format(label, offset))

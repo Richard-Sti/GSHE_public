@@ -280,7 +280,7 @@ end
 Check that the geodesics of the decreasing search are in agreement.
 """
 function check_geodesics(Xgeo::Matrix{<:Real}, geometry::Geometry)
-    @unpack geodesics_Δσ, geodesics_Δt, check_verbose = geometry.postproc_options
+    @unpack geodesics_Δσ, geodesics_Δt, verbose = geometry.postproc_options
 
     Δσ = GSHEIntegrator.angdist(Xgeo[1, 1:2], Xgeo[2, 1:2])
     Δt = abs(Xgeo[1, 3] - Xgeo[2, 3])
@@ -288,7 +288,7 @@ function check_geodesics(Xgeo::Matrix{<:Real}, geometry::Geometry)
     if Δσ < geodesics_Δσ && Δt < geodesics_Δt
         return Xgeo[1, :]
     else
-        if check_verbose
+        if verbose
             println("Geodesics from downwards ϵ ladder did not converge, Δσ = $Δσ, Δt = $Δt"); flush(stdout)
         end
         return fill(NaN, size(Xgeo, 2))
