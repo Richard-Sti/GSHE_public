@@ -1,18 +1,22 @@
 """
-    find_geodesic_minima(geometry::Geometry, Nsols::Integer=1)
+    find_initial_minima(geometry::Geometry, ϵ::Real, s::Integer, Nsols::Integer=1)
 
-Find `Nsols` unique minima of a geodesic for a given geometry.
+Find the `Nsols` initial minima of a loss function that connect the source and observer.
 """
-function find_geodesic_minima(geometry::Geometry, Nsols::Integer=1)
-    loss = setup_geodesic_loss(geometry)
-    X = [find_geodesic_minimum(loss, geometry)]
+function find_initial_minima(geometry::Geometry, ϵ::Real, s::Integer, Nsols::Integer=1)
+    loss = setup_initial_loss(geometry, ϵ, s)
+    X = [find_initial_minimum(loss, geometry)]
+
+    if isnothing(X[1])
+        return fill!(zeros(geometry.dtype, 8), NaN)
+    end
 
     for i in 2:Nsols
-        Xnew = find_geodesic_minimum(p -> loss(p, X), geometry)
+        Xnew = find_initial_minimum(p -> loss(p, X), geometry)
         # Terminate the search
-        if Xnew === nothing
-            @info "Search terminated with $(i-1)/$Nsols solutions."
-            push!(X, [NaN, NaN, NaN, NaN, NaN])
+        if isnothing(Xnew)
+            @info "Initial search terminated with $(i-1)/$Nsols solutions."
+            push!(X, fill!(zeros(geometry.dtype, 8), NaN))
             break
         end
         push!(X, Xnew)
@@ -23,19 +27,18 @@ end
 
 
 """
-    find_geodesic_minimum(loss::Function, geometry::Geometry)
+    find_initial_minimum(loss::Function, geometry::Geometry)
 
-Find the minimum of a geodesic `loss` on the surface of a sphere. Attempts many tries until
-a desired loss is found. Starts eachs attempt with randomly sampled position on the sky.
+Find the initial minimum of a loss function that connects the source and observer.
 """
-function find_geodesic_minimum(loss::Function, geometry::Geometry)
+function find_initial_minimum(loss::Function, geometry::Geometry)
     @assert ~(geometry.direction_coords in shadow_coords) "Shadow minimum finder not supported."
 
-    @unpack Nattempts_geo, loss_atol, alg, optim_options = geometry.opt_options
-    for i in 1:Nattempts_geo
+    @unpack Ninit, loss_atol, alg, optim_options = geometry.opt_options
+    for i in 1:Ninit
         opt = optimize(loss, rvs_sphere(dtype=geometry.dtype), alg, optim_options)
         if isapprox(opt.minimum, 0.0, atol=loss_atol)
-            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum)
+            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum, geometry.nloops, geometry.ϕkilling, i)
             return opt.minimizer
         end
     end
@@ -45,43 +48,50 @@ end
 
 
 """
-    θmax_scaling(θmax0::Real, ϵ::Real)
+    getθmax(relθmax::Real, ϵ::Real, ϵ0::Real,  nloops::Real)
 
-Calculate :math:`θmax = θmax0 + 0.5√ϵ`, however maximum value is capped at π/3.
+Get the search radius as a function of ϵ and nloops. This is an empirical relation.
 """
-function θmax_scaling(θmax0::Real, ϵ::Real)
-    θmax =  θmax0 + sqrt(ϵ) / 2
-    θmax > π/3  ? (return π/3) : return θmax
+function getθmax(relθmax::Real, ϵ::Real, ϵ0::Real,  nloops::Real)
+    return relθmax * (ϵ > 0 ? ϵ : ϵ0) / sqrt(nloops + 0.25)
 end
 
 
 """
-    find_restricted_minimum(
+    find_consecutive_minimum(
         geometry::Geometry,
         ϵ::Real,
         s::Integer,
-        prev_init_direction::Vector{<:Real}
+        prev_init_direction::Vector{<:Real},
+        ϵ0::Real,
+        nloops::Real,
+        prevrepeats::Real
     )
 
-Find a GSHE trajectory minimum near some previous initial direction.
+Find a trajectory to the observer (GSHE or geodesic) that is sufficiently close to previous
+initial direction.
 """
-function find_restricted_minimum(
+function find_consecutive_minimum(
     geometry::Geometry,
     ϵ::Real,
     s::Integer,
-    prev_init_direction::Vector{<:Real}
+    prev_init_direction::Vector{<:Real},
+    ϵ0::Real,
+    nloops::Real,
+    prevrepeats::Real
 )
     @assert ~(geometry.direction_coords in shadow_coords) "Shadow minimum finder not supported."
 
     if any(isnan.(prev_init_direction))
         @warn "Skipping as `prev_init_direction` contains NaNs."
+        return fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 6), NaN)
     end
 
-    @unpack alg, optim_options, θmax0, loss_atol, Nattempts_gshe, gshe_convergence_verbose = geometry.opt_options
-    loss = setup_gshe_loss(geometry, ϵ, s)
+    @unpack alg, optim_options, relθmax, loss_atol, Nconsec, gshe_convergence_verbose, Δσmult = geometry.opt_options
+    θmax = getθmax(relθmax, ϵ, ϵ0, nloops) * Δσmult^(prevrepeats > 5 ? 5 : prevrepeats)
+    loss = setup_consecutive_loss(geometry, ϵ, s, nloops)
     min_loss = Inf64
-    for i in 1:Nattempts_gshe
-        θmax = θmax_scaling(θmax0, ϵ)
+    for i in 1:Nconsec
         # Sample initial position and inv transform it
         p0 = rvs_sphere_y(θmax; dtype=geometry.dtype)
         @. p0 = atan_invtransform(p0, θmax)
@@ -95,11 +105,15 @@ function find_restricted_minimum(
             # Transform back to the default coordinate system
             @. opt.minimizer = atan_transform(opt.minimizer, θmax)
             rotate_from_y!(opt.minimizer, prev_init_direction)
-            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum)
+            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum,
+                  geometry.nloops, geometry.ϕkilling, i)
 
             return opt.minimizer
         else
-            θmax0 *= 1.25
+            # Bump up the search radius but keep it restricted to some max value.
+            if θmax < 0.45π * ((ϵ > 0 ? ϵ : ϵ0) / 0.1)
+                θmax *= Δσmult
+            end
         end
     end
 
@@ -108,8 +122,8 @@ function find_restricted_minimum(
         flush(stdout)
     end
 
-    # Return a vector of NaNs and put the min loss at the last position
-    out = fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 3), NaN)
-    out[end] = min_loss
+    # Return a vector of NaNs and put the min loss there as well
+    out = fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 6), NaN)
+    out[5] = min_loss
     return out
 end

@@ -61,6 +61,16 @@ function max_Δϕ(geometry::Geometry)
     return Δϕ
 end
 
+"""
+    numloops(ϕ0::Real, ϕf::Real)
+
+Calculate the number of complete loops around the BH according to the starting and final ϕ.
+"""
+function numloops(ϕ0::Real, ϕf::Real)
+    Δϕ = abs(ϕf - ϕ0) / (2π)
+    return Δϕ - (Δϕ % 1)
+end
+
 
 """
     loop_callback(geometry::Geometry)
@@ -128,7 +138,21 @@ end
 
 
 """
-    solve_geodesic(
+    solve_problem(prob::ODEProblem, geometry::Geometry, cb::CallbackSet;
+                  save_everystep::Bool=false)
+
+Solve an ODE problem directly.
+"""
+function solve_problem(prob::ODEProblem, geometry::Geometry, cb::CallbackSet;
+                       save_everystep::Bool=false)
+    @unpack reltol, abstol, maxiters, verbose = geometry.ode_options
+    return solve(prob, Vern9(), callback=cb, save_everystep=save_everystep, reltol=reltol,
+                 abstol=abstol, maxiters=maxiters, verbose=verbose)
+end
+
+
+"""
+    solve_problem(
         init_direction::Vector{<:Real},
         prob0::ODEProblem,
         geometry::Geometry,
@@ -136,36 +160,45 @@ end
         save_everystep::Bool=false,
     )
 
-Solve a geodesic problem for a given geometry and initial direction.
+Remake initial conditions and solve an ODE problem.
 """
-function solve_geodesic(
+function solve_problem(
     init_direction::Vector{<:Real},
     prob0::ODEProblem,
     geometry::Geometry,
     cb::CallbackSet;
     save_everystep::Bool=false,
 )
-    @unpack reltol, abstol, maxiters, verbose = geometry.ode_options
-
     prob = remake(prob0, u0=init_values(init_direction, geometry))
-    return solve(prob, Vern9(), callback=cb, save_everystep=save_everystep, reltol=reltol,
-                 abstol=abstol, maxiters=maxiters, verbose=verbose)
-end
-
-
-function solve_geodesic(
-    init_direction::Vector{<:Real},
-    geometry::Geometry;
-    save_everystep::Bool=false
-)
-    prob = geodesic_ode_problem(geometry)
-    cb = get_callbacks(geometry)
-    return solve_geodesic(init_direction, prob, geometry, cb; save_everystep=save_everystep)
+    solve_problem(prob, geometry, cb; save_everystep=save_everystep)
 end
 
 
 """
-    solve_gshe(
+    solve_problem(
+        init_direction::Vector{<:Real},
+        geometry::Geometry;
+        ϵ::Real,
+        s::Integer,
+        save_everystep::Bool=false
+    )
+
+Make an ODE problem and solve a GSHE or geodesic problem.
+"""
+function solve_problem(
+    init_direction::Vector{<:Real},
+    geometry::Geometry,
+    ϵ::Real,
+    s::Integer;
+    save_everystep::Bool=false
+)
+    prob = ode_problem(geometry, ϵ, s, init_values(init_direction, geometry))
+    return solve_problem(prob, geometry, get_callbacks(geometry); save_everystep=save_everystep)
+end
+
+
+"""
+    solve_consecutive_problem(
         init_direction::Vector{<:Real},
         prev_init_direction::Vector{<:Real},
         prob0::ODEProblem,
@@ -174,11 +207,10 @@ end
         save_everystep::Bool=false,
     )
 
-Solve a GSHE problem fora given geometry, initial direction and previous initial direction.
-Note that here the initial direction is in the reference frame where the previous initial
-direction is at the positive y-axis.
+Solve a consecutive problem where `init_direction` is specified in the reference frame wherein
+`prev_init_direction` is coincident with the positive y-axis.
 """
-function solve_gshe(
+function solve_consecutive_problem(
     init_direction::Vector{<:Real},
     prev_init_direction::Vector{<:Real},
     prob0::ODEProblem,
@@ -186,32 +218,9 @@ function solve_gshe(
     cb::CallbackSet;
     save_everystep::Bool=false,
 )
-    @assert ~(geometry.direction_coords in shadow_coords) "Shadow coords not supported."
-
-    @unpack reltol, abstol, maxiters, verbose = geometry.ode_options
+    @assert ~(geometry.direction_coords in shadow_coords) "Shadow coords initial conditions  are not supported for consecutive ODE problems."
     prob = remake(prob0, u0=init_values(init_direction, geometry, prev_init_direction))
-
-    return solve(prob, Vern9(), callback=cb, save_everystep=save_everystep, reltol=reltol,
-                 abstol=abstol, maxiters=maxiters, verbose=verbose)
-end
-
-
-function solve_gshe(
-    init_direction::Vector{<:Real},
-    geometry::Geometry,
-    ϵ::Real,
-    s::Integer;
-    save_everystep::Bool=false,
-)
-    @assert ~(geometry.direction_coords in shadow_coords) "Shadow coords not supported."
-    prob = gshe_ode_problem(geometry, ϵ, s)
-    # Now set the initial conditions
-    prob = remake(prob, u0=init_values(init_direction, geometry))
-    cb = get_callbacks(geometry)
-    @unpack reltol, abstol, maxiters = geometry.ode_options
-
-    return solve(prob, Vern9(), callback=cb, save_everystep=save_everystep, reltol=reltol,
-                 abstol=abstol, maxiters=maxiters)
+    return solve_problem(prob, geometry, cb; save_everystep=save_everystep)
 end
 
 
@@ -247,11 +256,11 @@ end
 
 
 """
-    geodesic_init_bounds(p::Vector{<:Real}, geometry::Geometry)
+    in_bounds(p::Vector{<:Real}, geometry::Geometry)
 
 Return whether the initial conditions (ψ, ρ) or (x, y) of a geodesic are in bounds.
 """
-function is_in_geodesic_init_bounds(p::Vector{<:Real}, geometry::Geometry)
+function in_bounds(p::Vector{<:Real}, geometry::Geometry)
     if geometry.direction_coords == :spherical && ~angular_bounds(p)
         return false
     elseif geometry.direction_coords in shadow_coords && ~shadow_bounds(p)
@@ -263,36 +272,58 @@ end
 
 
 """
-    arrival_stats!(geometry::Geometry, x0::Vector{<:Real}, xf::Vector{<:Real})
+    arrival_stats!(geometry::Geometry, x0::Vector{<:Real}, xf::Vector{<:Real}, ϵ::Real, s::Integer)
 
-Calculate the arrival proper time and gravitational redshift and store it in geometry.
+Calculate the arrival proper time, gravitational redshift, num of azimuthal loops and store it
+in geometry.
 """
-function arrival_stats!(geometry::Geometry, x0::Vector{<:Real}, xf::Vector{<:Real})
+function arrival_stats!(geometry::Geometry, x0::Vector{<:Real}, xf::Vector{<:Real}, ϵ::Real, s::Integer)
     geometry.arrival_time = static_observer_proper_time(xf, geometry.a)
     geometry.redshift = obs_redshift(x0, xf, geometry.a)
+    geometry.nloops = numloops(x0[4], xf[4])
+    geometry.ϕkilling = ϕkilling(xf, geometry, ϵ, s)
 end
 
 
 """
-    geodesic_loss(
+    is_at_robs(r, geometry)
+
+Check whether r is approximately equal to the observer's radius.
+"""
+function is_at_robs(r::Real, geometry::Geometry)
+    @unpack radius_reltol = geometry.opt_options
+    if isapprox(r, geometry.observer.r, rtol=radius_reltol)
+        return true
+    else
+        return false
+    end
+end
+
+
+"""
+    initial_loss(
         init_direction::Vector{<:Real},
         solver::Function,
         geometry::Geometry,
         init_directions_found::Union{Vector{<:Vector{<:Real}}, Nothing}=nothing,
+        ϵ::Real,
+        s::Integer
     )
 
-Calculate the angular loss function of a geodesic, whose solution is calculated via
-`solver`, which is expected to take only the initial direction as an argument. If close to
-any previously found initial directions returns infinity.
+Calculate the angular loss of a solver (GSHE or geodesic), which is expected to take only
+the initial direction as input. If close to any previously found initial directions returns
+infinity.
 """
-function geodesic_loss(
+function initial_loss(
     init_direction::Vector{<:Real},
     solver::Function,
     geometry::Geometry,
+    ϵ::Real,
+    s::Integer,
     init_directions_found::Union{Vector{<:Vector{<:Real}}, Nothing}=nothing,
 )
 
-    if ~is_in_geodesic_init_bounds(init_direction, geometry)
+    if ~in_bounds(init_direction, geometry)
         return Inf64
     end
 
@@ -307,18 +338,18 @@ function geodesic_loss(
     x0 = sol[:, 1]
     xf = sol[:, end]
 
-    r = xf[2]
     # Check if arrived at the observer radius
-    if ~is_at_robs(r, geometry)
+    if ~is_at_robs(xf[2], geometry)
         geometry.arrival_time = NaN
         geometry.redshift = NaN
         return Inf64
     end
-    arrival_stats!(geometry, x0, xf)
+    arrival_stats!(geometry, x0, xf, ϵ, s)
 
-    # Additionaly check that arrival time is sufficiently different
+    # Additionaly check that arrival time is sufficiently different. Might have to be turned
+    # off for Schwarzschild.
     τ = geometry.arrival_time
-    if ~is_first && minimum(abs(τ - Xgeo[3]) for Xgeo in init_directions_found) < τ_to_old
+    if ~is_first && minimum(abs(τ - X[3]) for X in init_directions_found) < τ_to_old
         return Inf64
     end
 
@@ -327,58 +358,51 @@ end
 
 
 """
-    gshe_loss(
+    consecutive_loss(
         init_direction::Vector{<:Real},
         prev_init_direction::Vector{<:Real},
         solver::Function,
         geometry::Geometry,
         θmax::Real
+        nloops::Real
+    ϵ::Real,
+    s::Integer
     )
 
-Calculate the angular loss of a GSHE trajectory, with the initial direction being near the
-positive y-axis. Uses `prev_init_direction` to return to the original reference frame.
+Calculate the angular loss of a solver. The initial direction is first arctan transformed to
+enforce it is within θmax angular distance of the positive y-axis. Thus, be careful when using
+this to calculate the loss directly. The previous initial direction is rotated to coincide
+with the positive y-axis.
 """
-function gshe_loss(
+function consecutive_loss(
     init_direction::Vector{<:Real},
     prev_init_direction::Vector{<:Real},
     solver::Function,
     geometry::Geometry,
-    θmax::Real
+    θmax::Real,
+    nloops::Real,
+    ϵ::Real,
+    s::Integer
 )
+    # Transform back to angles and ensure in bounds
     px = atan_transform.(init_direction, θmax)
     if ~angular_bounds_y(px, θmax)
         return Inf64
     end
+    # Solve
     sol = solver(px, prev_init_direction)
-    # Calculate the arrival stats
     x0 = sol[:, 1]
     xf = sol[:, end]
-
-    r = xf[2]
     # Check if arrived at the observer radius
-    if ~is_at_robs(r, geometry)
+    if ~is_at_robs(xf[2], geometry)
         geometry.arrival_time = NaN
         geometry.redshift = NaN
         return Inf64
     end
-    arrival_stats!(geometry, x0, xf)
+    arrival_stats!(geometry, x0, xf, ϵ, s)
 
-    return obs_angdist(xf, geometry)
-end
-
-
-"""
-    is_at_robs(r, geometry)
-
-Check whether r is approximately equal to the observer's radius.
-"""
-function is_at_robs(r, geometry)
-    @unpack radius_reltol = geometry.opt_options
-    if isapprox(r, geometry.observer.r, rtol=radius_reltol)
-        return true
-    else
-        return false
-    end
+    # Calculate the loss
+    return obs_angdist(xf, geometry) + 2π * abs(geometry.nloops - nloops)
 end
 
 
@@ -399,35 +423,42 @@ end
 
 
 """
-    ode_problem(odes!::Function, geometry::Geometry)
-
-ODE problem without specifying the initial conditions.
-"""
-function ode_problem(odes!::Function, geometry::Geometry)
-    return ODEProblem{true}(odes!, rand(7),  (0.0, 100.0geometry.observer.r), geometry)
-end
-
-
-"""
     ode_problem(odes!::Function, geometry::Geometry, x0::Vector{<:Real})
 
-ODE probelem with specified initial conditins.
+Geodesic or GSHE ODE problem with specified initial conditions.
 """
-function ode_problem(odes!::Function, geometry::Geometry, x0::Vector{<:Real})
+function ode_problem(geometry::Geometry, ϵ::Real, s::Integer, x0::Vector{<:Real})
+    if ϵ == 0
+        return geodesic_ode_problem(geometry, x0)
+    else
+        return gshe_ode_problem(geometry, ϵ, s, x0)
+    end
+
     return ODEProblem{true}(odes!, x0, (0.0, 100.0geometry.observer.r), geometry)
 end
 
 
-function geodesic_ode_problem(geometry::Geometry)
-    function odes!(dx::Vector{<:Real}, x::Vector{<:Real}, geometry::Geometry, tau::Real)
-        return geodesic_odes!(dx, x, geometry)
-    end
+"""
+    ode_problem(odes!::Function, geometry::Geometry)
 
-    return ode_problem(odes!, geometry)
+Geodesic or GSHE ODE problem without specified initial conditions.
+"""
+function ode_problem(geometry::Geometry, ϵ::Real, s::Integer)
+    return ode_problem(geometry, ϵ, s, rand(geometry.dtype, 7))
 end
 
 
-function gshe_ode_problem(geometry::Geometry, ϵ::Real, s::Integer)
+function geodesic_ode_problem(geometry::Geometry, x0::Vector{<:Real})
+    function odes!(dx::Vector{<:Real}, x::Vector{<:Real}, geometry::Geometry, τ::Real)
+        return geodesic_odes!(dx, x, geometry)
+    end
+
+    return ODEProblem{true}(odes!, x0, (0.0, 100.0geometry.observer.r), geometry)
+end
+
+
+function gshe_ode_problem(geometry::Geometry, ϵ::Real, s::Integer, x0::Vector{<:Real})
+    # Ensure type stability
     if ~isa(ϵ, geometry.dtype)
         @warn "Casting ϵ from $(typeof(ϵ)) to $(geometry.dtype)."
         ϵ = geometry.dtype(ϵ)
@@ -437,6 +468,5 @@ function gshe_ode_problem(geometry::Geometry, ϵ::Real, s::Integer)
         return gshe_odes!(dx, x, geometry, ϵ, s)
     end
 
-    return ode_problem(odes!, geometry)
-
+    return ODEProblem{true}(odes!, x0, (0.0, 100.0geometry.observer.r), geometry)
 end

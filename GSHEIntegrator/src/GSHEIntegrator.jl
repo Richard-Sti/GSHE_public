@@ -1,35 +1,58 @@
 module GSHEIntegrator
 
-
-export cartesian_to_spherical, cartesian_to_spherical!, spherical_to_cartesian,
-    spherical_to_cartesian!, rvs_sphere, angdist
-export get_callbacks, init_values, solve_geodesic, solve_gshe, geodesic_loss, gshe_loss,
-    obs_angdist
+# coords.jl
+export azimuthal_angle, cartesian_to_spherical, cartesian_to_spherical!, spherical_to_cartesian,
+    spherical_to_cartesian!, rvs_sphere, rvs_sphere_restricted, rvs_sphere_y, angdist,
+    rotate_to_y, rotate_to_y!, rotate_from_y, rotate_from_y!, atan_transform, atan_invtransform
+# grid.jl
+export make_2dmesh, grid_evaluate_scalar, grid_evaluate_timing
+# integrator.jl
+export ffield_callback, horizon_callback, poles_callback, max_Δϕ, numloops, loops_callback,
+    get_callbacks, init_values, solve_problem, solve_consecutive_problem, angular_bounds,
+    angular_bounds_y, shadow_bounds, in_bounds, arrival_stats!, initial_loss, consecutive_loss,
+    is_at_robs, obs_angdist, ode_problem
+# io.jl
+export save_geometry_info, save_config_info
+# kerr_functions.jl
+export initial_spatial_comomentum, time_comomentum, static_observer_proper_time, obs_frequency,
+    obs_redshift, tetrad_boosting, derivative_tetrad_boosting, kerr_BL, ϕkilling
+# kerr_trajectories.jl
+export geodesic_odes!, gshe_odes!
+# minimas.jl
+export find_initial_minima, find_initial_minimum, getθmax, find_consecutive_minimum
+# mpi_support.jl
+export setup_geometry, Nconfigs, checkpointdir, make_checkpointdir, MPI_solve_configuration,
+    MPI_sort_solutions, fit_timing, MPI_solve_shooting, MPI_collect_shooting
+# objects.jl
 export SphericalCoords, ODESolverOptions, OptimiserOptions, PostprocOptions, Geometry
-export find_geodesic_minima, find_restricted_minima
-# export plot_initial_conditions!, plot_arrival_times!, plot_time_difference!,
-#     plot_geodesics!, plot_gshe_trajectories!, plot_blackhole!, plot_start_end!
-export fit_Δts
-export setup_geometry, setup_geometries, setup_geodesic_solver, setup_geodesic_loss,
-    setup_gshe_solver, setup_gshe_loss, solve_geodesics, solve_gshe, solve_gshes,
-    check_gshes!, fit_timing
-export Nconfigs, checkpointdir, make_checkpointdir, MPI_solve_configuration,
-    MPI_sort_solutions, MPI_solve_shooting, MPI_collect_shooting
+# outliers.jl
+export predict_llsq, residuals_llsq, R2_llsq, findoutlier_fixedslope, move_point!, find_outliers,
+    check_solutions!, check_geodesics
+# powerlaw.jl
+export bootstrap_powerlaw, cut_below_integration_error, fit_Δts
+# setup.jl
+export setup_geometry, setup_geometries, check_geometry_dtypes, setup_initial_solver, setup_consecutive_solver,
+    setup_initial_loss, setup_consecutive_loss, sort_configurations!, toarray, fit_timing
+# shoot_timing.jl
+export time_initial!, time_gshe, time_direction
+# solver.jl
+export solve_initial, is_strictly_increasing, solve_decreasing, solve_increasing, solve_full
 
 
 shadow_coords = [:shadow, :shadowpos]
+
 
 import Parameters: @with_kw, @unpack
 import Optim: NelderMead, Options, optimize
 import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,
                               terminate!, remake, ODEProblem, solve, Vern9
-# using LaTeXStrings
-# import Plots
-# import Meshes
 import MultivariateStats: llsq
 import Printf: @printf, @sprintf
 import Random: shuffle!
 import NPZ: npzwrite, npzread
+using EllipsisNotation
+import StatsBase: mean, std
+import Clustering
 
 include("./objects.jl")
 include("./integrator.jl")
@@ -45,5 +68,6 @@ include("./shoot_timing.jl")
 include("./grid.jl")
 include("./io.jl")
 include("./mpi_support.jl")
+include("./solver.jl")
 
 end

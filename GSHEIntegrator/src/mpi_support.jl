@@ -73,8 +73,7 @@ directory.
 function MPI_solve_configuration(index::Integer, config::Dict{Symbol, Any})
     geometry = setup_geometry(index, config)
     cdir = checkpointdir(config)
-    Xgeo = find_geodesic_minima(geometry, config[:Nsols])
-    Xgshe = GSHEIntegrator.solve_gshe(Xgeo, geometry, config[:ϵs]; verbose=false)
+    Xgeo, Xgshe = solve_full(geometry, config[:ϵs], config[:increasing_ϵ], config[:Nsols]; perturbation_verbose=false)
     npzwrite(joinpath(cdir, "$(index)_Xgeo.npy"), Xgeo)
     npzwrite(joinpath(cdir, "$(index)_Xgshe.npy"), Xgshe)
 end
@@ -91,11 +90,11 @@ function MPI_sort_solutions(config::Dict{Symbol, Any})
     # Read the geodesic solutions
     Xgeos = [npzread(joinpath(cdir, "$(i)_Xgeo.npy")) for i in 1:N]
     Xgshes = [npzread(joinpath(cdir, "$(i)_Xgshe.npy")) for i in 1:N]
+    # Convert to arrays
+    Xgeos = toarray(Xgeos)
+    Xgshes = toarray(Xgshes)
     # Sort them
     GSHEIntegrator.sort_configurations!(Xgeos, Xgshes)
-    # Convert to arrays
-    Xgeos = Xgeos_to_array(Xgeos)
-    Xgshes = Xgshes_to_array(Xgshes)
     # Write the new files
     npzwrite(joinpath(cdir, "Xgeos.npy"), Xgeos)
     npzwrite(joinpath(cdir, "Xgshes.npy"), Xgshes)
@@ -141,15 +140,13 @@ function MPI_solve_shooting(i::Integer, j::Integer, config::Dict{Symbol, Any})
     y = config[:dir2][j]
 
     if config[:from_shadow] && (x^2 + y^2) > 1
-        Xgeo = fill(NaN, 4)
-        Xgshe = fill(NaN, 2, length(config[:ϵs]), 5)
+        Xgeo = fill(NaN, 8)
+        Xgshe = fill(NaN, length(config[:ϵs]), 8)
     else
         geometry = GSHEIntegrator.setup_geometry(-1, config)
-        Xgeo, Xgshe = GSHEIntegrator.time_direction!(
-            [x, y], geometry, config[:ϵs], config[:from_shadow]; verbose=false)
-        if ~any(isnan.(Xgeo))
-            println("i=$i and j=$j is non-zero.")
-        end
+        Xgeo, Xgshe = GSHEIntegrator.time_direction(
+            [x, y], geometry, config[:s], config[:ϵs], config[:increasing_ϵ], config[:from_shadow];
+            verbose=false)
     end
     # Write everything down
     npzwrite(joinpath(GSHEIntegrator.checkpointdir(config), "$(i)_$(j)_Xgeo.npy"), Xgeo)
@@ -158,11 +155,11 @@ end
 
 
 """
-    MPI_collect_shooting(config::Dict{Symbol, Any})
+    MPI_collect_shooting(config::Dict{Symbol, Any}, remove::Bool=false)
 
 Collect the MPI shooting results and fit α and β.
 """
-function MPI_collect_shooting(config::Dict{Symbol, Any})
+function MPI_collect_shooting(config::Dict{Symbol, Any}, remove::Bool=false)
     # Unpack either k_x and k_y or ψ and ρ
     xs = config[:dir1]
     ys = config[:dir2]
@@ -172,16 +169,25 @@ function MPI_collect_shooting(config::Dict{Symbol, Any})
     Nx = length(xs)
     Ny = length(ys)
     directions = fill(NaN, Nx * Ny, 2)
-    Xgeos = fill(NaN, Nx * Ny, 4)
-    Xgshes = fill(NaN, Nx * Ny, 2, length(config[:ϵs]), 5)
+    Xgeos = fill(NaN, Nx * Ny, 8)
+    Xgshes = fill(NaN, Nx * Ny, length(config[:ϵs]), 8)
 
+    # How often do checkpoint
+    N = Nx * Ny
+    checklength = N ÷ 100
     k = 1
     for i in 1:Nx
         for j in 1:Ny
+            k % checklength == 0 && println("Loaded $(k / N * 100)%"); flush(stdout)
             directions[k, 1] = xs[i]
             directions[k, 2] = ys[i]
-            Xgeos[k, :] .= npzread(joinpath(cdir, "$(i)_$(j)_Xgeo.npy"))
-            Xgshes[k, :, :, :] .= npzread(joinpath(cdir, "$(i)_$(j)_Xgshe.npy"))
+
+            fpathgeo = joinpath(cdir, "$(i)_$(j)_Xgeo.npy")
+            fpathgshe = joinpath(cdir, "$(i)_$(j)_Xgshe.npy")
+            if isfile(fpathgeo) && isfile(fpathgshe)
+                Xgeos[k, ..] .= npzread(fpathgeo)
+                Xgshes[k, ..] .= npzread(fpathgshe)
+            end
             k += 1
         end
     end
@@ -191,15 +197,21 @@ function MPI_collect_shooting(config::Dict{Symbol, Any})
 
     # Fit α and β
     geometry = GSHEIntegrator.setup_geometry(-1, config)
-    αs, βs = GSHEIntegrator.fit_timing(config[:ϵs], Xgeos, Xgshes, geometry)
 
+    αs, βs = GSHEIntegrator.fit_timing(config[:ϵs], Xgeos, Xgshes, geometry)
     npzwrite(joinpath(cdir, "alphas.npy"), αs)
     npzwrite(joinpath(cdir, "betas.npy"), βs)
 
     # Remove intermediary results
-    for i in 1:Nx, j in 1:Ny
-        rm(joinpath(cdir, "$(i)_$(j)_Xgeo.npy"))
-        rm(joinpath(cdir, "$(i)_$(j)_Xgshe.npy"))
+    if remove
+        for i in 1:Nx, j in 1:Ny
+            fpathgeo = joinpath(cdir, "$(i)_$(j)_Xgeo.npy")
+            fpathgshe = joinpath(cdir, "$(i)_$(j)_Xgshe.npy")
+            if isfile(fpathgeo) && isfile(fpathgshe)
+                rm(joinpath(cdir, "$(i)_$(j)_Xgeo.npy"))
+                rm(joinpath(cdir, "$(i)_$(j)_Xgshe.npy"))
+            end
+        end
     end
 
 end

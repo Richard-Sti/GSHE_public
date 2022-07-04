@@ -94,150 +94,96 @@ Check that each geometry has the same data type.
 """
 function check_geometry_dtypes(geometries::Vector{<:Geometry{<:Real}})
     dtype = geometries[1].dtype
-    @assert all([dtype == geo.dtype for geo in geometries]) ("All geometry dtypes must "
-                                                             *"be the same.")
+    @assert all([dtype == geo.dtype for geo in geometries]) ("All geometry dtypes must be the same.")
 end
 
 
 """
-    setup_geodesic_solver(geometry::Geometry)
+    setup_initial_solver(geometry::Geometry, ϵ::Real, s::Integer)
 
-Setup the geodesic solver for a given geometry.
+Setup the initial geodesics or GSHE solver.
 """
-function setup_geodesic_solver(geometry::Geometry)
+function setup_initial_solver(geometry::Geometry, ϵ::Real, s::Integer)
     cb = get_callbacks(geometry)
-    prob = geodesic_ode_problem(geometry)
-    f(init_direction::Vector{<:Real}) = solve_geodesic(init_direction, prob, geometry, cb)
+    prob = ode_problem(geometry, ϵ, s)
+
+    f(init_direction::Vector{<:Real}) = solve_problem(init_direction, prob, geometry, cb)
     return f
 end
 
-
 """
-    setup_geodesic_loss(geometry::Geometry)
+    setup_consecutive_solver(geometry::Geometry, ϵ::Real, s::Integer)
 
-Setup the geodesic loss function for a given geometry.
+Setup a consecutive solver (GSHE or geodesic) whose `init_direction` is specified in the
+reference frame where the `prev_init_direction` coincides with the positive y-axis.
 """
-function setup_geodesic_loss(geometry::Geometry)
-    # Loss function, define with two methods
-    solver = setup_geodesic_solver(geometry)
-    function loss(
-        init_direction::Vector{<:Real},
-        init_directions_found::Union{Vector{<:Vector{<:Real}}, Nothing}=nothing,
-    )
-        return geodesic_loss(init_direction, solver, geometry, init_directions_found)
-    end
-
-    return loss
-end
-
-
-"""
-    setup_gshe_solver(geometry::Geometry, ϵ::Real, s::Integer)
-
-Setup the GSHE trajectory solver for a given geometry, including reference frame rotations.
-"""
-function setup_gshe_solver(geometry::Geometry, ϵ::Real, s::Integer)
+function setup_consecutive_solver(geometry::Geometry, ϵ::Real, s::Integer)
     cb = get_callbacks(geometry)
-    prob = gshe_ode_problem(geometry, ϵ, s)
+    prob = ode_problem(geometry, ϵ, s)
     # Integrator function
-    function solver(init_direction::Vector{<:Real}, geodesic_init_direction::Vector{<:Real};
+    function solver(init_direction::Vector{<:Real}, prev_init_direction::Vector{<:Real};
                     save_everystep::Bool=false)
-        solve_gshe(init_direction, geodesic_init_direction, prob, geometry, cb;
-                   save_everystep=save_everystep)
+        return solve_consecutive_problem(init_direction, prev_init_direction, prob, geometry, cb;
+                                         save_everystep=save_everystep)
     end
     return solver
 end
 
 
 """
-    setup_gshe_loss(geometry::Geometry, ϵ::Real, s::Integer)
+    setup_initial_loss(geometry::Geometry, ϵ::Real, s::Integer)
 
-Setup the spin Hall trajectory loss function for a given geometry.
+Setup the initial loss (GSHE or geodesic).
 """
-function setup_gshe_loss(geometry::Geometry, ϵ::Real, s::Integer)
-    solver = setup_gshe_solver(geometry, ϵ, s)
+function setup_initial_loss(geometry::Geometry, ϵ::Real, s::Integer)
+    solver = setup_initial_solver(geometry, ϵ, s)
     # Loss function, define with two methods
-    function loss(init_direction::Vector{<:Real}, geodesic_init_direction::Vector{<:Real}, θmax::Real)
-        return gshe_loss(init_direction, geodesic_init_direction, solver, geometry, θmax)
+    function loss(
+        init_direction::Vector{<:Real},
+        init_directions_found::Union{Vector{<:Vector{<:Real}}, Nothing}=nothing,
+    )
+        return initial_loss(init_direction, solver, geometry, ϵ, s, init_directions_found)
+    end
+
+    return loss
+end
+
+
+"""
+    setup_consecutive_loss(geometry::Geometry, ϵ::Real, s::Integer, nloops::Real)
+
+Setup a consecutive loss.
+"""
+function setup_consecutive_loss(geometry::Geometry, ϵ::Real, s::Integer, nloops::Real)
+    solver = setup_consecutive_solver(geometry, ϵ, s)
+    # Loss function, define with two methods
+    function loss(init_direction::Vector{<:Real}, prev_init_direction::Vector{<:Real}, θmax::Real)
+        return consecutive_loss(init_direction, prev_init_direction, solver, geometry, θmax, nloops, ϵ, s)
     end
     return loss
 end
 
 
 """
-    solve_geodesics(
-        geometries::Vector{<:Geometry{<:Real}},
-        Nsols::Integer=2,
-        verbose::Bool=true
-        to_sort::Bool=true
-    )
-
-Find the geodesic initial direction and time of arrivals for a list of geometries.
-"""
-function solve_geodesics(
-    geometries::Vector{<:Geometry{<:Real}},
-    Nsols::Integer=2,
-    verbose::Bool=true,
-    to_sort::Bool=true
-)
-    check_geometry_dtypes(geometries)
-    dtype = geometries[1].dtype
-
-    N = length(geometries)
-    Xgeos = Vector{Matrix{dtype}}(undef, N)
-
-    if verbose
-        println("Solving $N configurations' geodesics.")
-        flush(stdout)
-    end
-
-    # Shuffle workers jobs
-    if Threads.nthreads() > 1
-        iters = shuffle!([i for i in 1:N])
-    else
-        iters = 1:N
-    end
-
-    Threads.@threads for i in iters
-        if verbose
-            println("Solving geodesics for geometry $i/$N")
-            flush(stdout)
-        end
-        Xgeos[i] = find_geodesic_minima(geometries[i], Nsols)
-    end
-
-    if Nsols > 1 && to_sort
-        if verbose
-            println("Sorting the configurations.")
-            flush(stdout)
-        end
-        sort_configurations!(Xgeos)
-    end
-
-    return Xgeos
-end
-
-
-"""
     sort_configurations!(
-        Xgeos::Vector{<:Matrix{<:Real}},
-        Xgshes::Union{Vector{<:Array{<:Real, 4}}, Nothing}=nothing
+        Xgeos::Array{<:Real, 3},
+        Xgshes::Union{Array{<:Real, 5}, Nothing}=nothing
     )
 
 Sort the different configurations to achieve continuity when varying an extrinsic paramater.
 """
 function sort_configurations!(
-    Xgeos::Vector{<:Matrix{<:Real}},
-    Xgshes::Union{Vector{<:Array{<:Real, 4}}, Nothing}=nothing
+    Xgeos::Array{<:Real, 3},
+    Xgshes::Union{Array{<:Real, 5}, Nothing}=nothing
 )
-    flip_geo = zero(Xgeos[1][1, :])
+    flip_geo = zero(Xgeos[1, 1, ..])
     if ~isnothing(Xgshes)
-        flip_gshe = zero(Xgshes[1][1, :, :, :])
+        flip_gshe = zero(Xgshes[1, 1, ..])
     end
 
-    for i in 1:(length(Xgeos)-1)
-        Δσ = [angdist(Xgeos[i][1, 1:2], Xgeos[i+1][jj, 1:2]) for jj in 1:2]
-        Δt = [abs(Xgeos[i][1, 3] - Xgeos[i+1][jj, 3]) for jj in 1:2]
+    for i in 1:(size(Xgeos, 1)-1)
+        Δσ = [angdist(Xgeos[i, 1, 1:2], Xgeos[i+1, jj, 1:2]) for jj in 1:2]
+        Δt = [abs(Xgeos[i, 1, 3] - Xgeos[i+1, jj, 3]) for jj in 1:2]
 
         if (argmin(Δσ) != argmin(Δt))
             @warn "Δσ and Δt do not match for i = $i."
@@ -250,203 +196,31 @@ function sort_configurations!(
         end
 
         # Flip the array rows
-        flip_geo .= Xgeos[i+1][1, :]
-        Xgeos[i+1][1,:] = Xgeos[i+1][2,:]
-        Xgeos[i+1][2,:] .= flip_geo
+        flip_geo .= Xgeos[i+1, 1, ..]
+        Xgeos[i+1, 1, ..] = Xgeos[i+1, 2,..]
+        Xgeos[i+1, 2, ..] .= flip_geo
         # Optionalli flip GSHE
         if ~isnothing(Xgshes)
-            flip_gshe .= Xgshes[i+1][1, :, :, :]
-            Xgshes[i+1][1, :, :, :] = Xgshes[i+1][2,:, :, :]
-            Xgshes[i+1][2, :, :, :] .= flip_gshe
+            flip_gshe .= Xgshes[i+1, 1, ..]
+            Xgshes[i+1, 1, ..] = Xgshes[i+1, 2, ..]
+            Xgshes[i+1, 2, ..] .= flip_gshe
         end
 
     end
-
 end
 
 
 """
-    is_strictly_increasing(x::Union{Vector{<:Real}, LinRange{<:Real}})
+    toarray(X::Union{Vector{<:Matrix{<:Real}}, Vector{<:Array{<:Real}}})
 
-Check if a vector is strictly increasing.
+Convert a vector of matrices or arrays of real numbers in to an array. The first index of
+the output array is that of the original vector elements.
 """
-function is_strictly_increasing(x::Union{Vector{<:Real}, LinRange{<:Real}})
-    return all((x[i+1] - x[i]) > 0 for i in 1:length(x)-1)
-end
-
-
-"""
-    solve_gshe(
-        Xgeo::Vector{<:Real},
-        geometry::Geometry{<:Real},
-        ϵs::Union{Vector{<:Real}, LinRange{<:Real}};
-        verbose::Bool=true,
-    )
-
-Find the GSHE solutions of a specific configuration and geodesic. The shape of the output
-array is (s = ± 2, Nϵs, 4) where the last index stores the initial direction, time of
-arrival and redshift.
-"""
-function solve_gshe(
-    Xgeo::Vector{<:Real},
-    geometry::Geometry{<:Real},
-    ϵs::Union{Vector{<:Real}, LinRange{<:Real}};
-    verbose::Bool=true,
-)
-    @assert is_strictly_increasing(ϵs) "`ϵs` must be strictly increasing."
-    Nϵs = length(ϵs)
-    X = zeros(geometry.dtype, 2, Nϵs, 5)
-
-    s = geometry.s
-    for (i, ϵ) in enumerate(ϵs)
-        if verbose
-            @printf "%.2f%%, ϵ=%.2e\n" (i / Nϵs * 100) ϵ
-            flush(stdout)
-        end
-
-        # A loop over the +- polarisation states
-        for (j, sx) in enumerate([+s, -s])
-            # Loop over the previously found solutions in reverse
-            for k in reverse(1:i)
-                # If previous GSHE solution available and is not NaN set it as
-                # initial direction.
-                if k > 1
-                    p0 = X[j, k - 1, 1:2]
-                    if ~any(isnan.(p0))
-                        X[j, i, :] .= find_restricted_minimum(geometry, ϵ, sx, p0)
-                        break
-                    end
-                end
-
-                # For the first GSHE set the geodesic solution as initial direction
-                if k == 1
-                    X[j, i, :] .= find_restricted_minimum(geometry, ϵ, sx, Xgeo[1:2])
-                end
-            end
-        end
-
-    end
-
-    if geometry.postproc_options.check_gshe_sols
-        check_gshes!(X, Xgeo, geometry, ϵs)
-    end
-
-    return X
-end
-
-
-"""
-    function solve_gshe(
-        Xgeo::Matrix{<:Real},
-        geometry::Geometry{<:Real},
-        ϵs::Union{Vector{<:Real}, LinRange{<:Real}};
-        verbose::Bool=true,
-    )
-
-Find the GSHE solutions of a specific configuration. Iterates over geodesics. The shape of
-the output array is (Ngeodesics, s = ± 2, Nϵs, 4) where the last index stores the initial
-direction, time of arrival and redshift.
-"""
-function solve_gshe(
-    Xgeo::Matrix{<:Real},
-    geometry::Geometry{<:Real},
-    ϵs::Union{Vector{<:Real}, LinRange{<:Real}};
-    verbose::Bool=true,
-)
-    Nϵs = length(ϵs)
-    Ngeos = size(Xgeo)[1]
-    X = zeros(geometry.dtype, Ngeos, 2, Nϵs, 5)
-
-    for n in 1:Ngeos
-        if verbose
-            println("n = $n")
-            flush(stdout)
-        end
-
-        X[n, :, :, :] .= solve_gshe(Xgeo[n, :], geometry, ϵs; verbose=verbose)
-    end
-
-    return X
-end
-
-
-"""
-    solve_gshes(
-        Xgeos::Vector{<:Matrix{<:Real}},
-        geometries::Vector{<:Geometry{<:Real}},
-        ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
-        configuration_verbose::Bool=true,
-        perturbation_verbose::Bool=true,
-    )
-
-Find the GSHE solutions. Iterates over configurations. The shape of the output array
-is (Nconfigurations, Ngeodesics, s = ± 2, Nϵs, 4).
-"""
-function solve_gshes(
-    Xgeos::Vector{<:Matrix{<:Real}},
-    geometries::Vector{<:Geometry{<:Real}},
-    ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
-    configuration_verbose::Bool=true,
-    perturbation_verbose::Bool=true,
-)
-    Nconfs = length(Xgeos)
-    @assert Nconfs === length(geometries) ("`Xgeos` and `geometries` must have the same length.")
-    check_geometry_dtypes(geometries)
-    Xgshes = Vector{Array{geometries[1].dtype, 4}}(undef, Nconfs)
-
-    if configuration_verbose
-        println("Solving GSHE for $Nconfs configurations.")
-        flush(stdout)
-    end
-
-    # Shuffle workers jobs
-    if Threads.nthreads() > 1
-        iters = shuffle!([i for i in 1:Nconfs])
-    else
-        iters = 1:Nconfs
-    end
-
-    Threads.@threads for i in iters
-        if configuration_verbose
-            println("Solving GSHE for geometry $i/$Nconfs")
-            flush(stdout)
-        end
-        Xgshes[i] = solve_gshe(Xgeos[i], geometries[i], ϵs; verbose=perturbation_verbose)
-    end
-
-    return Xgshes
-
-end
-
-
-"""
-    Xgeos_to_array(Xgeos::Vector{<:Matrix{<:Real}})
-
-Convert a vector of geodesic solutions to an array. The first index indexes the vector
-elements.
-"""
-function Xgeos_to_array(Xgeos::Vector{<:Matrix{<:Real}})
-    N = length(Xgeos)
-    out = zeros(N, size(Xgeos[1])...)
+function toarray(X::Union{Vector{<:Matrix{<:Real}}, Vector{<:Array{<:Real}}})
+    N = length(X)
+    out = zeros(N, size(X[1])...)
     for i in 1:N
-        out[i, :, :] = Xgeos[i][:, :]
-    end
-
-    return out
-end
-
-
-"""
-    Xgshes_to_array(Xgshes::Vector{<:Array{<:Real, 4}})
-
-Convert a vector of GSHE solutions to an array. The first index indexes the vector
-elements.
-"""
-function Xgshes_to_array(Xgshes::Vector{<:Array{<:Real, 4}})
-    N = length(Xgshes)
-    out = zeros(N, size(Xgshes[1])...)
-    for i in 1:N
-        out[i, :, :, :, :] = Xgshes[i][:, :, :, :]
+        out[i, ..] = X[i][..]
     end
 
     return out
@@ -503,6 +277,40 @@ end
 """
     fit_timing(
         ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+        Xgeo::Matrix{<:Real},
+        Xgshe::Array{<:Real, 3},
+        geometry::Geometry
+    )
+
+Fit timing between a geodesic and a single polarisation GSHE trajectories.
+"""
+function fit_timing(
+    ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
+    Xgeo::Matrix{<:Real},
+    Xgshe::Array{<:Real, 3},
+    geometry::Geometry
+)
+    N = size(Xgeo, 1)
+    αs = fill(NaN, N, 2)
+    βs = fill(NaN, N, 2)
+
+    for n in 1:N
+        if any(isnan.(Xgeo[n, ..]))
+            continue
+        end
+
+        fit = fit_Δts(ϵs, Xgshe[n, ..], Xgeo[n, ..], geometry)
+        αs[n, ..] = fit["alpha"]
+        βs[n, ..] = fit["beta"]
+    end
+
+    return αs, βs
+end
+
+
+"""
+    fit_timing(
+        ϵs::Union{Vector{<:Real}, LinRange{<:Real}},
         Xgeos::Array{<:Real, 3},
         Xgshes::Array{<:Real, 5},
         geometries::Vector{<:Geometry{<:Real}};
@@ -530,8 +338,8 @@ function fit_timing(
     for i in 1:Nconfs
         α, β = fit_timing(ϵs, Xgeos[i, :, :], Xgshes[i, :, :, :, :], geometries[i];
                           fit_gshe_gshe=fit_gshe_gshe)
-        αs[i, :, :, :] .= α
-        βs[i, :, :, :] .= β
+        αs[i, ..] .= α
+        βs[i, ..] .= β
     end
 
     return αs, βs

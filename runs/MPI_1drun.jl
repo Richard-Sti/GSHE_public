@@ -28,10 +28,11 @@ config = Dict(
     :θsource => 0.5π,
     :ϕsource => 0.0,
     :robs => 100.0,
-    :θobs => sort!(push!(acos.(LinRange(-0.99, 0.99, 499)), π/2)),
+    :θobs => sort!(push!(acos.(LinRange(-0.9, 0.9, 23)), π/2)),
     :ϕobs => 0.99π,
     :a => 0.99,
-    :opt_options => GSHEIntegrator.OptimiserOptions(Nattempts_geo=51, Nattempts_gshe=30),
+    :increasing_ϵ => false,
+    :opt_options => GSHEIntegrator.OptimiserOptions(Ninit=51, Nconsec=30),
     :ode_options => GSHEIntegrator.ODESolverOptions(Δθ=0.0001, horizon_tol=1.005, maxiters=7500),
     :fit_gshe_gshe => true,
     :dtype => Float64
