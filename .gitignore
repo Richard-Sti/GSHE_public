@@ -17,3 +17,4 @@ notebooks/shooting_correction.ipynb
 runs/test.ipynb
 data/
 notebooks/trajectories_loss.ipynb
+notebooks/demagnification.ipynb

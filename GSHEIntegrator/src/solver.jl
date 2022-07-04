@@ -483,7 +483,7 @@ function solve_full(
     X0 = solve_initial(geometry, increasing_ϵ ? 0 : ϵs[end], Nsols)
     # In case of any NaNs initially just return NaN
     if any(isnan.(X0))
-        return X0, fill(NaN, Nsols, 2, length(ϵs), 8)
+        return X0, fill(NaN, Nsols, 2, length(ϵs), 9)
     end
 
     # Calculate the whole thing

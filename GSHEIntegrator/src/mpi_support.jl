@@ -140,8 +140,8 @@ function MPI_solve_shooting(i::Integer, j::Integer, config::Dict{Symbol, Any})
     y = config[:dir2][j]
 
     if config[:from_shadow] && (x^2 + y^2) > 1
-        Xgeo = fill(NaN, 8)
-        Xgshe = fill(NaN, length(config[:ϵs]), 8)
+        Xgeo = fill(NaN, 9)
+        Xgshe = fill(NaN, length(config[:ϵs]), 9)
     else
         geometry = GSHEIntegrator.setup_geometry(-1, config)
         Xgeo, Xgshe = GSHEIntegrator.time_direction(
@@ -169,8 +169,8 @@ function MPI_collect_shooting(config::Dict{Symbol, Any}, remove::Bool=false)
     Nx = length(xs)
     Ny = length(ys)
     directions = fill(NaN, Nx * Ny, 2)
-    Xgeos = fill(NaN, Nx * Ny, 8)
-    Xgshes = fill(NaN, Nx * Ny, length(config[:ϵs]), 8)
+    Xgeos = fill(NaN, Nx * Ny, 9)
+    Xgshes = fill(NaN, Nx * Ny, length(config[:ϵs]), 9)
 
     # How often do checkpoint
     N = Nx * Ny

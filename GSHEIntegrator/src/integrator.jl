@@ -470,3 +470,41 @@ function gshe_ode_problem(geometry::Geometry, ϵ::Real, s::Integer, x0::Vector{<
 
     return ODEProblem{true}(odes!, x0, (0.0, 100.0geometry.observer.r), geometry)
 end
+
+
+"""
+    magnification(
+        dir::Vector{<:Real},
+        geometry::Geometry,
+        ϵ::Real,
+        s::Real,
+        fromshadow=true,
+    )
+
+Calculate the magnification of a given trajectory.
+"""
+function magnification(
+    dir::Vector{<:Real},
+    geometry::Geometry,
+    ϵ::Real,
+    s::Real,
+    fromshadow=true,
+)
+    if fromshadow
+        dir = shadow2angle(dir)
+    end
+    ψ = dir[1]
+    # Solver that is a function of direction only
+    f(x::Vector{<:Real}) = solve_problem(x, geometry, ϵ, s)[:, end]
+
+    # Check whether this trajectory hits the BH shadow. Calculating this and
+    # the Jacobian in two steps is wasteful, but safer for multiprocessing
+    xf = f(dir)
+    θ = xf[3]
+    if ~is_at_robs(xf[2], geometry)
+        return NaN
+    end
+    J = jacobian(f, dir)[3:4, :]
+    # Extract the angular part of the Jacobian and divide by sin(ψ)
+    return sin(ψ) / sin(θ) / det(J)
+end

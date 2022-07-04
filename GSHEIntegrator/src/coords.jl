@@ -243,3 +243,29 @@ Inverse transformation of `atan_transform` defined above.
 function atan_invtransform(y::Real, α::Real=π/2)
     return tan((π / 2) / α * (y - π / 2))
 end
+
+
+"""
+    shadow2angle(ks::Vector{<:Real})
+
+Convert the shadow k2 and k3 coordinates to ψ and ρ
+"""
+function shadow2angle(ks::Vector{<:Real})
+    k2, k3 = ks
+    ψ = acos(k3)
+    ρ = π + asin(k2 / sqrt(1 - k3^2))
+    return [ψ, ρ]
+end
+
+
+"""
+    shadow2angle(ks::Vector{<:Real})
+
+Convert the ingoing ψ and ρ coordinates to k2 and k3.
+"""
+function angle2shadow(X::Vector{<:Real})
+    ψ, ρ = X
+    k3 = cos(ψ)
+    k2 = sin(ψ) * sin(ρ)
+    return [k2, k3]
+end

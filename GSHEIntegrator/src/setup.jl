@@ -336,7 +336,7 @@ function fit_timing(
 
     # One by one calculate the α and β for each configuration
     for i in 1:Nconfs
-        α, β = fit_timing(ϵs, Xgeos[i, :, :], Xgshes[i, :, :, :, :], geometries[i];
+        α, β = fit_timing(ϵs, Xgeos[i, ..], Xgshes[i, ..], geometries[i];
                           fit_gshe_gshe=fit_gshe_gshe)
         αs[i, ..] .= α
         βs[i, ..] .= β

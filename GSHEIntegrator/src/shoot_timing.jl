@@ -21,15 +21,14 @@ function time_initial!(
         x, y = init_direction
         # Check the radius, though it might have already been checked elsewhere.
         if x^2 + y^2 > 1
-            return push!(init_direction, fill!(zeros(geometry.dtype, 8), NaN)...)
+            return push!(init_direction, fill!(zeros(geometry.dtype, 9), NaN)...)
         end
-        init_direction[1] = acos(y)
-        init_direction[2] = π + asin(x / sqrt(1 - y^2))
+        init_direction = shadow2angle(init_direction)
     end
 
     # If initial conditions out of bounds return NaNs
     if ~in_bounds(init_direction, geometry)
-        return push!(init_direction, fill!(zeros(geometry.dtype, 8), NaN)...)
+        return push!(init_direction, fill!(zeros(geometry.dtype, 9), NaN)...)
     end
 
     # Integrate the geodesic
@@ -38,13 +37,15 @@ function time_initial!(
     xf = sol[:, end]
 
     if ~is_at_robs(xf[2], geometry)
-        return push!(init_direction, fill!(zeros(geometry.dtype, 8), NaN)...)
+        return push!(init_direction, fill!(zeros(geometry.dtype, 9), NaN)...)
     end
 
     # Calculate the observer proper arrival time and redshift
     push!(init_direction,
         static_observer_proper_time(xf, geometry.a),obs_redshift(x0, xf, geometry.a),
-        0.0, xf[3], xf[4], numloops(x0[4], xf[4]), ϕkilling(xf, geometry, ϵ, s))
+        0.0, xf[3], xf[4], numloops(x0[4], xf[4]), ϕkilling(xf, geometry, ϵ, s),
+        magnification(init_direction, geometry, ϵ, s, false)
+        )
 end
 
 
@@ -69,11 +70,12 @@ function time_gshe(
     verbose::Bool=true
 )
     # Set the geometry θ and ϕ where the geodesic ended up. Watch out about pop ordering
+    μ = pop!(X0)
     ϕkill = pop!(X0)
     nloops = pop!(X0)
     geometry.observer.ϕ = pop!(X0)
     geometry.observer.θ = pop!(X0)
-    push!(X0, nloops, ϕkill, 0)
+    push!(X0, nloops, ϕkill, 0, μ)
 
     if increasing_ϵ
         Xgeo = X0
@@ -119,7 +121,7 @@ function time_direction(
         pop!(init_direction), pop!(init_direction)
         fill!(init_direction, NaN)
         Xgeo = init_direction
-        Xgshe = fill!(Matrix{geometry.dtype}(undef, length(ϵs), 8), NaN)
+        Xgshe = fill!(Matrix{geometry.dtype}(undef, length(ϵs), 9), NaN)
     else
         Xgeo, Xgshe = time_gshe(init_direction, geometry, ϵs, s, increasing_ϵ, verbose)
     end

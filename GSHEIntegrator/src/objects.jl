@@ -52,6 +52,7 @@ end
     source::SphericalCoords{T}
     observer::SphericalCoords{T}
     direction_coords::Symbol=:spherical
+    getmagnification::Bool=false
     s::Integer = 2
     a::T
     arrival_time::T = 0.0
