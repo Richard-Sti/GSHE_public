@@ -222,7 +222,7 @@ function solve_decreasing(
     for i in 1:Ncorr
         Xgeo = check_geodesics(Xgeo, geometry)
         # Check if the geodesics agreed. If not attempt to recalculate
-        if any(isnan.(Xgeo))
+        if any(isnan.(Xgeo[.., 3]))
             verbose && println("Geodesics do not agree, recalculating $i/$Ncorr."); flush(stdout)
             Xgeo, Xgshe = _solve_decreasing(Xmax, geometry, ϵs; verbose=verbose)
         else
@@ -482,7 +482,7 @@ function solve_full(
 
     X0 = solve_initial(geometry, increasing_ϵ ? 0 : ϵs[end], Nsols)
     # In case of any NaNs initially just return NaN
-    if any(isnan.(X0))
+    if any(isnan.(X0[.., 3]))
         return X0, fill(NaN, Nsols, 2, length(ϵs), 9)
     end
 
