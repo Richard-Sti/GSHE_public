@@ -20,7 +20,8 @@ function setup_geometry(index::Integer, config::Dict{Symbol, Any})
     end
 
     # Optional params
-    optional_pars = [:opt_options, :ode_options, :postproc_options, :s, :direction_coords]
+    optional_pars = [:opt_options, :ode_options, :postproc_options, :s, :direction_coords,
+                     :getmagnification]
     for par in optional_pars
         if par in keys(config)
             kwargs[par] = config[par]
