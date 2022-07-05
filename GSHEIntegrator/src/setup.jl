@@ -256,7 +256,7 @@ function fit_timing(
             continue
         end
         # Calculate the GSHE to geodesic fit
-        fit_gshe_to_geo = fit_Δts(ϵs, Xgshe[n, :, :, :], Xgeo[n, :], geometry)
+        fit_gshe_to_geo = fit_Δts(ϵs, Xgshe[n, ..], Xgeo[n, :], geometry)
         for i in 1:2
             αs[n, i, :] .= fit_gshe_to_geo[i]["alpha"]
             βs[n, i, :] .= fit_gshe_to_geo[i]["beta"]
@@ -264,7 +264,7 @@ function fit_timing(
 
         if fit_gshe_gshe
             # Calculate the GSHE to GSHE fit
-            fit_gshe_to_gshe = fit_Δts(ϵs, Xgshe[n, :, :, :], geometry)
+            fit_gshe_to_gshe = fit_Δts(ϵs, Xgshe[n, ..], geometry)
             αs[n, 3, :] = fit_gshe_to_gshe["alpha"]
             βs[n, 3, :] = fit_gshe_to_gshe["beta"]
         end
@@ -295,7 +295,7 @@ function fit_timing(
     βs = fill(NaN, N, 2)
 
     for n in 1:N
-        if any(isnan.(Xgeo[n, ..]))
+        if isnan(Xgeo[n, 3])
             continue
         end
 
