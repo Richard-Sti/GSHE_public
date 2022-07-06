@@ -23,7 +23,8 @@ export geodesic_odes!, gshe_odes!
 export find_initial_minima, find_initial_minimum, getθmax, find_consecutive_minimum
 # mpi_support.jl
 export setup_geometry, Nconfigs, checkpointdir, make_checkpointdir, MPI_solve_configuration,
-    MPI_sort_solutions, fit_timing, MPI_solve_shooting, MPI_collect_shooting
+    MPI_sort_solutions, fit_timing, MPI_solve_shooting, MPI_collect_shooting, magnification_save,
+    magnification_collect
 # objects.jl
 export SphericalCoords, ODESolverOptions, OptimiserOptions, PostprocOptions, Geometry
 # outliers.jl
