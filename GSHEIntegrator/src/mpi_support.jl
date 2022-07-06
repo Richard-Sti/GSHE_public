@@ -214,5 +214,84 @@ function MPI_collect_shooting(config::Dict{Symbol, Any}, remove::Bool=false)
             end
         end
     end
+end
 
+
+"""
+    magnification_save(
+        Xgeos::Matrix{<:Real},
+        Xgshes::Array{<:Float64, 3},
+        indx::Integer,
+        geometry::Geometry,
+        ϵs::Vector{<:Real},
+        s::Real,
+        cdir::String,
+        fromshadow=false
+    )
+
+Calculate a-posteriori the magnification factors μ for solutions of the directional
+dependence of β on the BH shadow plot. To be used with MPI. Writes results to the
+disk for a particular index.
+"""
+function magnification_save(
+    Xgeos::Matrix{<:Real},
+    Xgshes::Array{<:Float64, 3},
+    indx::Integer,
+    geometry::Geometry,
+    ϵs::Vector{<:Real},
+    s::Real,
+    cdir::String,
+    fromshadow=false
+)
+    μgeo = magnification(Xgeos[indx, 1:2], geometry, 0., s, fromshadow)
+    μgshe = [magnification(Xgshes[indx, j, 1:2], geometry, ϵs[j], s, fromshadow) for j in 1:length(ϵs)]
+
+    npzwrite(joinpath(cdir, "mugeo_$indx.npy"), μgeo)
+    npzwrite(joinpath(cdir, "mugshe_$indx.npy"), μgshe)
+end
+
+
+"""
+    magnification_collect(
+        Xgeos0::Matrix{<:Real},
+        Xgshes0::Array{<:Float64, 3},
+        indxs::Vector{<:Integer},
+        cdir::String,
+        toremove::Bool=true
+    )
+
+Collect magnification results from `magnification_save` and store in new arrays.
+"""
+function magnification_collect(
+    Xgeos0::Matrix{<:Real},
+    Xgshes0::Array{<:Float64, 3},
+    indxs::Vector{<:Integer},
+    cdir::String,
+    toremove::Bool=true
+)
+    Ndir = size(Xgshes0, 1)
+    Nϵ = size(Xgshes0, 2)
+
+    Xgeos = fill(NaN, Ndir, 9)
+    Xgshes = fill(NaN, Ndir, Nϵ, 9)
+
+    Xgeos[.., 1:8] .= Xgeos0
+    Xgshes[.., 1:8] = Xgshes0
+
+    for indx in indxs
+        fgeo = joinpath(cdir, "mugeo_$indx.npy")
+        fgshe = joinpath(cdir, "mugshe_$indx.npy")
+
+        if isfile(fgeo) && isfile(fgshe)
+            Xgeos[indx, 9] = npzread(fgeo)
+            Xgshes[indx, :, 9] .= npzread(fgshe)
+            if toremove
+                rm(fgeo)
+                rm(fgshe)
+            end
+        end
+    end
+
+    npzwrite(joinpath(cdir, "Xgeos_mu.npy"), Xgeos)
+    npzwrite(joinpath(cdir, "Xgshes_mu.npy"), Xgshes)
 end
