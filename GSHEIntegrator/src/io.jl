@@ -1,10 +1,10 @@
 """
-    save_geometry_info(cdir::String, runID::Int64, geometry::Geometry, msg::String)
+    save_geometry_info(cdir::String, geometry::Geometry, msg::String)
 
 Save information about geometry.
 """
-function save_geometry_info(cdir::String, runID::String, geometry::Geometry, msg::String)
-    fpath = joinpath(cdir, "$(runID)_Description.txt")
+function save_geometry_info(cdir::String, geometry::Geometry, msg::String)
+    fpath = joinpath(cdir, "Description.txt")
     open(fpath, "w") do f
         println(f, msg)
         println(f, "Source:")
