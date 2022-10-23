@@ -8,7 +8,7 @@ function find_initial_minima(geometry::Geometry, ϵ::Real, s::Integer, Nsols::In
     X = [find_initial_minimum(loss, geometry)]
 
     if isnothing(X[1])
-        return fill!(zeros(geometry.dtype, 8), NaN)
+        return fill!(zeros(geometry.dtype, 9), NaN)
     end
 
     for i in 2:Nsols
@@ -20,6 +20,16 @@ function find_initial_minima(geometry::Geometry, ϵ::Real, s::Integer, Nsols::In
             break
         end
         push!(X, Xnew)
+    end
+
+    # Calculate the magnification factor
+    for x in X
+        if geometry.getmagnification && ~any(isnan.(x[1:2]))
+            μ = magnification(x[1:2], geometry, ϵ, s, false)
+        else
+            μ = NaN
+        end
+        push!(x, μ)
     end
     # Return and turn this into a matrix
     return mapreduce(permutedims, vcat, X)
@@ -38,7 +48,8 @@ function find_initial_minimum(loss::Function, geometry::Geometry)
     for i in 1:Ninit
         opt = optimize(loss, rvs_sphere(dtype=geometry.dtype), alg, optim_options)
         if isapprox(opt.minimum, 0.0, atol=loss_atol)
-            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum, geometry.nloops, geometry.ϕkilling, i)
+            push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum,
+                  geometry.nloops, geometry.ϕkilling, i)
             return opt.minimizer
         end
     end
@@ -84,7 +95,7 @@ function find_consecutive_minimum(
 
     if any(isnan.(prev_init_direction))
         @warn "Skipping as `prev_init_direction` contains NaNs."
-        return fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 6), NaN)
+        return fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 7), NaN)
     end
 
     @unpack alg, optim_options, relθmax, loss_atol, Nconsec, gshe_convergence_verbose, Δσmult = geometry.opt_options
@@ -108,6 +119,12 @@ function find_consecutive_minimum(
             push!(opt.minimizer, geometry.arrival_time, geometry.redshift, opt.minimum,
                   geometry.nloops, geometry.ϕkilling, i)
 
+            if geometry.getmagnification
+                μ = magnification(opt.minimizer[1:2], geometry, ϵ, s, false)
+            else
+                μ = NaN
+            end
+            push!(opt.minimizer, μ)
             return opt.minimizer
         else
             # Bump up the search radius but keep it restricted to some max value.
@@ -123,7 +140,7 @@ function find_consecutive_minimum(
     end
 
     # Return a vector of NaNs and put the min loss there as well
-    out = fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 6), NaN)
+    out = fill!(Vector{geometry.dtype}(undef, length(prev_init_direction) + 7), NaN)
     out[5] = min_loss
     return out
 end

@@ -9,6 +9,7 @@
         ϕobs::Real,
         a::Real,
         s::Integer=2,
+        getmagnification::Bool=false,
         direction_coords::Symbol=:spherical,
         ode_options::ODESolverOptions=ODESolverOptions(),
         opt_options::OptimiserOptions=OptimiserOptions()
@@ -26,6 +27,7 @@ function setup_geometry(
     ϕobs::Real,
     a::Real,
     s::Integer=2,
+    getmagnification::Bool=false,
     direction_coords::Symbol=:spherical,
     ode_options::ODESolverOptions=ODESolverOptions(),
     opt_options::OptimiserOptions=OptimiserOptions(),
@@ -37,8 +39,9 @@ function setup_geometry(
     source = SphericalCoords{dtype}(r=rsource, θ=θsource, ϕ=ϕsource)
     observer = SphericalCoords{dtype}(r=robs, θ=θobs, ϕ=ϕobs)
     return Geometry{dtype}(dtype=dtype, source=source, observer=observer, s=s, a=a,
-                           direction_coords=direction_coords, ode_options=ode_options,
-                           opt_options=opt_options, postproc_options=postproc_options)
+                           direction_coords=direction_coords, getmagnification=getmagnification,
+                           ode_options=ode_options, opt_options=opt_options,
+                           postproc_options=postproc_options)
 end
 
 
@@ -53,6 +56,7 @@ end
         ϕobs::Union{Vector{T}, LinRange{T}, T},
         a::Union{Vector{T}, LinRange{T}, T},
         s::Integer=2,
+        getmagnification::Bool=false,
         direction_coords::Symbol=:spherical,
         ode_options::ODESolverOptions=ODESolverOptions(),
         opt_options::OptimiserOptions=OptimiserOptions()
@@ -70,6 +74,7 @@ function setup_geometries(
     ϕobs::Union{Vector{T}, LinRange{T}, T},
     a::Union{Vector{T}, LinRange{T}, T},
     s::Integer=2,
+    getmagnification::Bool=false,
     direction_coords::Symbol=:spherical,
     ode_options::ODESolverOptions=ODESolverOptions(),
     opt_options::OptimiserOptions=OptimiserOptions(),
@@ -79,8 +84,8 @@ function setup_geometries(
     for rs in rsource, θs in θsource, ϕs in ϕsource, ro in robs, θo in θobs, ϕo in ϕobs, ai in a
         geo = setup_geometry(dtype;
             rsource=rs, θsource=θs, ϕsource=ϕs, robs=ro, θobs=θo, ϕobs=ϕo, a=ai, s=s,
-            direction_coords=direction_coords, ode_options=ode_options,
-            opt_options=opt_options, postproc_options=postproc_options)
+            direction_coords=direction_coords, getmagnification=getmagnification,
+            ode_options=ode_options, opt_options=opt_options, postproc_options=postproc_options)
         push!(geometries, geo)
     end
     return geometries
@@ -256,7 +261,7 @@ function fit_timing(
             continue
         end
         # Calculate the GSHE to geodesic fit
-        fit_gshe_to_geo = fit_Δts(ϵs, Xgshe[n, :, :, :], Xgeo[n, :], geometry)
+        fit_gshe_to_geo = fit_Δts(ϵs, Xgshe[n, ..], Xgeo[n, :], geometry)
         for i in 1:2
             αs[n, i, :] .= fit_gshe_to_geo[i]["alpha"]
             βs[n, i, :] .= fit_gshe_to_geo[i]["beta"]
@@ -264,7 +269,7 @@ function fit_timing(
 
         if fit_gshe_gshe
             # Calculate the GSHE to GSHE fit
-            fit_gshe_to_gshe = fit_Δts(ϵs, Xgshe[n, :, :, :], geometry)
+            fit_gshe_to_gshe = fit_Δts(ϵs, Xgshe[n, ..], geometry)
             αs[n, 3, :] = fit_gshe_to_gshe["alpha"]
             βs[n, 3, :] = fit_gshe_to_gshe["beta"]
         end
@@ -295,7 +300,7 @@ function fit_timing(
     βs = fill(NaN, N, 2)
 
     for n in 1:N
-        if any(isnan.(Xgeo[n, ..]))
+        if isnan(Xgeo[n, 3])
             continue
         end
 
@@ -336,7 +341,7 @@ function fit_timing(
 
     # One by one calculate the α and β for each configuration
     for i in 1:Nconfs
-        α, β = fit_timing(ϵs, Xgeos[i, :, :], Xgshes[i, :, :, :, :], geometries[i];
+        α, β = fit_timing(ϵs, Xgeos[i, ..], Xgshes[i, ..], geometries[i];
                           fit_gshe_gshe=fit_gshe_gshe)
         αs[i, ..] .= α
         βs[i, ..] .= β
