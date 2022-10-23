@@ -1,3 +1,4 @@
+from genericpath import isfile
 import numpy
 from os.path import join
 
@@ -34,6 +35,12 @@ def read_shooting(runID, fpath, betathreshold=numpy.infty, verbose=False):
             "betas": numpy.load(join(folder, "betas.npy")),
             "xs": numpy.load(join(folder, "dir1.npy")),
             "ys": numpy.load(join(folder, "dir2.npy"))}
+
+    if isfile(join(folder,"Xgeos_mu.npy")):
+        data.update({"Xgeo": numpy.load(join(folder, "Xgeos_mu.npy"))})
+
+    if isfile(join(folder,"Xgshes_mu.npy")):
+        data.update({"Xgshe": numpy.load(join(folder, "Xgshes_mu.npy"))})
 
     # Calculate the grid
     grid = numpy.vstack([x.reshape(-1, )
