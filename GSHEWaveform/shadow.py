@@ -1,5 +1,24 @@
+# Copyright (C) 2022 Richard Stiskalek
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; either version 3 of the License, or (at your
+# option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+"""
+Tools to build the shadow plots.
+"""
+
+
 import numpy
-from scipy.interpolate import griddata, interp2d
+from scipy.interpolate import griddata
 from scipy.spatial import ConvexHull, KDTree
 
 PI = numpy.pi
@@ -110,7 +129,7 @@ def build_shadowhull(grid, vals, N=100, dgamma=0.01):
     m0 = ~numpy.isnan(vals)
 
     for i in range(N):
-        mask = m0 & (numpy.arccos(numpy.cos(ang- pivs[i])) < dgamma)
+        mask = m0 & (numpy.arccos(numpy.cos(ang - pivs[i])) < dgamma)
         R[i] = numpy.min(radius2[mask])**0.5
 
     X = numpy.vstack([R * numpy.cos(pivs), R * numpy.sin(pivs)]).T
@@ -177,14 +196,13 @@ def fillshadow(grid, vals, hull, tree_kwargs={}):
     notnansmask = ~nansmask
     tree = KDTree(grid[notnansmask, :], **tree_kwargs)
     for i in numpy.where(fillmask)[0]:
-        (__, __), (__, j)= tree.query(grid[i, :], k=2)
+        (__, __), (__, j) = tree.query(grid[i, :], k=2)
         vals[i] = vals[notnansmask][j]
     return vals
 
 
-
 def smoothshadow(grid, vals, N, method="linear"):
-    """
+    r"""
     Render the BH shadow on a :math:`N \times N` dimensional grid.
 
     Arguments
