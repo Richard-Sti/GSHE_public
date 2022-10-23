@@ -11,5 +11,5 @@ mathematica_export/*
 *.out
 *.sh
 runs/test.ipynb
-data/
+results/
 runs/check_shooting.py
