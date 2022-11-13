@@ -6,15 +6,10 @@
 *.jld2
 *.npy
 mathematica_export/*
-notebooks/paper_plot.ipynb
-notebooks/trajectories_*.ipynb
-notebooks/trajectories_loss.ipynb
-notebooks/shooting_correction.ipynb
 *.txt
 *.z
 *.out
 *.sh
 runs/test.ipynb
-data/
-notebooks/trajectories_loss.ipynb
-notebooks/demagnification.ipynb
+results/
+runs/check_shooting.py

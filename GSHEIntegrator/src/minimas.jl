@@ -16,7 +16,7 @@ function find_initial_minima(geometry::Geometry, ϵ::Real, s::Integer, Nsols::In
         # Terminate the search
         if isnothing(Xnew)
             @info "Initial search terminated with $(i-1)/$Nsols solutions."
-            push!(X, fill!(zeros(geometry.dtype, 9), NaN))
+            push!(X, fill!(zeros(geometry.dtype, 8), NaN))
             break
         end
         push!(X, Xnew)
@@ -24,7 +24,7 @@ function find_initial_minima(geometry::Geometry, ϵ::Real, s::Integer, Nsols::In
 
     # Calculate the magnification factor
     for x in X
-        if geometry.getmagnification
+        if geometry.getmagnification && ~any(isnan.(x[1:2]))
             μ = magnification(x[1:2], geometry, ϵ, s, false)
         else
             μ = NaN

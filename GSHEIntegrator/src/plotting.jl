@@ -35,10 +35,10 @@ function plotbh!(
     radius::Float64=0.0
 )
     if radius == 0.0
-        Plots.scatter!(fig, loc, c="black", label="Black hole")
+        Plots.scatter!(fig, loc, c="black", label="Background BH", ms=12.5)
     else
         s = Meshes.Sphere(loc, radius)
-        Plots.scatter!(fig, s, alpha=0.01, label="Black hole")
+        Plots.scatter!(fig, s, alpha=0.01, label="Background BH")
     end
     return fig
 end
@@ -52,10 +52,12 @@ Plot the source and observer.
 function plot_start_end!(fig::Plots.Plot, geometry::Geometry)
     Xsource = [geometry.source.r, geometry.source.θ, geometry.source.ϕ]
     spherical_to_cartesian!(Xsource, geometry.a)
-    Plots.scatter!(fig, [Xsource[1]], [Xsource[2]], [Xsource[3]], color="red", label="Source")
+    Plots.scatter!(fig, [Xsource[1]], [Xsource[2]], [Xsource[3]], color="red",
+        label="Source", ms=5)
 
     Xobs = [geometry.observer.r, geometry.observer.θ, geometry.observer.ϕ]
     spherical_to_cartesian!(Xobs, geometry.a)
-    Plots.scatter!(fig, [Xobs[1]], [Xobs[2]], [Xobs[3]], color="blue", label="Observer")
+    Plots.scatter!(fig, [Xobs[1]], [Xobs[2]], [Xobs[3]], color="blue",
+        label="Observer", ms=5)
     return fig
 end

@@ -1,5 +1,24 @@
+# Copyright (C) 2022 Richard Stiskalek
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; either version 3 of the License, or (at your
+# option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+"""
+Functions to read Julia outputs.
+"""
+
+
 import numpy
-from os.path import join
+from os.path import join, isfile
 
 
 def read_shooting(runID, fpath, betathreshold=numpy.infty, verbose=False):
@@ -25,7 +44,7 @@ def read_shooting(runID, fpath, betathreshold=numpy.infty, verbose=False):
     folder = join(fpath, "run_{}".format(runID))
     if verbose:
         with open(join(folder, "Description.txt")) as f:
-                print(f.read())
+            print(f.read())
 
     data = {"Xgeo": numpy.load(join(folder, "Xgeos.npy")),
             "Xgshe": numpy.load(join(folder, "Xgshes.npy")),
@@ -34,6 +53,12 @@ def read_shooting(runID, fpath, betathreshold=numpy.infty, verbose=False):
             "betas": numpy.load(join(folder, "betas.npy")),
             "xs": numpy.load(join(folder, "dir1.npy")),
             "ys": numpy.load(join(folder, "dir2.npy"))}
+
+    if isfile(join(folder, "Xgeos_mu.npy")):
+        data.update({"Xgeo": numpy.load(join(folder, "Xgeos_mu.npy"))})
+
+    if isfile(join(folder, "Xgshes_mu.npy")):
+        data.update({"Xgshe": numpy.load(join(folder, "Xgshes_mu.npy"))})
 
     # Calculate the grid
     grid = numpy.vstack([x.reshape(-1, )
