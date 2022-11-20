@@ -36,6 +36,31 @@ def A0_from_liv_samples(filename):
 
     samples = numpy.copy(f[key]["posterior_samples"]) if isfound else None
     f.close()
-    return GSHEWaveform.A0_from_sample(
+    return  GSHEWaveform.A0_from_sample(
         10**samples["log10lambda_eff"], samples["redshift"],
         samples["luminosity_distance"])
+
+
+def beta_over_M_from_liv_samples(filename):
+    """
+    Read in the Lorentz-violation file and get
+    """
+    f = h5py.File(filename)
+
+    isfound = False
+    for key in f.keys():
+        if "alpha" in key:
+            isfound = True
+            break
+
+    if not isfound:
+        return None
+
+    samples = numpy.copy(f[key]["posterior_samples"]) if isfound else None
+    f.close()
+    A0 =  GSHEWaveform.A0_from_sample(
+        10**samples["log10lambda_eff"], samples["redshift"],
+        samples["luminosity_distance"])
+
+    print(A0[-1],numpy.amin(samples['redshift']),numpy.amin(samples['luminosity_distance']))
+    return A0*samples["luminosity_distance"]
