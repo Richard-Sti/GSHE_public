@@ -13,7 +13,8 @@ except ModuleNotFoundError:
 def get_liv_fnames(loaddir):
     files = glob(join(loaddir, "liv_*"))
     files = [f.split("/")[-1] for f in files]
-    files = [f for f in files if "Aminus" in f]
+    files = [f for f in files if 'p5' not in f]
+    #("Aminus" in f or "Aplus" in f) and
 
     names = [f.split("liv_")[1].split("_")[0] for f in files]
     return files, names
@@ -62,5 +63,5 @@ def beta_over_M_from_liv_samples(filename):
         10**samples["log10lambda_eff"], samples["redshift"],
         samples["luminosity_distance"])
 
-    print(A0[-1],numpy.amin(samples['redshift']),numpy.amin(samples['luminosity_distance']))
+    #print(A0[-1],numpy.amin(samples['redshift']),numpy.amin(samples['luminosity_distance']))
     return A0*samples["luminosity_distance"]
