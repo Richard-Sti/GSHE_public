@@ -19,8 +19,8 @@ from .utils import (epsilon_from_freq, time_delay_analytical,  # noqa
                     coordinate_time_to_seconds,  # noqa
                     GSHEtoGeodesicDelayInterpolator, M_from_epsfreq,  # noqa
                     setmplstyle, ylabel_withoffset)  # noqa
-# from .waveform import (gshe_to_circular, gshe_to_linear,  # noqa
-#                        fd_to_td_fiducialshift, waveform_to_strain)  # noqa
+from .waveform import (gshe_to_circular, gshe_to_linear,  # noqa
+                       fd_to_td_fiducialshift, waveform_to_strain)  # noqa
 from .io import read_shooting  # noqa
 from .shadow import (ang2shadow_ingoing, get_upsilon, build_shadowhull,  # noqa
                      inhull, fillshadow, smoothshadow)  # noqa
