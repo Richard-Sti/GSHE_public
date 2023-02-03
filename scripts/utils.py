@@ -13,6 +13,7 @@ except ModuleNotFoundError:
 def get_liv_fnames(loaddir):
     files = glob(join(loaddir, "liv_*"))
     files = [f.split("/")[-1] for f in files]
+    files = [f for f in files if 'alpha0' in f]
     files = [f for f in files if 'p5' not in f]
     #("Aminus" in f or "Aplus" in f) and
 
@@ -55,6 +56,7 @@ def beta_over_M_from_liv_samples(filename):
             break
 
     if not isfound:
+        print(filename+' not found')
         return None
 
     samples = numpy.copy(f[key]["posterior_samples"]) if isfound else None
