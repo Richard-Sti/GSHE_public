@@ -22,7 +22,8 @@ from .utils import (epsilon_from_freq, time_delay_analytical,  # noqa
 from .waveform import (gshe_to_circular, gshe_to_linear,  # noqa
                        fd_to_td_fiducialshift, waveform_to_strain)  # noqa
 from .io import read_shooting  # noqa
-from .shadow import (ang2shadow_ingoing, get_upsilon, build_shadowhull,  # noqa
-                     inhull, fillshadow, smoothshadow)  # noqa
+from .shadow import (ang2shadow_ingoing, get_upsilon_obs, build_shadowhull,  # noqa
+                     inhull, fillshadow, smoothshadow, read_signed_beta,  # noqa
+                     get_upsilon_src)  # noqa
 from .mismatch import circular_mismatch  # noqa
 from .liv import (D0_from_redshift, A0_from_sample)  # noqa

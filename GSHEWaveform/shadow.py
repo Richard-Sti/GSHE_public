@@ -47,27 +47,54 @@ def ang2shadow_ingoing(X):
     return numpy.vstack([numpy.sin(psi) * numpy.sin(rho), numpy.cos(psi)]).T
 
 
-def get_upsilon(ks, betas, betalims, dk):
+def read_signed_beta(data):
+    """
+    Read the absolute value of the beta and sign it according to the the GSHE
+    delay.
+
+    Parameters
+    ----------
+    data : dict
+        Data dictionary whose keys must include `betas`, `Xgshe` and `Xgeo`.
+
+    Returns
+    -------
+    betas : 1-dimensional array
+    """
+    # Take the highest epsilon time of arrival
+    sign = numpy.sign(data["Xgshe"][:, -1, 2] - data["Xgeo"][:, 2])
+    return sign * data["betas"][:, 0]
+
+
+def get_upsilon_obs(ks, betas, betalims, dk, magnification=None,
+                    beta_sign=None, min_magnification=None):
     r"""
-    Calculate :math:`\Upsilon` as a function of :math:`\beta_{\rm lim}`. Sets
-    :math:`\beta` that are NaN to 0.
+    Calculate :math:`\Upsilon_{\rm obs}` as a function of
+    :math:`\beta_{\rm lim}`. Sets :math:`\beta` that are NaN to 0.
 
     Arguments
     ---------
-    ks : numpy.ndarray
+    ks : 2-dimensional array
         Array of :math:`k_2` and :math:`k_3` of shape (-1 ,2).
-    betas : numpy.ndarray
+    betas : 2-dimensional array
         Array of :math:`\beta` as a function of `ks`.
-    betalims : numpy.ndarray
+    betalims : 1-dimensional array
         Array of :math:`\beta_{\rm lim}`.
     dk : float
         The :math:`k_2` and :math:`k_3` spacing, expected to be the same for
         both.
+    magnification : 2-dimensional array, optional
+        Array of magnification as a function of `ks`. By default `None`
+    beta_sign : int, optional
+        The sign of the :math:`\beta` to be integrated. If `None` both signs
+        are considered.
+    min_magnification : float, optional
+        The minimum absolute value of magnification of a point to be summed.
+        By default `None`, i.e. no threshold.
 
     Returns
     -------
-    upsilon : numpy.ndarray
-        The :math:`\Upsilon` values.
+    upsilon : 1-dimensional array
     """
     if not (ks.ndim == 2 and ks.shape[1] == 2):
         raise TypeError("`ks` array shape must be (-1, 2).")
@@ -75,21 +102,119 @@ def get_upsilon(ks, betas, betalims, dk):
         raise TypeError("`betas` must be a 1-dimensional array.")
     if not betalims.ndim == 1:
         raise TypeError("`betalims` must be a 1-dimensional array.")
-    # Set NaNs to 0 and make a copy
-    betas = numpy.copy(betas)
-    betas[numpy.isnan(betas)] = 0.
+    assert beta_sign in [-1, 1, None]
 
-    radius2 = numpy.sum(ks**2, axis=1)
-    area = numpy.sqrt(1 / (1 - radius2))
-    mask = radius2 <= 1
+    betas = numpy.copy(betas)       # Copy since will be rewriting this array
+    betas[numpy.isnan(betas)] = 0.  # Set NaN to 0. Will sum beta > 0 anyway.
+
+    radius2 = numpy.sum(ks**2, axis=1)    # Squared distance from the origin
+    mask = radius2 <= 1                   # Mask for the unit sphere
+    area = numpy.sqrt(1 / (1 - radius2))  # Area element in spherical coords
+
+    # If integrating both take the absolute value
+    if beta_sign is None:
+        betas = numpy.abs(betas)
+    # If integrating only positive set negative values to zero
+    if beta_sign == 1:
+        betas[betas < 0] = 0
+    # If integrating only negative set positive values to zero and take abs
+    if beta_sign == -1:
+        betas[betas > 0] = 0
+        betas = numpy.abs(betas)
+    # Take threshold on magnification. Again set betas below it to 0
+    if min_magnification is not None:
+        betas[magnification < min_magnification] = 0
 
     ups = numpy.zeros_like(betalims)
     for i, lim in enumerate(betalims):
         H = (betas > lim).astype(int)
         ups[i] = numpy.sum((H * area)[mask]) * dk**2
 
-    # 2pi normalisation
-    ups /= (2 * PI)
+    ups /= (2 * PI)  # Normalise to 2 pi since only a half sphere
+    return ups
+
+
+def get_upsilon_src(ks, betas, betalims, dk, magnification, nloops,
+                    min_magnification=None, nloop_max=None,
+                    magnification_sign=None):
+    r"""
+    Calculate :math:`\Upsilon_{\rm src}` as a function of
+    :math:`\beta_{\rm lim}`. Sets :math:`\beta` that are NaN to 0.
+
+    Arguments
+    ---------
+    ks : 2-dimensional array
+        Array of :math:`k_2` and :math:`k_3` of shape (-1 ,2).
+    betas : 2-dimensional array
+        Array of :math:`\beta` as a function of `ks`.
+    betalims : 1-dimensional array
+        Array of :math:`\beta_{\rm lim}`.
+    dk : float
+        The :math:`k_2` and :math:`k_3` spacing, expected to be the same for
+        both.
+    magnification : 2-dimensional array
+        Array of magnification as a function of `ks`.
+    nloops : 2-dimensional array
+        Array of the number of loops as a function of `ks`.
+    min_magnification : float, optional
+        The minimum absolute value of magnification of a point to be summed.
+        By default `None`, i.e. no threshold.
+    nloop_max : int, optional
+        Maximum (inclusive) number of loops to be summed when calculating
+        :math:`\Upsilon_{\rm src}`. By default `None`, i.e. no restriction.
+    magnification_sign : int, optional
+        The sign of magnification whose :math:`\beta` are to be integrated. If
+        `None` both signs are considered.
+
+    Returns
+    -------
+    upsilon : 1-dimensional array
+    """
+    if not (ks.ndim == 2 and ks.shape[1] == 2):
+        raise TypeError("`ks` array shape must be (-1, 2).")
+    if not betas.ndim == 1:
+        raise TypeError("`betas` must be a 1-dimensional array.")
+    if not betalims.ndim == 1:
+        raise TypeError("`betalims` must be a 1-dimensional array.")
+    assert magnification_sign in [-1, 1, None]
+
+    # Copy since will be rewriting these arrays
+    betas = numpy.copy(betas)
+    magnification = numpy.copy(magnification)
+    # Set NaN beta to 0. Will sum beta > 0.
+    betas[numpy.isnan(betas)] = 0.
+    # Set betas with loops more than threshold to 0
+    if nloop_max is not None:
+        betas[nloops > nloop_max] = 0.
+    # Set NaN magnification to infinity so that the area element is 0
+    magnification[numpy.isnan(magnification)] = numpy.infty
+    # To be certain enforce absolute values of betas
+    betas = numpy.abs(betas)
+
+    # If summing only pos. magnification set neg. magnification betas to zero
+    if magnification_sign == 1:
+        betas[magnification < 0] = 0
+    # If summing only neg. magnification set pos. magnification betas to zero
+    if magnification_sign == -1:
+        betas[magnification > 0] = 0
+    # Abs. value magnification threshold. Again set betas below it to 0
+    if min_magnification is not None:
+        betas[numpy.abs(magnification) < min_magnification] = 0
+
+    radius2 = numpy.sum(ks**2, axis=1)    # Squared distance from the origin
+    mask = radius2 <= 1                   # Mask for the unit sphere
+    # Area element in spherical coords on the far sphere
+    area = numpy.sqrt(1 / (1 - radius2)) / numpy.abs(magnification)
+
+    ups = numpy.zeros_like(betalims)  # Preallocate and compute
+    for i, lim in enumerate(betalims):
+        H = (betas > lim).astype(int)
+        ups[i] = numpy.sum((H * area)[mask]) * dk**2
+
+    # Normalisation: for `nloop = 0`, the full sphere gets covered 3/4 times.
+    # The half sphere away from the BH + the trajectories that are retrolensed,
+    # but don't compute as a full loop.
+    ups /= (1.5 * 4 * numpy.pi)
     return ups
 
 
