@@ -66,10 +66,10 @@ def read_signed_beta(data):
     return sign * data["betas"][:, 0]
 
 
-def get_upsilon_obs(ks, betas, betalims, dk, magnification=None,
+def get_upsilon_src(ks, betas, betalims, dk, magnification=None,
                     beta_sign=None, min_magnification=None):
     r"""
-    Calculate :math:`\Upsilon_{\rm obs}` as a function of
+    Calculate :math:`\Upsilon_{\rm src}` as a function of
     :math:`\beta_{\rm lim}`. Sets :math:`\beta` that are NaN to 0.
 
     Arguments
@@ -134,11 +134,11 @@ def get_upsilon_obs(ks, betas, betalims, dk, magnification=None,
     return ups
 
 
-def get_upsilon_src(ks, betas, betalims, dk, magnification, nloops,
+def get_upsilon_obs(ks, betas, betalims, dk, magnification, nloops,
                     min_magnification=None, nloop_max=None,
-                    magnification_sign=None):
+                    magnification_sign=None, beta_sign=None):
     r"""
-    Calculate :math:`\Upsilon_{\rm src}` as a function of
+    Calculate :math:`\Upsilon_{\rm obs}` as a function of
     :math:`\beta_{\rm lim}`. Sets :math:`\beta` that are NaN to 0.
 
     Arguments
@@ -177,6 +177,7 @@ def get_upsilon_src(ks, betas, betalims, dk, magnification, nloops,
     if not betalims.ndim == 1:
         raise TypeError("`betalims` must be a 1-dimensional array.")
     assert magnification_sign in [-1, 1, None]
+    assert beta_sign in [-1, 1, None]
 
     # Copy since will be rewriting these arrays
     betas = numpy.copy(betas)
@@ -188,8 +189,17 @@ def get_upsilon_src(ks, betas, betalims, dk, magnification, nloops,
         betas[nloops > nloop_max] = 0.
     # Set NaN magnification to infinity so that the area element is 0
     magnification[numpy.isnan(magnification)] = numpy.infty
-    # To be certain enforce absolute values of betas
-    betas = numpy.abs(betas)
+
+    # If integrating both take the absolute value
+    if beta_sign is None:
+        betas = numpy.abs(betas)
+    # If integrating only positive set negative values to zero
+    if beta_sign == 1:
+        betas[betas < 0] = 0
+    # If integrating only negative set positive values to zero and take abs
+    if beta_sign == -1:
+        betas[betas > 0] = 0
+        betas = numpy.abs(betas)
 
     # If summing only pos. magnification set neg. magnification betas to zero
     if magnification_sign == 1:
@@ -211,10 +221,11 @@ def get_upsilon_src(ks, betas, betalims, dk, magnification, nloops,
         H = (betas > lim).astype(int)
         ups[i] = numpy.sum((H * area)[mask]) * dk**2
 
-    # Normalisation: for `nloop = 0`, the full sphere gets covered 3/4 times.
-    # The half sphere away from the BH + the trajectories that are retrolensed,
-    # but don't compute as a full loop.
-    ups /= (1.5 * 4 * numpy.pi)
+    # OLD: Normalisation: for `nloop = 0`, the full sphere gets covered 3/4
+    # times. The half sphere away from the BH + the trajectories that are
+    # retrolensed, but don't compute as a full loop.
+    # NEW: we now only normalise it with respect to 4pi!
+    ups /= 4 * numpy.pi
     return ups
 
 
