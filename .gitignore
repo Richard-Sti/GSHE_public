@@ -14,3 +14,6 @@ runs/test.ipynb
 results/
 runs/check_shooting.py
 venv_gshe/
+plots/
+.spyproject/
+data/*.zip
