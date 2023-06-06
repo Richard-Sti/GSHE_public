@@ -29,7 +29,7 @@ from astropy import constants as c
 sys.path.insert(0,'/home/miguel/code/utils/distancetool/codes/')
 import find_horizon_range_de as gwhor
 
-sensitivities_dir = '../../glow/lensing_code/notebooks/sensitivities/'
+sensitivities_dir = '../../glow/sensitivities/'
 
 
 
@@ -144,11 +144,9 @@ def prob_GSHE_interp(bt,j_mu_min):
     return -P
 
 
-def GSHE_rates(M_tot,psd_fun,psd_file, snr_th=8, M_fid=1e4,zs=None, R0 = 30, return_arrays=False, normalize=True):
+def GSHE_rates(M_tot,psd_fun,psd_file, snr_th=8, M_fid=1e4,zs=np.geomspace(0.01,10,30), R0 = 30, return_arrays=False, normalize=True):
     ''' computes GSHE rates, effective volume and derived quantities
     '''
-    if zs == None:
-        zs = np.geomspace(0.01,10,30)
     
     results = {}
     
@@ -169,8 +167,14 @@ def GSHE_rates(M_tot,psd_fun,psd_file, snr_th=8, M_fid=1e4,zs=None, R0 = 30, ret
         P_GSHE[P_GSHE>1] = 1
     dVzdz = dVz[:,None]/mus**0
     
-    integrand = np.array(dVzdz*p_det*btmin*P_GSHE)
-    GSHE_vol = simps(simps(dVzdz*p_det*btmin*P_GSHE, mus), zs)
+    ##NOTE: PREVIOUSLY np.array(dVzdz*p_det*btmin*P_GSHE) WITH btmin?
+    integrand = np.array(dVzdz*p_det*P_GSHE)
+    GSHE_vol = simps(simps(dVzdz*p_det*P_GSHE, mus), zs)
+    
+    #just remove magnified events
+    #need to include a more realistic magnification function
+    N_tot = simps(simps(dVzdz*p_det*np.heaviside(1-mus,1), mus), zs)
+    
     results['SNR_th'] = snr_th
     results['M_fid'] = M_fid
     results['psd_file'] = psd_file
@@ -178,7 +182,8 @@ def GSHE_rates(M_tot,psd_fun,psd_file, snr_th=8, M_fid=1e4,zs=None, R0 = 30, ret
     
     results['GSHE_volume [Gpc^3]'] = GSHE_vol
     results['R0'] = R0
-    results['rate [1/yr]'] = GSHE_vol*R0
+    results['rate GSHE [1/yr]'] = GSHE_vol*R0
+    results['rate detection [1/yr]'] = N_tot*R0
     if return_arrays:
         results['mu_vals'] = mus
         results['z_vals'] = zs
