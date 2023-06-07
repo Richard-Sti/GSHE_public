@@ -15,15 +15,14 @@
 """
 Utility functions for primarily handling units.
 """
+from copy import deepcopy
 
-
+import matplotlib as mpl
 import numpy
 from scipy import constants as c
 from scipy.interpolate import interp1d
-from copy import deepcopy
-import matplotlib as mpl
-# Append the solar mass
-c.Msun = 1.989e30
+
+Msun = 1.989e30  # kg
 
 
 def coordinate_time_to_seconds(t, M):
@@ -43,7 +42,7 @@ def coordinate_time_to_seconds(t, M):
     t : float
         Time [s].
     """
-    Rs = 2 * c.G * c.Msun * M / c.c**2
+    Rs = 2 * c.G * Msun * M / c.c**2
     return t * Rs / c.c / 2
 
 
@@ -63,7 +62,7 @@ def epsilon_from_freq(f, M):
     epsilon : float
         Perturbation strength.
     """
-    return c.c**3 / (c.G * c.Msun) / M / f
+    return c.c**3 / (c.G * Msun) / M / f
 
 
 def M_from_epsfreq(eps, f):
@@ -84,7 +83,7 @@ def M_from_epsfreq(eps, f):
     M: float
         Background mass [Msun].
     """
-    return c.c**3 / (c.G * c.Msun) / (eps * f)
+    return c.c**3 / (c.G * Msun) / (eps * f)
 
 
 def time_delay_analytical(f, M, alpha, beta):

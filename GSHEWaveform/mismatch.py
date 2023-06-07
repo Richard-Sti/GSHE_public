@@ -15,12 +15,11 @@
 """
 Waveform mismatch calculation.
 """
-
+from warnings import warn
 
 import numpy
 from scipy.integrate import quad
 from scipy.interpolate import interp1d
-from warnings import warn
 
 from .utils import mixing
 

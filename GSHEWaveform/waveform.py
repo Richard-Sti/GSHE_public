@@ -15,12 +15,11 @@
 """
 Waveform handling.
 """
-
-
 from copy import deepcopy
+
 from pycbc.waveform.utils import apply_fd_time_shift, fd_to_td
 
-from .utils import mixing, linear_to_circular, circular_to_linear
+from .utils import circular_to_linear, linear_to_circular, mixing
 
 
 def gshe_to_circular(hcirc_tilde, time_delay):

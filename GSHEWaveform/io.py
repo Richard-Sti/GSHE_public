@@ -15,10 +15,9 @@
 """
 Functions to read Julia outputs.
 """
-
+from os.path import isfile, join
 
 import numpy
-from os.path import join, isfile
 
 
 def read_shooting(runID, fpath, betathreshold=numpy.infty, verbose=False):
