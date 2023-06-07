@@ -15,13 +15,9 @@
 """
 Tools to build the shadow plots.
 """
-
-
 import numpy
 from scipy.interpolate import griddata
 from scipy.spatial import ConvexHull, KDTree
-
-PI = numpy.pi
 
 
 def ang2shadow_ingoing(X):
@@ -130,7 +126,7 @@ def get_upsilon_src(ks, betas, betalims, dk, magnification=None,
         H = (betas > lim).astype(int)
         ups[i] = numpy.sum((H * area)[mask]) * dk**2
 
-    ups /= (2 * PI)  # Normalise to 2 pi since only a half sphere
+    ups /= (2 * numpy.pi)  # Normalise to 2 numpy.pi since only a half sphere
     return ups
 
 
@@ -224,7 +220,7 @@ def get_upsilon_obs(ks, betas, betalims, dk, magnification, nloops,
     # OLD: Normalisation: for `nloop = 0`, the full sphere gets covered 3/4
     # times. The half sphere away from the BH + the trajectories that are
     # retrolensed, but don't compute as a full loop.
-    # NEW: we now only normalise it with respect to 4pi!
+    # NEW: we now only normalise it with respect to 4numpy.pi!
     ups /= 4 * numpy.pi
     return ups
 
@@ -257,7 +253,7 @@ def build_shadowhull(grid, vals, N=100, dgamma=0.01):
     if not vals.ndim == 1:
         raise TypeError("`vals` must be a 1-dimensional array.")
     # Gamma pivots
-    pivs = numpy.linspace(0, 2*PI, N)
+    pivs = numpy.linspace(0, 2 * numpy.pi, N)
     radius2 = numpy.sum(grid**2, axis=1)
     ang = numpy.arctan2(grid[:, 1], grid[:, 0])
 
