@@ -20,24 +20,24 @@ end
 
 
 config = Dict(
-    :runID => "12",
+    :runID => "15",
     :cdir => "/mnt/extraspace/rstiskalek/gshe",
     :msg => "Geodesic shooting. Ignore observer angular position.",
     :varparam => [:dir1, :dir2],
-    :ϵs => (10).^LinRange(-3, -1, 30),
-    :rsource => 10.0,
+    :ϵs => (10).^LinRange(-3.5, -2, 20),
+    :rsource => 15.0,
     :θsource => 0.5π,
     :ϕsource => 0.0,
     :robs => 100.0,
     :θobs => π/2,
     :ϕobs => 1π,
-    :dir1 => LinRange(-1, 1, 250),
-    :dir2 => LinRange(-1, 1, 250),
+    :dir1 => LinRange(-1, 1, 500),
+    :dir2 => LinRange(-1, 1, 500),
     :from_shadow => true,
     :increasing_ϵ => false,
     :s => 2,
     :a => 0.99,
-    :opt_options => GSHEIntegrator.OptimiserOptions(Ninit=51, Nconsec=30),
+    :opt_options => GSHEIntegrator.OptimiserOptions(Ninit=21, Nconsec=21),
     :fit_gshe_gshe => false,
     :dtype => Float64
     )
@@ -63,10 +63,10 @@ elseif rank == 0
         end
     end
     # Start the task delegator
-    master_process(tasks, comm, verbose=true)
+#    master_process(tasks, comm, verbose=true)
     # Once all tasks have been delegated sort the geodesics
     println("Collecting results."); flush(stdout)
-    GSHEIntegrator.MPI_collect_shooting(config)
+    GSHEIntegrator.MPI_collect_shooting(config, true)
 else
     f(task::Vector) = GSHEIntegrator.MPI_solve_shooting(task..., config)
     worker_process(f, comm)
