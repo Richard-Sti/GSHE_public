@@ -123,10 +123,16 @@ def mismatch_gshe(M_bbh, q=1,M_fid = 1e4,bt_fid = 0.1, z=0.3,fmin=10, fref=10, f
     return [mismatch_fid, np.abs(snr0)]
 
 
-def beta_min(M_bbh, z=0.3, q=1,M_fid = 1e4,bt_fid = 0.1,fmin=10, fref=10, fmax=5e3, df=1,n_sample=5, psd_fun = psd_ligo,approx=gwhor.ls.IMRPhenomD):
-    '''convenient wrapper to compute the minimum beta, using the bt^2 dependence of the misamatch'''
+def beta_min(M_bbh, z=0.3, q=1, SNR_factor = 0.32694,
+             M_fid = 1e4,bt_fid = 0.1,
+             fmin=10, fref=10, fmax=5e3, df=1,
+             n_sample=5, 
+             psd_fun = psd_ligo,approx=gwhor.ls.IMRPhenomD):
+    '''convenient wrapper to compute the minimum beta, using the bt^2 dependence of the misamatch
+       SNR_factor = 0.327 taken to be the median SNR, relative to the optimal
+    '''
     M,SNR0 = mismatch_gshe(M_bbh, q,M_fid,bt_fid, z,fmin, fref, fmax, df,n_sample, psd_fun,approx)
-    return bt_fid/np.sqrt(M)/SNR0
+    return bt_fid/np.sqrt(M)/(SNR_factor*SNR0)
 
 beta_min = np.vectorize(beta_min)
 
