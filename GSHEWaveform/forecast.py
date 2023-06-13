@@ -1,37 +1,43 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# Copyright (C) 2023 Miguel Zumalacarregui, Richard Stiskalek
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; either version 3 of the License, or (at your
+# option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 Created on Fri Apr 28 17:05:27 2023
 
 @author: miguel
 
-Uses https://github.com/hsinyuc/distancetool, cite Chen et al (2017) arXiv:1709.08079
+Uses https://github.com/hsinyuc/distancetool, cite Chen et al (2017)
+(arXiv:1709.08079)
 """
 
-import pandas as pd
+import sys
+
 import numpy as np
-import sys, os
-
-import pycbc as pycbc 
-from pycbc.filter.matchedfilter import match, sigmasq, optimized_match
-from pycbc.filter import matched_filter
-from astropy.cosmology import Planck18 as cosmo
-from pycbc.waveform import get_fd_waveform
-
-from scipy.interpolate import interp1d
-from scipy.interpolate import griddata
-from scipy.integrate import simps
-
+import pandas as pd
+import pycbc as pycbc
 from astropy import units as u
-from astropy import constants as c
-
+from astropy.cosmology import Planck18 as cosmo
+from pycbc.filter.matchedfilter import optimized_match
+from scipy.integrate import simps
+from scipy.interpolate import griddata, interp1d
 
 sys.path.insert(0,'/home/miguel/code/utils/distancetool/codes/')
 import find_horizon_range_de as gwhor
 
 sensitivities_dir = '../../glow/sensitivities/'
-
-
 
 #Load the data (computed in )
 data_dict = np.load("../data/Ups_obs_mu_min.npy", allow_pickle=True).item()
@@ -41,14 +47,25 @@ ups_obs_arr = data_dict["ups_obs_arr"]
 
 
 def d_ups_obs_dmu(ups_obs_arr, mu_min_arr):
-    '''
-    compute the derivative of Upsilon_obs
-    '''
+    r"""
+    Compute the derivative of :math:`Upsilon_{\rm obs}` with respect to
+    magnification.
+
+    Parameters
+    ----------
+    ups_obs_arr : array
+        Array of :math:`Upsilon_{\rm obs}` values.
+    mu_min_arr : array
+        Array of :math:`\mu_{\rm min}`, the magnification limit values.
+
+    Returns
+    -------
+    dups_obs_dmu : array
+    """
     dups_obs_dmu = np.zeros_like(ups_obs_arr)
-    for i in range(0,len(mu_min_arr)-1):
-        tmp = (ups_obs_arr[i+1]-ups_obs_arr[i])/(mu_min_arr[i+1]-mu_min_arr[i])    
-        dups_obs_dmu[i,:] = tmp
-        
+    for i in range(0, len(mu_min_arr) - 1):
+        dups_obs_dmu[i, :] = ups_obs_arr[i + 1] - ups_obs_arr[i]
+        dups_obs_dmu[i, :] /= mu_min_arr[i + 1] - mu_min_arr[i]
     return dups_obs_dmu
 
 dups_obs_dmu = d_ups_obs_dmu(ups_obs_arr, mu_min_arr)
@@ -279,8 +296,9 @@ def guess_z_horizon(m1,m2, asdfile, snr_th = 8,fmin=10.,fref=10.,df=1.,maximum_f
     if njump>=10:
         print("Recursive search for the horizon failed. Interpolation instead.")
         try:
-            interp_z=linspace(0.001,120,1000); interp_snr=zeros(size(interp_z))
-            for i in range(0,size(interp_z)): 
+            interp_z = np.linspace(0.001,120,1000)
+            interp_snr = np.zeros(interp_z.size)
+            for i in range(0, interp_z.size):
                 hplus_tilda,hcross_tilda,freqs= gwhor.get_htildas((1.+interp_z[i])*m1,(1.+interp_z[i])*m2 ,gwhor.de.luminosity_distance_de(interp_z[i],**gwhor.cosmo),fmin=fmin,fref=fref,df=df,approx=approx)
                 fsel=np.logical_and(freqs>minimum_freq,freqs<maximum_freq)
                 psd_interp = interpolate_psd(freqs[fsel]) 	

@@ -14,16 +14,16 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
-from .utils import (epsilon_from_freq, time_delay_analytical,  # noqa
-                    linear_to_circular, mixing, circular_to_linear,  # noqa
-                    coordinate_time_to_seconds,  # noqa
-                    GSHEtoGeodesicDelayInterpolator, M_from_epsfreq,  # noqa
-                    setmplstyle, ylabel_withoffset)  # noqa
-from .waveform import (gshe_to_circular, gshe_to_linear,  # noqa
-                       fd_to_td_fiducialshift, waveform_to_strain)  # noqa
 from .io import read_shooting  # noqa
-from .shadow import (ang2shadow_ingoing, get_upsilon_obs, build_shadowhull,  # noqa
-                     inhull, fillshadow, smoothshadow, read_signed_beta,  # noqa
-                     get_upsilon_src)  # noqa
+from .liv import A0_from_sample, D0_from_redshift  # noqa
 from .mismatch import circular_mismatch  # noqa
-from .liv import (D0_from_redshift, A0_from_sample)  # noqa
+from .shadow import get_upsilon_src  # noqa
+from .shadow import (ang2shadow_ingoing, build_shadowhull, fillshadow,  # noqa
+                     get_upsilon_obs, inhull, read_signed_beta, smoothshadow)
+from .utils import coordinate_time_to_seconds  # noqa
+from .utils import (GSHEtoGeodesicDelayInterpolator, M_from_epsfreq,  # noqa
+                    circular_to_linear, epsilon_from_freq, linear_to_circular,
+                    mixing, setmplstyle, time_delay_analytical,
+                    ylabel_withoffset)
+from .waveform import (fd_to_td_fiducialshift, gshe_to_circular,  # noqa
+                       gshe_to_linear, waveform_to_strain)

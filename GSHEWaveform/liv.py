@@ -15,10 +15,8 @@
 """
 Matching to the LIGO Lorentz-invariance constrains.
 """
-
-
-from scipy.special import hyp2f1
 from scipy import constants as consts
+from scipy.special import hyp2f1
 
 
 def D0_from_redshift(z, H0=67.9, Omega_matter=0.3065, Omega_Lambda=0.6935):
