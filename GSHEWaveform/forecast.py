@@ -39,14 +39,24 @@ import find_horizon_range_de as gwhor
 
 sensitivities_dir = '../../glow/sensitivities/'
 
-#Load the data (computed in )
-data_dict = np.load("../data/Ups_obs_mu_min.npy", allow_pickle=True).item()
-betalims = data_dict["betalims"]
-mu_min_arr = data_dict["mu_min_arr"]
-ups_obs_arr = data_dict["ups_obs_arr"]
+##Load the data (computed in )
+#data_dict = np.load("../data/Ups_obs_mu_min_10_all.npy", allow_pickle=True).item()
+#betalims = data_dict["betalims"]
+#mu_min_arr = data_dict["mu_min_arr"]
+#ups_obs_arr = data_dict["ups_obs_arr"]
 
 
-def d_ups_obs_dmu(ups_obs_arr, mu_min_arr):
+def load_data(file):
+    global data_dict, betalims, mu_min_arr, ups_obs_arr, dups_obs_dmu
+    data_dict = np.load("../data/%s"%file, allow_pickle=True).item()
+    betalims = data_dict["betalims"]
+    mu_min_arr = data_dict["mu_min_arr"]
+    ups_obs_arr = data_dict["ups_obs_arr"]
+    dups_obs_dmu = compute_d_ups_obs_dmu(ups_obs_arr, mu_min_arr)
+    print('loaded',file)
+
+
+def compute_d_ups_obs_dmu(ups_obs_arr, mu_min_arr):
     r"""
     Compute the derivative of :math:`Upsilon_{\rm obs}` with respect to
     magnification.
@@ -68,7 +78,7 @@ def d_ups_obs_dmu(ups_obs_arr, mu_min_arr):
         dups_obs_dmu[i, :] /= mu_min_arr[i + 1] - mu_min_arr[i]
     return dups_obs_dmu
 
-dups_obs_dmu = d_ups_obs_dmu(ups_obs_arr, mu_min_arr)
+
 
 psd_ligo_read=pd.read_csv(sensitivities_dir+"aplus.txt", sep=" ", header=None ,index_col=None)
 psd_ligo_arr=np.transpose(psd_ligo_read.to_numpy(dtype=float))
