@@ -17,3 +17,5 @@ venv_gshe/
 plots/
 .spyproject/
 data/*.zip
+build/
+GSHEWaveform.egg-info/PKG-INFO
