@@ -39,14 +39,24 @@ import find_horizon_range_de as gwhor
 
 sensitivities_dir = '../../glow/sensitivities/'
 
-#Load the data (computed in )
-data_dict = np.load("../data/Ups_obs_mu_min.npy", allow_pickle=True).item()
-betalims = data_dict["betalims"]
-mu_min_arr = data_dict["mu_min_arr"]
-ups_obs_arr = data_dict["ups_obs_arr"]
+##Load the data (computed in )
+#data_dict = np.load("../data/Ups_obs_mu_min_10_all.npy", allow_pickle=True).item()
+#betalims = data_dict["betalims"]
+#mu_min_arr = data_dict["mu_min_arr"]
+#ups_obs_arr = data_dict["ups_obs_arr"]
 
 
-def d_ups_obs_dmu(ups_obs_arr, mu_min_arr):
+def load_data(file):
+    global data_dict, betalims, mu_min_arr, ups_obs_arr, dups_obs_dmu
+    data_dict = np.load("../data/%s"%file, allow_pickle=True).item()
+    betalims = data_dict["betalims"]
+    mu_min_arr = data_dict["mu_min_arr"]
+    ups_obs_arr = data_dict["ups_obs_arr"]
+    dups_obs_dmu = compute_d_ups_obs_dmu(ups_obs_arr, mu_min_arr)
+    print('loaded',file)
+
+
+def compute_d_ups_obs_dmu(ups_obs_arr, mu_min_arr):
     r"""
     Compute the derivative of :math:`Upsilon_{\rm obs}` with respect to
     magnification.
@@ -68,7 +78,7 @@ def d_ups_obs_dmu(ups_obs_arr, mu_min_arr):
         dups_obs_dmu[i, :] /= mu_min_arr[i + 1] - mu_min_arr[i]
     return dups_obs_dmu
 
-dups_obs_dmu = d_ups_obs_dmu(ups_obs_arr, mu_min_arr)
+
 
 psd_ligo_read=pd.read_csv(sensitivities_dir+"aplus.txt", sep=" ", header=None ,index_col=None)
 psd_ligo_arr=np.transpose(psd_ligo_read.to_numpy(dtype=float))
@@ -140,10 +150,16 @@ def mismatch_gshe(M_bbh, q=1,M_fid = 1e4,bt_fid = 0.1, z=0.3,fmin=10, fref=10, f
     return [mismatch_fid, np.abs(snr0)]
 
 
-def beta_min(M_bbh, z=0.3, q=1,M_fid = 1e4,bt_fid = 0.1,fmin=10, fref=10, fmax=5e3, df=1,n_sample=5, psd_fun = psd_ligo,approx=gwhor.ls.IMRPhenomD):
-    '''convenient wrapper to compute the minimum beta, using the bt^2 dependence of the misamatch'''
+def beta_min(M_bbh, z=0.3, q=1, SNR_factor = 0.32694,
+             M_fid = 1e4,bt_fid = 0.1,
+             fmin=10, fref=10, fmax=5e3, df=1,
+             n_sample=5, 
+             psd_fun = psd_ligo,approx=gwhor.ls.IMRPhenomD):
+    '''convenient wrapper to compute the minimum beta, using the bt^2 dependence of the misamatch
+       SNR_factor = 0.327 taken to be the median SNR, relative to the optimal
+    '''
     M,SNR0 = mismatch_gshe(M_bbh, q,M_fid,bt_fid, z,fmin, fref, fmax, df,n_sample, psd_fun,approx)
-    return bt_fid/np.sqrt(M)/SNR0
+    return bt_fid/np.sqrt(M)/(SNR_factor*SNR0)
 
 beta_min = np.vectorize(beta_min)
 
