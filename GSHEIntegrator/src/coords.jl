@@ -1,22 +1,18 @@
 """
     azimuthal_angle(y::Real, x::Real)
 
-Convert Cartesian coordinates `y` and `x` into an azimuthal angle starting at `x`, ensuring
-it is within [0, 2π).
+Convert Cartesian `y` and `x` an azimuthal angle ensuring it is within [0, 2π).
 """
 function azimuthal_angle(y::Real, x::Real)
-    ϕ = atan(y, x)
-    if ϕ < 0
-        return ϕ + 2π
-    end
-    return ϕ
+    ϕ = atan2(y, x)
+    mod(ϕ, 2π)
 end
 
 
 """
     cartesian_to_spherical(X::Vector{<:Real})
 
-Calculate the spherical coordinates (r, θ, ϕ) from Cartesian (x, y,z). TODO: add Kerr spin
+Calculate (r, θ, ϕ) from (x, y,z).
 """
 function cartesian_to_spherical(X::Vector{<:Real})
     x, y, z = X
@@ -38,8 +34,7 @@ end
 """
     spherical_to_cartesian(X::Vector{<:Real}, a::Real=0.0)
 
-Calculate the Cartesian coordinates (x, y, z) from spherical (θ, ϕ) or (r, θ, ϕ), depending
-on the input length, `a` is the Kerr spin parameter.
+Calculate (x, y, z) from spherical (θ, ϕ) or (r, θ, ϕ), `a` is the Kerr spin.
 """
 function spherical_to_cartesian(X::Vector{<:Real}, a::Real=0.0)
     if length(X) == 2
@@ -75,7 +70,8 @@ end
 """
     rvs_sphere(θmax::Real=π; dtype::DataType=Float64)
 
-Sample a uniform point on a sphere. Returns (θ, ϕ), such that 0 ≤ theta ≤ π , 0 ≤ ϕ  < 2π.
+Sample a uniform point on a sphere.
+
 If θmax ≤ π point will be sampled within θmax of the north pole.
 """
 function rvs_sphere(θmax::Real=π; dtype::DataType=Float64)
