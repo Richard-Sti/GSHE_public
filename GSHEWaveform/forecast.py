@@ -53,7 +53,7 @@ def load_data(file):
     mu_min_arr = data_dict["mu_min_arr"]
     ups_obs_arr = data_dict["ups_obs_arr"]
     dups_obs_dmu = compute_d_ups_obs_dmu(ups_obs_arr, mu_min_arr)
-    print('loaded',file)
+    # print('loaded',file)
 
 
 def compute_d_ups_obs_dmu(ups_obs_arr, mu_min_arr):
@@ -80,25 +80,26 @@ def compute_d_ups_obs_dmu(ups_obs_arr, mu_min_arr):
 
 
 
-psd_ligo_read=pd.read_csv(sensitivities_dir+"aplus.txt", sep=" ", header=None ,index_col=None)
-psd_ligo_arr=np.transpose(psd_ligo_read.to_numpy(dtype=float))
-psd2=interp1d(psd_ligo_arr[0],psd_ligo_arr[1],kind='linear', fill_value='extrapolate')
+psd_LIGO_read=pd.read_csv(sensitivities_dir+"aplus.txt", sep=" ", header=None ,index_col=None)
+psd_LIGO_arr=np.transpose(psd_LIGO_read.to_numpy(dtype=float))
+psd2=interp1d(psd_LIGO_arr[0],psd_LIGO_arr[1],kind='linear', fill_value='extrapolate')
 
-psd_et_read = pd.read_csv(sensitivities_dir+"et.txt", sep=" ", header=None ,index_col=None)
-psd_et_arr=np.transpose(psd_et_read.to_numpy(dtype=float))
-psd_et2=interp1d(psd_et_arr[0],psd_et_arr[1],kind='linear', fill_value='extrapolate')
+ET_file = sensitivities_dir+"et.txt"
+psd_ET_read = pd.read_csv(ET_file, sep=" ", header=None ,index_col=None)
+psd_ET_arr=np.transpose(psd_ET_read.to_numpy(dtype=float))
+psd_ET2=interp1d(psd_ET_arr[0],psd_ET_arr[1],kind='linear', fill_value='extrapolate')
 
 
-def psd_ligo(f):
+def psd_LIGO(f):
     '''Power spectral density from https://dcc.ligo.org/LIGO-T1500293/public'''
     return float(psd2(f)**2)
 
-def psd_et(f):
+def psd_ET(f):
     '''Power spectral density for ET'''
-    return float(psd_et2(f)**2)
+    return float(psd_ET2(f)**2)
 
-psd_ligo=np.vectorize(psd_ligo)
-psd_et = np.vectorize(psd_et)
+psd_LIGO = np.vectorize(psd_LIGO)
+psd_ET = np.vectorize(psd_ET)
 
 aligo_file = gwhor.base_dir+'/data/aLIGO/Advanced_LIGO_Design.txt'
 CE1_file = gwhor.base_dir+'/data/CE1_strain.txt'
@@ -115,10 +116,10 @@ def psd_from_file(asdfile,fmin=0):
     interpolate_psd = interp1d(input_freq, strain**2,kind='linear', fill_value='extrapolate')
     return interpolate_psd
 
-CE_psd = psd_from_file(CE1_file)
+psd_CE = psd_from_file(CE1_file)
 
 
-def mismatch_gshe(M_bbh, q=1,M_fid = 1e4,bt_fid = 0.1, z=0.3,fmin=10, fref=10, fmax=5e3, df=1,n_sample=5, psd_fun = psd_ligo,approx=gwhor.ls.IMRPhenomD):
+def mismatch_gshe(M_bbh, q=1,M_fid = 1e4,bt_fid = 0.1, z=0.3,fmin=10, fref=10, fmax=5e3, df=1,n_sample=5, psd_fun = psd_LIGO,approx=gwhor.ls.IMRPhenomD):
     '''compute the fiducial mismatch and SNR'''
     
     t_obs= 1/12/30/24/60/2
@@ -152,9 +153,9 @@ def mismatch_gshe(M_bbh, q=1,M_fid = 1e4,bt_fid = 0.1, z=0.3,fmin=10, fref=10, f
 
 def beta_min(M_bbh, z=0.3, q=1, SNR_factor = 0.32694,
              M_fid = 1e4,bt_fid = 0.1,
-             fmin=10, fref=10, fmax=5e3, df=1,
+             fmin=1, fref=10, fmax=5e3, df=1,
              n_sample=5, 
-             psd_fun = psd_ligo,approx=gwhor.ls.IMRPhenomD):
+             psd_fun = psd_LIGO,approx=gwhor.ls.IMRPhenomD):
     '''convenient wrapper to compute the minimum beta, using the bt^2 dependence of the misamatch
        SNR_factor = 0.327 taken to be the median SNR, relative to the optimal
     '''
