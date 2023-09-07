@@ -16,7 +16,7 @@
 
 from .io import read_shooting  # noqa
 from .liv import A0_from_sample, D0_from_redshift  # noqa
-from .mismatch import circular_mismatch  # noqa
+from .mismatch import circular_mismatch, circular_mismatch_nominim  # noqa
 from .shadow import get_upsilon_src  # noqa
 from .shadow import (ang2shadow_ingoing, build_shadowhull, fillshadow,  # noqa
                      get_upsilon_obs, inhull, read_signed_beta, smoothshadow)

@@ -15,16 +15,19 @@
 """
 Waveform mismatch calculation.
 """
+from copy import deepcopy
 from warnings import warn
 
 import numpy
+from pycbc.psd.analytical import flat_unity
+from pycbc.filter import optimized_match
 from scipy.integrate import quad
 from scipy.interpolate import interp1d
 
 from .utils import mixing
 
 
-def circular_mismatch(fhcirc, fmin, fmax, delay, minrelerr=1e-6):
+def circular_mismatch(fhcirc, fmin, fmax, delay):
     r"""
     Calculate the mismatch of a circular waveform.
 
@@ -48,13 +51,37 @@ def circular_mismatch(fhcirc, fmin, fmax, delay, minrelerr=1e-6):
     mismatch: float
         The mismatch of the circular waveform.
     """
-    fs = fhcirc.sample_frequencies
-    # Make sure we have the right frequency range
+    fhcirc = deepcopy(fhcirc)
+    fhcirc_gshe = deepcopy(fhcirc)
+
+    freqs = fhcirc.sample_frequencies.data
+
+    psd = flat_unity(freqs.size, delta_f=fhcirc.delta_f, low_freq_cutoff=fmin)
+    psd.data[:] = 1
+
+    dt = delay(freqs)
+    fhcirc_gshe.data *= mixing(freqs, dt)
+
+    match = optimized_match(
+        fhcirc_gshe, fhcirc, psd=psd, low_frequency_cutoff=fmin,
+        high_frequency_cutoff=fmax)[0]
+
+    return 1 - match
+
+
+def circular_mismatch_nominim(fhcirc, fmin, fmax, delay, minrelerr=1e-6):
+    fhcirc = deepcopy(fhcirc)
+    fhcirc_shifted = deepcopy(fhcirc)
+
+    fs = fhcirc_shifted.sample_frequencies
     m = (fs >= fmin) & (fs <= fmax)
     fs = fs[m]
-    h = fhcirc.data[m]
+
+    h_GO = fhcirc.data[m]
+    h_GSHE = fhcirc_shifted.data[m]
+
     # Amplitude squared
-    h2 = numpy.real(numpy.conj(h) * h)
+    h2 = numpy.real(numpy.conj(h_GO) * h_GSHE)
     # Normalise, cancels in mismatch and helps numeric integration
     h2 /= numpy.max(h2)
 
@@ -67,7 +94,7 @@ def circular_mismatch(fhcirc, fmin, fmax, delay, minrelerr=1e-6):
     relerrden = errden / den
     relerrnum = errnum / num
     if relerrden > minrelerr or relerrnum > minrelerr:
-        warn("Integ. error to result ratios are {} and {}. Proceed carefully."
-             .format(relerrnum, relerrden))
+        warn(f"Integ. error to result ratios are {relerrnum} and "
+             "{relerrnum}. Proceed carefully.")
 
     return 1 - num / den
