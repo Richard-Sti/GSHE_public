@@ -4,7 +4,7 @@
 Convert Cartesian `y` and `x` an azimuthal angle ensuring it is within [0, 2π).
 """
 function azimuthal_angle(y::Real, x::Real)
-    ϕ = atan2(y, x)
+    ϕ = atan(y, x)
     mod(ϕ, 2π)
 end
 
