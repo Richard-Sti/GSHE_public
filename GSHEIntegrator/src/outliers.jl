@@ -1,3 +1,6 @@
+import Clustering: kmeans, nclusters, assignments, counts
+
+
 """
     predict_llsq(x::Real, pars::Vector{<:Real})
 
@@ -49,12 +52,12 @@ function findoutlier_fixedslope(x::Vector{<:Real}, y::Vector{<:Real}, slope::Rea
     # Begin by assigning to clusters via K-means
     N = length(x)
     X = reshape(y .- slope * x, 1, N)
-    R = Clustering.kmeans(X, 2; maxiter=200)
-    @assert Clustering.nclusters(R) == 2
-    a = Clustering.assignments(R)
+    R = kmeans(X, 2; maxiter=200)
+    @assert nclusters(R) == 2
+    a = assignments(R)
 
     # Guess that the cluster with fewer points is outliers
-    cnts = Clustering.counts(R)
+    cnts = counts(R)
     cnts[1] < cnts[2] ? (isout = a .== 1) : (isout = a .== 2)
 
     # If 1 outlier directly return it

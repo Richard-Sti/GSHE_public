@@ -57,7 +57,6 @@ import Random: shuffle!
 import NPZ: npzwrite, npzread
 using EllipsisNotation
 import StatsBase: mean, std
-import Clustering
 import ForwardDiff: jacobian
 import LinearAlgebra: det
 import Plots
