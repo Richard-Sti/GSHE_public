@@ -108,7 +108,7 @@ Threads.@threads for i in 1:n_points
        robs=robs, θobs=θobs, ϕobs=ϕobs,
        a=akerr,getmagnification=true)
     
-    Xgeo = GSHEIntegrator.solve_initial(geometry_no_mag, 0.0, Nsols)
+    Xgeo = GSHEIntegrator.solve_initial(geometry, 0.0, Nsols)
     
     geometry_no_mag = GSHEIntegrator.setup_geometry(
         rsource=rsource, θsource=θsrc, ϕsource=0,
