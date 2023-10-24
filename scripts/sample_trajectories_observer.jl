@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Tue Oct 10 16:01:31 2023
-
-@author: miguel
+#!/usr/bin/env julia
+# -*- coding: utf-8 -*-
+#Created on Tue Oct 10 16:01:31 2023
+#@author: miguel
+# export JULIA_NUM_THREADS=4
 """
 
 
@@ -24,7 +24,7 @@ using Dates
 
 
 #now many points to sample 
-n_points = 2
+n_points = 400
 
 rsource=5
 θsource=0.5π
