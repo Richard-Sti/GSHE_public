@@ -1,0 +1,39 @@
+using HDF5
+using JLD2
+using FilePathsBase
+using FileIO
+using Glob
+
+# # Specify your existing JLD2 file path
+# input_file_path = "../data/trajectories/random_trajectories_2023_10_14_19_22_04.jld2"
+
+
+
+# Specify the directory and file pattern to match
+dir_path = "../data/trajectories/"
+file_pattern = "random_trajectories_*.jld2"
+
+# Iterate over files matching the pattern
+for input_file_path in glob(joinpath(dir_path, file_pattern))
+    # Process each file as needed
+    println(input_file_path)
+
+    # Load your existing JLD2 data
+    @load input_file_path results
+
+    # Derive HDF5 file path from JLD2 file path
+    output_file_path = replace(input_file_path, ".jld2" => ".h5")
+
+    # Create the HDF5 file
+    h5open(output_file_path, "w") do file
+        # Create groups or datasets as needed
+        for (i, traj) in enumerate(results)
+            grp = create_group(file, "Trajectory_$i")
+            for (key, value) in traj
+                write(grp, string(key), value)
+            end
+        end
+    end
+end
+
+
