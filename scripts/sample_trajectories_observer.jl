@@ -120,6 +120,7 @@ Threads.@threads for i in 1:n_points
     
     
     # Create a dictionary to store the results of this iteration
+    #TODO: add more quantities: INITIAL THETA_I FOR EACH TRAJECTORY (NOT JUST SOURCE LOCATION)
     result = Dict(
         "θ_src" => θsrc,
         "ϕ_src" => 0,
