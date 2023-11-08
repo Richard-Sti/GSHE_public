@@ -11,6 +11,7 @@ function solve_initial(geometry::Geometry{<:Real}, ϵ::Real, Nsols::Integer=2)
     if ϵ == 0
         return Xright
     end
+
     @assert Nsols <= 2 "At most `Nsols` of 2 supported for ϵ != 0."
     Xleft = find_initial_minima(geometry, ϵ, -geometry.s, Nsols)
 
@@ -328,7 +329,7 @@ function solve_increasing(
     nloops = Xgeo[6]
 
     for (i, ϵ) in enumerate(ϵs)
-        verbose && @printf "%.2f%%, ϵ=%.2e " (i / Nϵs * 100) ϵ; flush(stdout)
+        verbose & println("$(round(i / Nϵs * 100, digits=2))%, ϵ=$(round(ϵ, sigdigits=2, base=10))"); flush(stdout)
 
         # Loop over the previously found solutions in reverse. Look up to the previous
         # 5 solutions.
