@@ -72,9 +72,14 @@ include("./powerlaw.jl")
 include("./outliers.jl")
 include("./shoot_timing.jl")
 include("./grid.jl")
-include("./io.jl")
 include("./mpi_support.jl")
 include("./solver.jl")
+
+
+################################################################################
+#                               Statistics                                     #
+################################################################################
+
 
 """
     mean(x::Vector{<:Real})
@@ -92,4 +97,48 @@ Compute the standard deviation of a vector of real numbers.
 function std(x::Vector{<:Real})
     mu = mean(x)
     return sqrt((sum((x[i] - mu)^2 for i in 1:length(x)) / (length(x)-1)))
+end
+
+
+################################################################################
+#                                  I/O                                         #
+################################################################################
+
+
+"""
+    save_geometry_info(cdir::String, geometry::Geometry, msg::String)
+
+Save information about geometry.
+"""
+function save_geometry_info(cdir::String, geometry::Geometry, msg::String)
+    fpath = joinpath(cdir, "Description.txt")
+    open(fpath, "w") do f
+        println(f, msg)
+        println(f, "Source:")
+        println(f, geometry.source)
+        println(f, "Observer:")
+        println(f, geometry.observer)
+        println(f, "BH spin")
+        println(f, "a = $(geometry.a)")
+        println(f, "ODE Options")
+        println(f, geometry.ode_options)
+        println(f, geometry.opt_options)
+    end
+end
+
+
+"""
+    save_config_info(config::Dict{Symbol, Any})
+
+Save information about the configuration file.
+"""
+function save_config_info(config::Dict{Symbol, Any})
+    fpath = joinpath(checkpointdir(config), "Description.txt")
+    open(fpath, "w") do f
+        for (key, value) in config
+            println(f, "$key:")
+            println(f, value)
+            println(f, "\n")
+        end
+    end
 end
