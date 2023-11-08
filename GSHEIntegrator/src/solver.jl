@@ -123,7 +123,7 @@ function solve_decreasing(
 
     # We loop over the ϵs in reverse
     for (i, ϵ) in enumerate(reverse(ϵs))
-        verbose & println("$(round(i / Nϵs * 100, digits=2))%, ϵ=$(round(ϵ, sigdigits=2, base=10))"); flush(stdout)
+        verbose && println("$(round(i / Nϵs * 100, digits=2))%, ϵ=$(round(ϵ, sigdigits=2, base=10))"); flush(stdout)
 
         # Make sure the looping index points to the right places (since we reverse ϵs)
         # So that i = Nϵs, Nϵs - 1, ... , 1
@@ -329,7 +329,7 @@ function solve_increasing(
     nloops = Xgeo[6]
 
     for (i, ϵ) in enumerate(ϵs)
-        verbose & println("$(round(i / Nϵs * 100, digits=2))%, ϵ=$(round(ϵ, sigdigits=2, base=10))"); flush(stdout)
+        verbose && println("$(round(i / Nϵs * 100, digits=2))%, ϵ=$(round(ϵ, sigdigits=2, base=10))"); flush(stdout)
 
         # Loop over the previously found solutions in reverse. Look up to the previous
         # 5 solutions.
