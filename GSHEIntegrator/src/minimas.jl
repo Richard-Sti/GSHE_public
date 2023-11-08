@@ -31,7 +31,13 @@ function find_initial_minima(geometry::Geometry, ϵ::Real, s::Integer, Nsols::In
         end
         push!(x, μ)
     end
-    # Return and turn this into a matrix
+
+    # Optionally swap so that the first solution is the one with positive
+    # magnification.
+    if Nsols == 2 && geometry.getmagnification && X[2][end] > X[1][end]
+        X[1], X[2] = X[2], X[1]
+    end
+
     return mapreduce(permutedims, vcat, X)
 end
 
