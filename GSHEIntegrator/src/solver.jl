@@ -122,10 +122,7 @@ function solve_decreasing(
 
     # We loop over the ϵs in reverse
     for (i, ϵ) in enumerate(reverse(ϵs))
-        if verbose
-            @printf "%.2f%%, ϵ=%.2e " (i / Nϵs * 100) ϵ
-            flush(stdout)
-        end
+        verbose & println("$(round(i / Nϵs * 100, digits=2))%, ϵ=$(round(ϵ, sigdigits=2, base=10))"); flush(stdout)
 
         # Make sure the looping index points to the right places (since we reverse ϵs)
         # So that i = Nϵs, Nϵs - 1, ... , 1

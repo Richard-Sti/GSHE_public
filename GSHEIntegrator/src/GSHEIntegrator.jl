@@ -52,7 +52,6 @@ import Optim: NelderMead, Options, optimize
 import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,
                               terminate!, remake, ODEProblem, solve, Vern9
 import MultivariateStats: llsq
-import Printf: @printf, @sprintf
 import Random: shuffle!
 import NPZ: npzwrite, npzread
 using EllipsisNotation
