@@ -56,7 +56,6 @@ import Random: shuffle!
 import NPZ: npzwrite, npzread
 using EllipsisNotation
 import ForwardDiff: jacobian
-import LinearAlgebra: det
 import Plots
 import Meshes
 

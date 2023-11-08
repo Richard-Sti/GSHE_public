@@ -473,26 +473,15 @@ end
 
 
 """
-    magnification(
-        dir::Vector{<:Real},
-        geometry::Geometry,
-        ϵ::Real,
-        s::Real,
-        fromshadow=true,
-    )
+    function magnification(dir::Vector{<:Real}, geometry::Geometry, ϵ::Real, s::Real, fromshadow=true)
 
 Calculate the magnification of a given trajectory.
 """
-function magnification(
-    dir::Vector{<:Real},
-    geometry::Geometry,
-    ϵ::Real,
-    s::Real,
-    fromshadow=true,
-)
+function magnification(dir::Vector{<:Real}, geometry::Geometry, ϵ::Real, s::Real, fromshadow=true)
     if fromshadow
         dir = shadow2angle(dir)
     end
+
     ψ = dir[1]
     # Solver that is a function of direction only
     f(x::Vector{<:Real}) = solve_problem(x, geometry, ϵ, s)[:, end]
@@ -501,10 +490,14 @@ function magnification(
     # the Jacobian in two steps is wasteful, but safer for multiprocessing
     xf = f(dir)
     θ = xf[3]
+
     if ~is_at_robs(xf[2], geometry)
         return NaN
     end
+
     J = jacobian(f, dir)[3:4, :]
+    detJ = J[1, 1] * J[2, 2] - J[1, 2] * J[2, 1]
+
     # Extract the angular part of the Jacobian and divide by sin(ψ)
-    return sin(ψ) / sin(θ) / det(J)
+    return sin(ψ) / sin(θ) / detJ
 end
