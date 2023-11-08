@@ -1,10 +1,10 @@
 module GSHEIntegrator
 
 # coords.jl
-export azimuthal_angle, cartesian_to_spherical, cartesian_to_spherical!, spherical_to_cartesian,
-    spherical_to_cartesian!, rvs_sphere, rvs_sphere_restricted, rvs_sphere_y, angdist,
-    rotate_to_y, rotate_to_y!, rotate_from_y, rotate_from_y!, atan_transform, atan_invtransform,
-    shadow2angle, angle2shadow
+export cartesian_to_spherical, cartesian_to_spherical!, spherical_to_cartesian,
+    spherical_to_cartesian!, rvs_sphere, rvs_sphere_y, angdist,
+    rotate_from_y, rotate_from_y!, atan_transform, atan_invtransform,
+    shadow2angle
 # grid.jl
 export make_2dmesh, grid_evaluate_scalar, grid_evaluate_timing
 # integrator.jl

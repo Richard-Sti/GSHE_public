@@ -1,8 +1,3 @@
-"""
-    azimuthal_angle(y::Real, x::Real)
-
-Convert Cartesian `y` and `x` an azimuthal angle ensuring it is within [0, 2π).
-"""
 function azimuthal_angle(y::Real, x::Real)
     ϕ = atan(y, x)
     mod(ϕ, 2π)
@@ -70,34 +65,19 @@ end
 """
     rvs_sphere(θmax::Real=π; dtype::DataType=Float64)
 
-Sample a uniform point on a sphere.
-
-If θmax ≤ π point will be sampled within θmax of the north pole.
+Sample a uniform point on a sphere. If θmax ≤ π point will be sampled within θmax of the north pole.
 """
 function rvs_sphere(θmax::Real=π; dtype::DataType=Float64)
-    # Sample within [0, 1] uniformly
     sample = rand(dtype, 2)
+
     # if θmax is not π restrict it to a smaller range
     if θmax < π
         sample[1] *= (1 - cos(θmax)) / 2
     end
-    # Get the actual angles
+
     sample[1] = asin(2*(sample[1] - 0.5)) + π/2
     sample[2] *= 2π
     return sample
-end
-
-
-function rvs_sphere_restricted(Δθ::Real=0.0, Δϕ::Real=0.0; dtype::DataType=Float64)
-    sample = rand(dtype, 2)
-
-    sample[1] = acos(2*(sample[1] - 0.5) * abs(cos(Δθ)))
-    sample[2] = sample[2] * (2π - 2*Δϕ) + Δϕ
-    return sample
-end
-
-function rvs_sphere_restricted(N::Integer, Δθ::Real=0.0, Δϕ::Real=0.0; dtype::DataType=Float64)
-    return mapreduce(permutedims, vcat, [rvs_sphere_restricted(Δθ, Δϕ; dtype=dtype) for i in 1:N])
 end
 
 
@@ -115,41 +95,6 @@ function rvs_sphere_y(θmax::Real=π; dtype::DataType=Float64)
     sample[2] < 0 ? (sample[2] += 2π) : nothing
     return sample
 end
-
-
-"""
-    rotate_to_y(x::Vector{<:Real}, p::Vector{<:Real})
-
-Rotate `x` with a rotation that moves `p` to the y-axis. All vectors assumed to be given in
-spherical coordinates (θ, ϕ).
-"""
-function rotate_to_y(x::Vector{<:Real}, p::Vector{<:Real})
-    ψ, ρ = p
-    θ, ϕ = x
-    # Check data dtypes
-    dtype = typeof(ψ)
-    @assert all(isa(a, dtype) for a in [ρ, θ, ϕ]) "Inputs have mixed data dtypes."
-
-    sψ, cψ = sin(ψ), cos(ψ)
-    sθ, cθ = sin(θ), cos(θ)
-    c_azim = cos(ρ - ϕ)
-    out = dtype[0.0, 0.0]
-    out[1] = acos(-c_azim * cψ * sθ + cθ * sψ)
-    out[2] = azimuthal_angle(cθ * cψ + c_azim * sθ * sψ, sθ * sin(ρ - ϕ))
-    return out
-end
-
-
-function rotate_to_y!(x::Vector{<:Real}, p::Vector{<:Real})
-    ψ, ρ = p
-    θ, ϕ = x
-    sψ, cψ = sin(ψ), cos(ψ)
-    sθ, cθ = sin(θ), cos(θ)
-    c_azim = cos(ρ - ϕ)
-    x[1] = acos(-c_azim * cψ * sθ + cθ * sψ)
-    x[2] = azimuthal_angle(cθ * cψ + c_azim * sθ * sψ, sθ * sin(ρ - ϕ))
-end
-
 
 """
     rotate_from_y(x::Vector{<:Real}, p::Vector{<:Real})
@@ -253,15 +198,3 @@ function shadow2angle(ks::Vector{<:Real})
     return [ψ, ρ]
 end
 
-
-"""
-    shadow2angle(ks::Vector{<:Real})
-
-Convert the ingoing ψ and ρ coordinates to k2 and k3.
-"""
-function angle2shadow(X::Vector{<:Real})
-    ψ, ρ = X
-    k3 = cos(ψ)
-    k2 = sin(ψ) * sin(ρ)
-    return [k2, k3]
-end
