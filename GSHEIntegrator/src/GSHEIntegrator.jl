@@ -55,7 +55,6 @@ import MultivariateStats: llsq
 import Random: shuffle!
 import NPZ: npzwrite, npzread
 using EllipsisNotation
-import StatsBase: mean, std
 import ForwardDiff: jacobian
 import LinearAlgebra: det
 import Plots
@@ -77,4 +76,20 @@ include("./io.jl")
 include("./mpi_support.jl")
 include("./solver.jl")
 
+"""
+    mean(x::Vector{<:Real})
+
+Compute the mean of a vector of real numbers.
+"""
+function mean(x::Vector{<:Real})
+    return sum(x)/length(x)
+end
+
+"""
+    std(x::Vector{<:Real})
+Compute the standard deviation of a vector of real numbers.
+"""
+function std(x::Vector{<:Real})
+    mu = mean(x)
+    return sqrt((sum((x[i] - mu)^2 for i in 1:length(x)) / (length(x)-1)))
 end
