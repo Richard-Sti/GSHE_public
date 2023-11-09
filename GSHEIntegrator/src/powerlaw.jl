@@ -1,4 +1,21 @@
 """
+    function linear_llsq(x::Vector{<:Real}, y::Vector{<:Real})
+
+Calculate the linear least squares fit of y = α x + β.
+"""
+function linear_llsq(x::Vector{<:Real}, y::Vector{<:Real})
+    N = length(x)
+    sx, sy, sx2 = sum(x), sum(y), sum(x.^2)
+    sxy = sum(x .* y)
+
+    norm = (sx^2 - N * sx2)
+    α = (sx * sy - N * sxy) / norm
+    β = (10).^((sx * sxy - sx2 * sy) / norm)
+    return α, β
+end
+
+
+"""
     bootstrap_powerlaw(
         x::Vector{<:Real},
         y::Vector{<:Real};
@@ -34,7 +51,7 @@ function bootstrap_powerlaw(
 
     for i in 1:Nboots
         mask .= rand(1:N, N)
-        res[i, :] .= llsq(x[mask], y[mask])
+        res[i, :] .= linear_llsq(x[mask], y[mask])
     end
 
     out = Dict("alpha" => [mean(res[:, 1]), std(res[:, 1])],
