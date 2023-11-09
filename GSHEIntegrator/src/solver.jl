@@ -378,8 +378,7 @@ function solve_increasing(
     verbose::Bool=true,
 )
     @assert is_strictly_increasing(ϵs) "`ϵs` must be strictly increasing."
-    Nϵs = length(ϵs)
-    Xgshe = zeros(geometry.dtype, 2, Nϵs, length(Xgeo))
+    Xgshe = zeros(geometry.dtype, 2, length(ϵs), length(Xgeo))
 
     for (j, s) in enumerate([+geometry.s, -geometry.s])
         Xgshe[j, ..] = solve_increasing(Xgeo, geometry, s, ϵs; verbose=verbose)
