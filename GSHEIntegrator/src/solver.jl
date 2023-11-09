@@ -394,6 +394,7 @@ end
         geometry::Geometry{<:Real},
         ϵs::Union{Vector{<:Real}, LinRange{<:Real}};
         verbose::Bool=true,
+        try_swap::Bool=false,
     )
 
 Solve GSHE trajectories of a given configuration, iterating over geodesics and starting from
@@ -404,15 +405,25 @@ function solve_increasing(
     geometry::Geometry{<:Real},
     ϵs::Union{Vector{<:Real}, LinRange{<:Real}};
     verbose::Bool=true,
+    try_swap::Bool=false,
 )
-    Nϵs = length(ϵs)
-    Ngeos = size(Xgeo)[1]
-    Xgshe = zeros(geometry.dtype, Ngeos, 2, Nϵs, size(Xgeo, 2))
+    Ngeos = size(Xgeo, 1)
+    Xgshe = zeros(geometry.dtype, Ngeos, 2, length(ϵs), size(Xgeo, 2))
 
     for n in 1:Ngeos
-        verbose && println("n = $n"); flush(stdout)
-
+        verbose && println("Calculating $n-th bundle."); flush(stdout)
         Xgshe[n, ..] .= solve_increasing(Xgeo[n, :], geometry, ϵs; verbose=verbose)
+    end
+
+    # Check if the maximum GSHE solution for s = +- 2 is closer to its geodesic than the
+    # other geodesic. If not, swap it.
+    if Ngeos == 2 && try_swap
+        for i in 1:2
+            if !(angdist(Xgeo[1, 1:2], Xgshe[1, i, end, 1:2]) < angdist(Xgeo[1, 1:2], Xgshe[2, i, end, 1:2]))
+                @info "Swapping GSHE solutions to the other geodesic"
+                Xgshe[1, i, ..], Xgshe[2, i, ..] = Xgshe[2, i, ..], Xgshe[1, i, ..]
+            end
+        end
     end
 
     return Xgshe
