@@ -49,6 +49,7 @@ shadow_coords = [:shadow, :shadowpos]
 
 import Parameters: @with_kw, @unpack
 import Optim: NelderMead, Options, optimize
+import MultivariateStats: llsq  # TODO remove dependence
 import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,
                               terminate!, remake, ODEProblem, solve, Vern9
 import Random: shuffle!
