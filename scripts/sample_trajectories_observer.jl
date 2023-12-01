@@ -24,7 +24,7 @@ using Dates
 
 
 #now many points to sample 
-n_points = 400
+n_points = 5
 
 rsource=5
 θsource=0.5π
@@ -35,7 +35,6 @@ robs=25
 akerr=0.99
 
 
-ϵ0=1e-3 
 Nsols = 2 
 
 
@@ -110,14 +109,18 @@ Threads.@threads for i in 1:n_points
     
     Xgeo = GSHEIntegrator.solve_initial(geometry, 0.0, Nsols)
     
+    ϵ0=1e-3 
+    ϵs = (10).^LinRange(-3, -1, 5)
+
     geometry_no_mag = GSHEIntegrator.setup_geometry(
         rsource=rsource, θsource=θsrc, ϕsource=0,
         robs=robs, θobs=θobs, ϕobs=ϕobs,
         a=akerr, getmagnification=false)
     
     
-    Xeps = GSHEIntegrator.solve_initial(geometry_no_mag, ϵ0, Nsols)
-    
+    Xgshe = GSHEIntegrator.solve_increasing(Xgeo, geometry_no_mag, ϵs; verbose=false);
+    #Xeps = GSHEIntegrator.solve_initial(geometry_no_mag, ϵ0, Nsols)
+    αs, βs = GSHEIntegrator.fit_timing(ϵs, Xgeo, Xgshe, geometry_no_mag; fit_gshe_gshe=true);
     
     # Create a dictionary to store the results of this iteration
     #TODO: add more quantities: INITIAL THETA_I FOR EACH TRAJECTORY (NOT JUST SOURCE LOCATION)
@@ -129,12 +132,15 @@ Threads.@threads for i in 1:n_points
         "r_src" => rsource,
         "r_obs" => robs,
         "Xgeo" => Xgeo,
-        "Xeps" => Xeps,
         "μ" => Xgeo[:,9],
         "Δt" => Xgeo[2,3] - Xgeo[1,3],
-        "β" => (Xgeo[:,3] - Xeps[:,1,3]) / ϵ0^2,
-        "βLR" => (Xeps[:,1,3] - Xeps[:,2,3]) / ϵ0^3,
-        "ϵ0" => ϵ0,
+        "α" => αs,
+        "β" => βs,
+        # "Xeps" => Xeps,
+        # "β" => (Xgeo[:,3] - Xeps[:,1,3]) / ϵ0^2,
+        # "βLR" => (Xeps[:,1,3] - Xeps[:,2,3]) / ϵ0^3,
+        # "ϵ0" => ϵ0,
+        "ϵs" => ϵs,
         "a_kerr" => akerr,
         # ... add other quantities here
     )
