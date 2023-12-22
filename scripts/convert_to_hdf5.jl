@@ -10,7 +10,8 @@ using Glob
 
 
 # Specify the directory and file pattern to match
-dir_path = "../data/trajectories/"
+# dir_path = "../data/trajectories/"
+dir_path = "../../data/GSHE_runs/"
 file_pattern = "random_trajectories_*.jld2"
 
 # Iterate over files matching the pattern
