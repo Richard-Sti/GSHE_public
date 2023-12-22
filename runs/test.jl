@@ -27,5 +27,7 @@ dx2 = zeros(7)
 println("All finished.")
 
 
-println(@benchmark GSHEIntegrator.gshe_odes!(dx2, x0, geometry, 0.01, 2))
+GSHEIntegrator.gshe_odes!(dx2, x0, geometry, 0.01, 2)
+
+println(@benchmark GSHEIntegrator.gshe_odes!(dx2, x0, geometry, 0.11, 2))
 # println(@benchmark zeros(7))
