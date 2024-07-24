@@ -4,9 +4,8 @@
 */__pycache__/
 *.vscode/
 *.jld2
-*.npy
+/data/run*/*.*
 mathematica_export/*
-*.txt
 *.z
 *.out
 *.sh
