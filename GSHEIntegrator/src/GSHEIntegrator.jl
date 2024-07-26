@@ -52,12 +52,13 @@ import Optim: NelderMead, Options, optimize
 import MultivariateStats: llsq  # TODO remove dependence
 import DifferentialEquations: CallbackSet, ContinuousCallback, DiscreteCallback,
                               terminate!, remake, ODEProblem, solve, Vern9
+import Clustering: kmeans, nclusters, assignments, counts
 import Random: shuffle!
 import NPZ: npzwrite, npzread
 using EllipsisNotation
 import ForwardDiff: jacobian
-import Plots
-import Meshes
+# import Plots
+# import Meshes
 
 include("./objects.jl")
 include("./integrator.jl")

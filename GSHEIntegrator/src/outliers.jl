@@ -1,5 +1,3 @@
-import Clustering: kmeans, nclusters, assignments, counts
-
 
 """
     predict_llsq(x::Real, pars::Vector{<:Real})
