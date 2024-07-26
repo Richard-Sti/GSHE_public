@@ -12,19 +12,60 @@ The package is split amongst three parts:
 The Julia and Python code can be installed following the instructions below, while the Mathematica code are just self-contained notebooks.
 
 
+First, clone the repository:
+```bash
+git clone git@github.com:Richard-Sti/GSHE.git
+```
 
+To install `GSHEIntegrator.jl`:
+```bash
+cd GSHE/GSHEIntegrator
+julia
+```
+Then, in the Julia REPL, enter the package manager mode by pressing ] and type:
+```bash
+dev .
+precompile
+```
+
+This will install the package in development along with its dependencies. To test the installation, you may run in the Julia REPL:
+```julia
+using GSHEIntegrator
+```
+
+To instead install `GSHEWaveform` and create a new virtual environment:
+```bash
+# Move to the GSHE
+cd GSHE
+
+# Create a new virtual environment
+python -m venv venv_gshe
+source venv_gshe/bin/activate
+python -m pip install --upgrade pip && python -m pip install --upgrade setuptools
+
+# Finally install the cloned package
+python -m pip install -e .
+```
 
 
 ## License and Citation
 If you use or find useful any of the code in this repository, please cite [2, 3].
 
 ```
-Copyright (C) 2024 Richard Stiskalek
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later version.
+Copyright (C) 2024 Richard Stiskalek, Marius Oancea, Miguel Zumalacarregui
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 3 of the License, or (at your
+option) any later version.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 ```
 
 
