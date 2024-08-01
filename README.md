@@ -48,6 +48,29 @@ python -m pip install -e .
 ```
 
 
+
+## Examples
+...
+
+## References
+[1] Andersson, Lars, Jérémie Joudioux, Marius A. Oancea, and Ayush Raj. "Propagation of polarized gravitational waves." Physical Review D 103, no. 4 (2021): 044053.
+
+[2] Marius A. Oancea, Richard Stiskalek, and Miguel Zumalacárregui. "Frequency- and polarization-dependent lensing of gravitational waves in strong gravitational fields." Physical Review D 109 (2024): 124045
+
+[3] Marius A. Oancea, Richard Stiskalek, and Miguel Zumalacárregui. "Probing general relativistic spin-orbit coupling with gravitational waves from hierarchical triple systems." arXiv:2307.01903
+
+## Things to be resolved later
+- GW emitter anisotropy
+- Look into precompilation.
+- Why does the code sometimes struggle to find solutions? Too many iterations near the horizon?
+- Asymptotic behaviour far from source need better understood?
+
+
+## Contributors
+- Richard Stiskalek (University of Oxford)
+- Marius Oancea (University of Vienna)
+- Miguel Zumalacarregui (Max Planck Institute for Gravitational Physics)
+
 ## License and Citation
 If you use or find useful any of the code in this repository, please cite [2, 3].
 
@@ -67,29 +90,3 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 ```
-
-
-## Contributors
-- Richard Stiskalek (University of Oxford)
-- Marius Oancea (University of Vienna)
-- Miguel Zumalacarregui (Max Planck Institute for Gravitational Physics)
-
-
-## Examples
-...
-
-## References
-[1] Andersson, Lars, Jérémie Joudioux, Marius A. Oancea, and Ayush Raj. "Propagation of polarized gravitational waves." Physical Review D 103, no. 4 (2021): 044053.
-
-[2] ...
-
-[3] ...
-
-
-## Things to be resolved later
-- GW emitter anisotropy
-- JuliaSymbolics.jl to generate high-performance code from symbolic expressions? But the current code (ODEs themselves) is already very fast. Had a brief look at the package but didn't make much sense out of it.
-- Look into precompilation.
-- Why does the code sometimes struggle to find solutions? Too many iterations near the horizon?
-- Asymptotic behaviour far from source need better understood?
-

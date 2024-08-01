@@ -36,8 +36,8 @@ function setup_geometry(
     coords_choices = [:spherical, :shadow, :shadowpos]
     @assert direction_coords in coords_choices "`direction_coords` must be one of `$coords_choices`"
 
-    source = SphericalCoords{dtype}(r=rsource, θ=θsource, ϕ=ϕsource)
-    observer = SphericalCoords{dtype}(r=robs, θ=θobs, ϕ=ϕobs)
+    source = SphericalCoords{dtype}(r=rsource, θ=θsource, ϕ=ϕsource, sθ=sin(θsource))
+    observer = SphericalCoords{dtype}(r=robs, θ=θobs, ϕ=ϕobs, sθ=sin(θobs))
     return Geometry{dtype}(dtype=dtype, source=source, observer=observer, s=s, a=a,
                            direction_coords=direction_coords, getmagnification=getmagnification,
                            ode_options=ode_options, opt_options=opt_options,

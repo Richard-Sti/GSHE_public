@@ -3,6 +3,7 @@
     r::T
     θ::T
     ϕ::T
+    sθ::T = NaN
 end
 
 @with_kw mutable struct ODESolverOptions

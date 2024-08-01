@@ -1,21 +1,11 @@
 import MPI
 import NPZ: npzwrite, npzread
 using TaskmasterMPI
-
-# Activate GSHE code
-import_start = time()
-import Pkg: activate
-activate("/mnt/zfsusers/rstiskalek/GSHE/GSHEIntegrator/.")
-import GSHEIntegrator
-import_end = time()
+using GSHEIntegrator
 
 MPI.Init()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
-
-if rank == 0
-    println("Initialised GSHEIntegrator in $(import_end - import_start) s.")
-end
 
 config = Dict(
     :runID => "02",

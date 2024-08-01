@@ -83,11 +83,11 @@ end
 
 Boosting source and observer function.
 """
-function tetrad_boosting(r::Real, geometry::Geometry)
-    Robs, θobs = geometry.observer.r, geometry.observer.θ
-    Rsrc, θsrc = geometry.source.r, geometry.source.θ
+@fastmath function tetrad_boosting(r::Real, geometry::Geometry)
+    Robs, θobs, sθobs = geometry.observer.r, geometry.observer.θ, geometry.observer.sθ
+    Rsrc, θsrc, sθsrc= geometry.source.r, geometry.source.θ, geometry.source.sθ
     a = geometry.a
-    return -a*exp(-(-Rsrc + r)^2)*sin(θsrc)/sqrt(Rsrc^2 - 2*Rsrc + a^2) - a*exp(-(-Robs + r)^2)*sin(θobs)/sqrt(Robs^2 - 2*Robs + a^2)
+    return -a*exp(-(-Rsrc + r)^2)*sθsrc/sqrt(Rsrc^2 - 2*Rsrc + a^2) - a*exp(-(-Robs + r)^2)*sθobs/sqrt(Robs^2 - 2*Robs + a^2)
 
 end
 
@@ -97,7 +97,7 @@ end
 
 Derivative with respect to radius of the boosting source and observer function.
 """
-function derivative_tetrad_boosting(r::Real, geometry::Geometry)
+@fastmath function derivative_tetrad_boosting(r::Real, geometry::Geometry)
     Robs, θobs = geometry.observer.r, geometry.observer.θ
     Rsrc, θsrc = geometry.source.r, geometry.source.θ
     a = geometry.a
