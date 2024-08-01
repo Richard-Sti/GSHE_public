@@ -50,7 +50,8 @@ python -m pip install -e .
 
 
 ## Examples
-...
+For an example Julia notebook on how to compute trajectories from an observer
+or find connecting trajectories between the source and observer, see [`GSHE/scripts/example_trajectories.ipynb`](https://github.com/Richard-Sti/GSHE/blob/master/scripts/examples/example_trajectories.ipynb).
 
 
 ## Things to be resolved later
@@ -82,7 +83,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 ## Contributors
 - Richard Stiskalek (University of Oxford)
 - Marius Oancea (University of Vienna)
-- Miguel Zumalacarregui (Max Planck Institute for Gravitational Physics)
+- Miguel Zumalacárregui (Max Planck Institute for Gravitational Physics)
 
 ## References
 [1] Andersson, Lars, Jérémie Joudioux, Marius A. Oancea, and Ayush Raj. "Propagation of polarized gravitational waves." Physical Review D 103, no. 4 (2021): 044053.
